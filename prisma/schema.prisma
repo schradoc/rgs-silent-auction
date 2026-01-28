@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Bidder {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  tableNumber  String
+  emailVerified Boolean @default(false)
+  verificationCode String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bids         Bid[]
+  winners      Winner[]
+}
+
+model Prize {
+  id                    String   @id @default(cuid())
+  slug                  String   @unique
+  title                 String
+  shortDescription      String
+  fullDescription       String   @db.Text
+  donorName             String
+  minimumBid            Int      // In HKD
+  currentHighestBid     Int      @default(0)
+  category              Category
+  multiWinnerEligible   Boolean  @default(false)
+  multiWinnerSlots      Int?     // null means unlimited (for pledges)
+  validUntil            DateTime
+  imageUrl              String
+  terms                 String?  @db.Text
+  displayOrder          Int      @default(0)
+  isActive              Boolean  @default(true)
+
+  // For grouped prizes like maps
+  parentPrizeId         String?
+  parentPrize           Prize?   @relation("PrizeVariants", fields: [parentPrizeId], references: [id])
+  variants              Prize[]  @relation("PrizeVariants")
+
+  // For tiered prizes like pledges
+  tierLevel             Int?     // 1, 2, 3, 4 for pledge tiers
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  bids                  Bid[]
+  winners               Winner[]
+}
+
+enum Category {
+  HISTORIC_ITEMS
+  EXPERIENCES
+  TRAVEL
+  DINING
+  PLEDGES
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  amount    Int      // In HKD
+  status    BidStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+
+  bidderId  String
+  bidder    Bidder   @relation(fields: [bidderId], references: [id])
+
+  prizeId   String
+  prize     Prize    @relation(fields: [prizeId], references: [id])
+
+  winner    Winner?
+
+  @@index([prizeId, amount])
+  @@index([bidderId])
+}
+
+enum BidStatus {
+  ACTIVE
+  OUTBID
+  WINNING
+  WON
+  LOST
+}
+
+model Winner {
+  id         String   @id @default(cuid())
+  acceptedAt DateTime @default(now())
+
+  bidId      String   @unique
+  bid        Bid      @relation(fields: [bidId], references: [id])
+
+  prizeId    String
+  prize      Prize    @relation(fields: [prizeId], references: [id])
+
+  bidderId   String
+  bidder     Bidder   @relation(fields: [bidderId], references: [id])
+
+  @@index([prizeId])
+}
+
+model AuctionSettings {
+  id              String   @id @default("settings")
+  auctionEndTime  DateTime?
+  isAuctionOpen   Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
