@@ -33,4 +33,5 @@ export const BID_STATUS_LABELS = {
 export const COOKIE_NAMES = {
   bidderId: 'rgs_bidder_id',
   adminToken: 'rgs_admin_token',
+  adminSession: 'rgs_admin_session',
 }

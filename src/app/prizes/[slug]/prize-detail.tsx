@@ -10,6 +10,8 @@ import { CATEGORY_LABELS } from '@/lib/constants'
 import { BidSheet } from './bid-sheet'
 import type { Prize, Bid, Bidder } from '@prisma/client'
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop'
+
 type PrizeWithBids = Prize & {
   bids: (Bid & { bidder: { tableNumber: string } })[]
   variants: Prize[]
@@ -22,6 +24,7 @@ interface PrizeDetailProps {
 export function PrizeDetail({ prize }: PrizeDetailProps) {
   const [showBidSheet, setShowBidSheet] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
+  const [imgSrc, setImgSrc] = useState(prize.imageUrl || FALLBACK_IMAGE)
 
   const hasActiveBid = prize.currentHighestBid > 0
   const minimumNextBid = getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
@@ -44,13 +47,15 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
 
       <div className="max-w-3xl mx-auto">
         {/* Hero Image */}
-        <div className="relative aspect-[16/10]">
+        <div className="relative aspect-[16/10] bg-gray-100">
           <Image
-            src={prize.imageUrl}
+            src={imgSrc}
             alt={prize.title}
             fill
             className="object-cover"
             priority
+            unoptimized
+            onError={() => setImgSrc(FALLBACK_IMAGE)}
           />
           <div className="absolute top-4 left-4">
             <Badge variant="navy">{CATEGORY_LABELS[prize.category]}</Badge>

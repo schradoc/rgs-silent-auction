@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Card } from '@/components/ui'
@@ -8,6 +9,8 @@ import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import type { Prize } from '@prisma/client'
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop'
+
 interface PrizeCardProps {
   prize: Prize
   isNew?: boolean
@@ -15,17 +18,20 @@ interface PrizeCardProps {
 
 export function PrizeCard({ prize, isNew }: PrizeCardProps) {
   const hasActiveBid = prize.currentHighestBid > 0
+  const [imgSrc, setImgSrc] = useState(prize.imageUrl || FALLBACK_IMAGE)
 
   return (
     <Link href={`/prizes/${prize.slug}`}>
       <Card hoverable className={isNew ? 'animate-pulse-gold' : ''}>
-        <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl">
+        <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl bg-gray-100">
           <Image
-            src={prize.imageUrl}
+            src={imgSrc}
             alt={prize.title}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            onError={() => setImgSrc(FALLBACK_IMAGE)}
+            unoptimized
           />
           <div className="absolute top-2 left-2">
             <Badge variant="navy" size="sm">
