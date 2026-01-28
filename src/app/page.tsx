@@ -3,33 +3,84 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui'
-import { MapPin, Calendar, ArrowRight, Sparkles, Users, TrendingUp } from 'lucide-react'
+import { MapPin, Calendar, ArrowRight, Sparkles, Users, TrendingUp, Clock, Bell, Heart } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 
-// Simulated live stats for social proof
-const useLiveStats = () => {
-  const [stats, setStats] = useState({ bidders: 47, bids: 156, value: 892000 })
+interface AuctionStatus {
+  isAuctionOpen: boolean
+  auctionEndTime: string | null
+  auctionStartTime: string | null
+  stats: {
+    totalPrizes: number
+    totalBidders: number
+    totalBids: number
+    totalRaised: number
+  }
+}
+
+interface TimeRemaining {
+  days: number
+  hours: number
+  minutes: number
+  seconds: number
+}
+
+function useCountdown(targetDate: string | null): TimeRemaining | null {
+  const [timeRemaining, setTimeRemaining] = useState<TimeRemaining | null>(null)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setStats(prev => ({
-        bidders: prev.bidders + (Math.random() > 0.7 ? 1 : 0),
-        bids: prev.bids + (Math.random() > 0.5 ? 1 : 0),
-        value: prev.value + (Math.random() > 0.6 ? Math.floor(Math.random() * 5000) : 0),
-      }))
-    }, 8000)
-    return () => clearInterval(interval)
-  }, [])
+    if (!targetDate) return
 
-  return stats
+    const calculateTime = () => {
+      const target = new Date(targetDate).getTime()
+      const now = Date.now()
+      const diff = target - now
+
+      if (diff <= 0) {
+        setTimeRemaining(null)
+        return
+      }
+
+      setTimeRemaining({
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((diff % (1000 * 60)) / 1000),
+      })
+    }
+
+    calculateTime()
+    const interval = setInterval(calculateTime, 1000)
+    return () => clearInterval(interval)
+  }, [targetDate])
+
+  return timeRemaining
 }
 
 export default function HomePage() {
-  const stats = useLiveStats()
   const [mounted, setMounted] = useState(false)
+  const [status, setStatus] = useState<AuctionStatus | null>(null)
+  const countdown = useCountdown(status?.auctionStartTime || null)
 
   useEffect(() => {
     setMounted(true)
+    fetchStatus()
   }, [])
+
+  const fetchStatus = async () => {
+    try {
+      const res = await fetch('/api/auction-status')
+      if (res.ok) {
+        const data = await res.json()
+        setStatus(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch status:', err)
+    }
+  }
+
+  const isPreEvent = status && !status.isAuctionOpen && countdown !== null
+  const stats = status?.stats || { totalPrizes: 26, totalBidders: 0, totalBids: 0, totalRaised: 0 }
 
   return (
     <main className="min-h-screen bg-[#0f1d2d] relative overflow-hidden">
@@ -54,13 +105,22 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Live indicator */}
+          {/* Status indicator */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            <span className="text-white/70 text-xs font-medium">Live Now</span>
+            {isPreEvent ? (
+              <>
+                <Clock className="w-3.5 h-3.5 text-[#b8941f]" />
+                <span className="text-white/70 text-xs font-medium">Coming Soon</span>
+              </>
+            ) : (
+              <>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span className="text-white/70 text-xs font-medium">Live Now</span>
+              </>
+            )}
           </div>
         </header>
 
@@ -85,35 +145,70 @@ export default function HomePage() {
             <p
               className={`text-xl md:text-2xl text-white/40 font-light mb-10 transition-all duration-700 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             >
-              Extraordinary experiences await
+              {isPreEvent ? 'Preview prizes now, bid when the gala begins' : 'Extraordinary experiences await'}
             </p>
 
-            {/* Live stats - Social proof */}
-            <div
-              className={`grid grid-cols-3 gap-4 mb-10 transition-all duration-700 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-            >
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Users className="w-4 h-4 text-[#b8941f]" />
+            {/* Pre-event Countdown */}
+            {isPreEvent && countdown && (
+              <div
+                className={`mb-10 transition-all duration-700 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              >
+                <p className="text-white/50 text-sm mb-4">Auction opens in</p>
+                <div className="flex justify-center gap-4">
+                  <CountdownBlock value={countdown.days} label="Days" />
+                  <CountdownBlock value={countdown.hours} label="Hours" />
+                  <CountdownBlock value={countdown.minutes} label="Min" />
+                  <CountdownBlock value={countdown.seconds} label="Sec" />
                 </div>
-                <p className="text-2xl md:text-3xl font-light text-white">{stats.bidders}</p>
-                <p className="text-xs text-white/40 uppercase tracking-wider">Bidders</p>
               </div>
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <TrendingUp className="w-4 h-4 text-[#b8941f]" />
+            )}
+
+            {/* Live stats - shown when auction is open */}
+            {!isPreEvent && (
+              <div
+                className={`grid grid-cols-3 gap-4 mb-10 transition-all duration-700 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              >
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <Users className="w-4 h-4 text-[#b8941f]" />
+                  </div>
+                  <p className="text-2xl md:text-3xl font-light text-white">{stats.totalBidders || '—'}</p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider">Bidders</p>
                 </div>
-                <p className="text-2xl md:text-3xl font-light text-white">{stats.bids}</p>
-                <p className="text-xs text-white/40 uppercase tracking-wider">Bids Placed</p>
-              </div>
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-[#b8941f]" />
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <TrendingUp className="w-4 h-4 text-[#b8941f]" />
+                  </div>
+                  <p className="text-2xl md:text-3xl font-light text-white">{stats.totalBids || '—'}</p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider">Bids Placed</p>
                 </div>
-                <p className="text-2xl md:text-3xl font-light text-white">HK${Math.floor(stats.value / 1000)}k</p>
-                <p className="text-xs text-white/40 uppercase tracking-wider">Total Value</p>
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <Sparkles className="w-4 h-4 text-[#b8941f]" />
+                  </div>
+                  <p className="text-2xl md:text-3xl font-light text-white">
+                    {stats.totalRaised > 0 ? `HK$${Math.floor(stats.totalRaised / 1000)}k` : '—'}
+                  </p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider">Total Value</p>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Pre-event stats */}
+            {isPreEvent && (
+              <div
+                className={`grid grid-cols-2 gap-4 mb-10 max-w-sm mx-auto transition-all duration-700 delay-400 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              >
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <p className="text-3xl font-light text-white">{stats.totalPrizes}</p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider">Prizes</p>
+                </div>
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <p className="text-3xl font-light text-white">{stats.totalBidders}</p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider">Pre-registered</p>
+                </div>
+              </div>
+            )}
 
             {/* Event details */}
             <div
@@ -134,25 +229,52 @@ export default function HomePage() {
             <div
               className={`flex flex-col sm:flex-row gap-4 justify-center transition-all duration-700 delay-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             >
-              <Link href="/prizes">
-                <Button
-                  variant="gold"
-                  size="lg"
-                  className="w-full sm:w-auto min-w-[220px] text-base py-4 shadow-lg shadow-[#b8941f]/25 hover:shadow-xl hover:shadow-[#b8941f]/30 transition-all group"
-                >
-                  <span>Start Bidding</span>
-                  <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto min-w-[220px] text-base py-4 border-white/20 text-white hover:bg-white/10 hover:border-white/40 transition-all"
-                >
-                  Register Now
-                </Button>
-              </Link>
+              {isPreEvent ? (
+                <>
+                  <Link href="/prizes">
+                    <Button
+                      variant="gold"
+                      size="lg"
+                      className="w-full sm:w-auto min-w-[220px] text-base py-4 shadow-lg shadow-[#b8941f]/25 hover:shadow-xl hover:shadow-[#b8941f]/30 transition-all group"
+                    >
+                      <Heart className="w-5 h-5 mr-2" />
+                      <span>Preview Prizes</span>
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="w-full sm:w-auto min-w-[220px] text-base py-4 border-white/20 text-white hover:bg-white/10 hover:border-white/40 transition-all"
+                    >
+                      <Bell className="w-5 h-5 mr-2" />
+                      Get Notified
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/prizes">
+                    <Button
+                      variant="gold"
+                      size="lg"
+                      className="w-full sm:w-auto min-w-[220px] text-base py-4 shadow-lg shadow-[#b8941f]/25 hover:shadow-xl hover:shadow-[#b8941f]/30 transition-all group"
+                    >
+                      <span>Start Bidding</span>
+                      <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="w-full sm:w-auto min-w-[220px] text-base py-4 border-white/20 text-white hover:bg-white/10 hover:border-white/40 transition-all"
+                    >
+                      Register Now
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Trust signals */}
@@ -171,5 +293,16 @@ export default function HomePage() {
         </footer>
       </div>
     </main>
+  )
+}
+
+function CountdownBlock({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[70px]">
+      <p className="text-3xl md:text-4xl font-light text-white font-mono">
+        {String(value).padStart(2, '0')}
+      </p>
+      <p className="text-xs text-white/40 uppercase tracking-wider">{label}</p>
+    </div>
   )
 }

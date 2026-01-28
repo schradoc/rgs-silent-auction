@@ -39,10 +39,43 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
   const [imgSrc, setImgSrc] = useState(prize.imageUrl || FALLBACK_IMAGE)
   const [mounted, setMounted] = useState(false)
   const [viewerCount] = useState(() => Math.floor(Math.random() * 8) + 3)
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [favoriteLoading, setFavoriteLoading] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    // Check if this prize is favorited
+    fetch('/api/favorites')
+      .then(res => res.json())
+      .then(data => {
+        const favs = data.favorites || []
+        setIsFavorite(favs.some((f: { prizeId: string }) => f.prizeId === prize.id))
+      })
+      .catch(() => {})
+  }, [prize.id])
+
+  const toggleFavorite = async () => {
+    setFavoriteLoading(true)
+    try {
+      if (isFavorite) {
+        await fetch(`/api/favorites?prizeId=${prize.id}`, { method: 'DELETE' })
+        setIsFavorite(false)
+      } else {
+        const res = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prizeId: prize.id }),
+        })
+        if (res.ok) {
+          setIsFavorite(true)
+        }
+      }
+    } catch (err) {
+      console.error('Favorite toggle error:', err)
+    } finally {
+      setFavoriteLoading(false)
+    }
+  }
 
   const hasActiveBid = prize.currentHighestBid > 0
   const minimumNextBid = getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
@@ -79,6 +112,15 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
               <span className="text-white/70">{viewerCount} viewing</span>
             </div>
 
+            <button
+              onClick={toggleFavorite}
+              disabled={favoriteLoading}
+              className={`p-2 rounded-full transition-colors ${
+                isFavorite ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'
+              }`}
+            >
+              <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+            </button>
             <button className="p-2 rounded-full hover:bg-white/10 transition-colors">
               <Share2 className="w-5 h-5" />
             </button>
