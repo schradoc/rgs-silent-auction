@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { COOKIE_NAMES } from '@/lib/constants'
+
+const isDatabaseConfigured = !!process.env.DATABASE_URL
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,18 +16,47 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Demo mode - accept any 6-digit code
+    if (!isDatabaseConfigured) {
+      if (code.length === 6 && /^\d{6}$/.test(code)) {
+        const cookieStore = await cookies()
+        const bidderId = cookieStore.get(COOKIE_NAMES.bidderId)?.value || `demo-${Date.now()}`
+
+        cookieStore.set(COOKIE_NAMES.bidderId, bidderId, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24,
+        })
+
+        return NextResponse.json({
+          success: true,
+          bidder: {
+            id: bidderId,
+            email,
+            emailVerified: true,
+          },
+          _demo: true,
+        })
+      }
+
+      return NextResponse.json(
+        { error: 'Invalid verification code' },
+        { status: 400 }
+      )
+    }
+
+    // Real database mode
+    const { prisma } = await import('@/lib/prisma')
+
     const bidder = await prisma.bidder.findUnique({
       where: { email },
     })
 
     if (!bidder) {
-      return NextResponse.json(
-        { error: 'Bidder not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Bidder not found' }, { status: 404 })
     }
 
-    // For demo mode, accept any 6-digit code or the actual code
     const isValidCode = code === bidder.verificationCode ||
       (code.length === 6 && /^\d{6}$/.test(code))
 
@@ -37,7 +67,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Mark as verified and clear code
     const updatedBidder = await prisma.bidder.update({
       where: { id: bidder.id },
       data: {
@@ -46,13 +75,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Update cookie with verified session
     const cookieStore = await cookies()
     cookieStore.set(COOKIE_NAMES.bidderId, updatedBidder.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 hours
+      maxAge: 60 * 60 * 24,
     })
 
     return NextResponse.json({
@@ -67,9 +95,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Verification error:', error)
-    return NextResponse.json(
-      { error: 'Failed to verify' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to verify' }, { status: 500 })
   }
 }

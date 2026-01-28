@@ -1,23 +1,9 @@
-import { prisma } from '@/lib/prisma'
+import { getPrizes } from '@/lib/db'
 import { PrizeGrid } from '@/components/prizes/prize-grid'
 import Link from 'next/link'
 import { User } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
-
-async function getPrizes() {
-  const prizes = await prisma.prize.findMany({
-    where: {
-      isActive: true,
-      parentPrizeId: null, // Don't show variant prizes in main grid
-    },
-    orderBy: [
-      { displayOrder: 'asc' },
-      { minimumBid: 'desc' },
-    ],
-  })
-  return prizes
-}
 
 export default async function PrizesPage() {
   const prizes = await getPrizes()
@@ -28,10 +14,12 @@ export default async function PrizesPage() {
       <header className="bg-[#1e3a5f] text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-bold">RGS-HK Auction</h1>
-              <p className="text-white/70 text-sm">30th Anniversary Gala</p>
-            </div>
+            <Link href="/">
+              <div>
+                <h1 className="text-lg font-bold">RGS-HK Auction</h1>
+                <p className="text-white/70 text-sm">30th Anniversary Gala</p>
+              </div>
+            </Link>
             <Link
               href="/my-bids"
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
@@ -59,8 +47,17 @@ export default async function PrizesPage() {
           </div>
         </div>
 
+        {/* Demo Mode Banner */}
+        {!process.env.DATABASE_URL && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
+            <p className="text-blue-800 text-sm">
+              <strong>Demo Mode:</strong> Showing sample prizes. Connect a database to see full auction.
+            </p>
+          </div>
+        )}
+
         {/* Prize Grid */}
-        <PrizeGrid prizes={prizes} />
+        <PrizeGrid prizes={prizes as any} />
       </div>
     </main>
   )

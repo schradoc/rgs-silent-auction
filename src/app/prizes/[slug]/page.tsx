@@ -1,42 +1,20 @@
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { getPrizeBySlug } from '@/lib/db'
 import { PrizeDetail } from './prize-detail'
 
 interface Props {
   params: Promise<{ slug: string }>
 }
 
-async function getPrize(slug: string) {
-  const prize = await prisma.prize.findUnique({
-    where: { slug },
-    include: {
-      bids: {
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        include: {
-          bidder: {
-            select: {
-              tableNumber: true,
-            },
-          },
-        },
-      },
-      variants: true,
-    },
-  })
-  return prize
-}
+export const dynamic = 'force-dynamic'
 
 export default async function PrizePage({ params }: Props) {
   const { slug } = await params
-  const prize = await getPrize(slug)
+  const prize = await getPrizeBySlug(slug)
 
   if (!prize) {
     notFound()
   }
 
-  return <PrizeDetail prize={prize} />
+  return <PrizeDetail prize={prize as any} />
 }
-
-// Dynamic route - no static params needed for SSR
-export const dynamic = 'force-dynamic'

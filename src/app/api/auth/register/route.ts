@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { generateVerificationCode } from '@/lib/utils'
 import { cookies } from 'next/headers'
 import { COOKIE_NAMES } from '@/lib/constants'
+
+const isDatabaseConfigured = !!process.env.DATABASE_URL
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,20 +17,51 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if bidder already exists
+    // Demo mode - create a mock bidder
+    if (!isDatabaseConfigured) {
+      const mockBidderId = `demo-${Date.now()}`
+      const verificationCode = generateVerificationCode()
+
+      const cookieStore = await cookies()
+      cookieStore.set(COOKIE_NAMES.bidderId, mockBidderId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24,
+      })
+
+      console.log(`[DEMO] Verification code for ${email}: ${verificationCode}`)
+
+      return NextResponse.json({
+        success: true,
+        bidder: {
+          id: mockBidderId,
+          name,
+          email,
+          tableNumber,
+          emailVerified: false,
+        },
+        requiresVerification: true,
+        _demoCode: verificationCode,
+        _demo: true,
+      })
+    }
+
+    // Real database mode
+    const { prisma } = await import('@/lib/prisma')
+
     const existingBidder = await prisma.bidder.findUnique({
       where: { email },
     })
 
     if (existingBidder) {
-      // If already verified, just log them in
       if (existingBidder.emailVerified) {
         const cookieStore = await cookies()
         cookieStore.set(COOKIE_NAMES.bidderId, existingBidder.id, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          maxAge: 60 * 60 * 24, // 24 hours
+          maxAge: 60 * 60 * 24,
         })
 
         return NextResponse.json({
@@ -39,18 +71,12 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // If not verified, send new code
       const verificationCode = generateVerificationCode()
       await prisma.bidder.update({
         where: { id: existingBidder.id },
-        data: {
-          verificationCode,
-          name,
-          tableNumber,
-        },
+        data: { verificationCode, name, tableNumber },
       })
 
-      // In production, send email here
       console.log(`[MOCK EMAIL] Verification code for ${email}: ${verificationCode}`)
 
       return NextResponse.json({
@@ -60,7 +86,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create new bidder
     const verificationCode = generateVerificationCode()
     const bidder = await prisma.bidder.create({
       data: {
@@ -72,16 +97,14 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Set cookie (unverified for now)
     const cookieStore = await cookies()
     cookieStore.set(COOKIE_NAMES.bidderId, bidder.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 hours
+      maxAge: 60 * 60 * 24,
     })
 
-    // In production, send email here
     console.log(`[MOCK EMAIL] Verification code for ${email}: ${verificationCode}`)
 
     return NextResponse.json({
@@ -94,14 +117,10 @@ export async function POST(request: NextRequest) {
         emailVerified: bidder.emailVerified,
       },
       requiresVerification: true,
-      // For demo purposes, include the code
       _demoCode: verificationCode,
     })
   } catch (error) {
     console.error('Registration error:', error)
-    return NextResponse.json(
-      { error: 'Failed to register' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to register' }, { status: 500 })
   }
 }

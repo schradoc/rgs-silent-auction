@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { COOKIE_NAMES } from '@/lib/constants'
+
+const isDatabaseConfigured = !!process.env.DATABASE_URL
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,6 +12,26 @@ export async function GET(request: NextRequest) {
     if (!bidderId) {
       return NextResponse.json({ bidder: null })
     }
+
+    // Demo mode - return a mock bidder
+    if (!isDatabaseConfigured) {
+      if (bidderId.startsWith('demo-')) {
+        return NextResponse.json({
+          bidder: {
+            id: bidderId,
+            name: 'Demo User',
+            email: 'demo@example.com',
+            tableNumber: '1',
+            emailVerified: true,
+          },
+          _demo: true,
+        })
+      }
+      return NextResponse.json({ bidder: null })
+    }
+
+    // Real database mode
+    const { prisma } = await import('@/lib/prisma')
 
     const bidder = await prisma.bidder.findUnique({
       where: { id: bidderId },
@@ -24,7 +45,6 @@ export async function GET(request: NextRequest) {
     })
 
     if (!bidder) {
-      // Clear invalid cookie
       cookieStore.delete(COOKIE_NAMES.bidderId)
       return NextResponse.json({ bidder: null })
     }
