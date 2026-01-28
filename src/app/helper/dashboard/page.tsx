@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   ChevronRight,
   Plus,
+  Camera,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -340,13 +341,20 @@ export default function HelperDashboardPage() {
 
       {/* Fixed Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0f1d2d] via-[#0f1d2d] to-transparent pt-8 pb-6 px-4">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-lg mx-auto flex gap-3">
+          <Link
+            href="/helper/scan-bid"
+            className="flex-1 py-4 rounded-xl font-semibold text-lg border-2 border-[#b8941f] text-[#b8941f] text-center hover:bg-[#b8941f]/10 transition-colors flex items-center justify-center gap-2"
+          >
+            <Camera className="w-5 h-5" />
+            Scan Paper Bid
+          </Link>
           <Link
             href="/helper/submit-bid"
-            className="block w-full py-4 rounded-xl font-semibold text-lg bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white text-center shadow-lg shadow-[#b8941f]/30 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
+            className="flex-1 py-4 rounded-xl font-semibold text-lg bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white text-center shadow-lg shadow-[#b8941f]/30 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            Submit New Bid
+            Manual Entry
           </Link>
         </div>
       </div>

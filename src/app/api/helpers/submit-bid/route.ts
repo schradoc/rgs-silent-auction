@@ -130,6 +130,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Send outbid notifications (async, don't await)
+    if (prize.currentHighestBid > 0) {
+      import('@/lib/notifications').then(({ notifyOutbidBidders }) => {
+        notifyOutbidBidders(prizeId, amount).catch(console.error)
+      })
+    }
+
     return NextResponse.json({
       success: true,
       bid: {

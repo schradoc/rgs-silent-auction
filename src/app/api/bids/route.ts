@@ -105,8 +105,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const hadPreviousBid = prize.currentHighestBid > 0
+
     const result = await prisma.$transaction(async (tx) => {
-      if (prize.currentHighestBid > 0) {
+      if (hadPreviousBid) {
         await tx.bid.updateMany({
           where: { prizeId, status: 'WINNING' },
           data: { status: 'OUTBID' },
@@ -129,6 +131,13 @@ export async function POST(request: NextRequest) {
 
       return bid
     })
+
+    // Send outbid notifications (async, don't await)
+    if (hadPreviousBid) {
+      import('@/lib/notifications').then(({ notifyOutbidBidders }) => {
+        notifyOutbidBidders(prizeId, amount).catch(console.error)
+      })
+    }
 
     return NextResponse.json({ success: true, bid: result })
   } catch (error) {
