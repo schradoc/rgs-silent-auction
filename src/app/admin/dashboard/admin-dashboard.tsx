@@ -12,7 +12,11 @@ import {
   RefreshCw,
   DollarSign,
   Clock,
-  Trophy
+  Trophy,
+  UserCheck,
+  Plus,
+  Edit2,
+  Trash2
 } from 'lucide-react'
 import { Button, Card, CardContent, Badge } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
@@ -53,6 +57,16 @@ interface Settings {
   auctionEndTime: Date | string | null
 }
 
+interface Helper {
+  id: string
+  name: string
+  pin: string
+  avatarColor: string
+  isActive: boolean
+  createdAt: Date | string
+  _count: { bidsPrompted: number; paperBids: number }
+}
+
 interface Stats {
   totalPrizes: number
   totalBidders: number
@@ -72,8 +86,12 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ initialData }: AdminDashboardProps) {
   const [data, setData] = useState(initialData)
-  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'bidders' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'bidders' | 'helpers' | 'settings'>('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [helpers, setHelpers] = useState<Helper[]>([])
+  const [showAddHelper, setShowAddHelper] = useState(false)
+  const [newHelperName, setNewHelperName] = useState('')
+  const [newHelperPin, setNewHelperPin] = useState('')
 
   // Poll for updates every 5 seconds
   useEffect(() => {
@@ -127,6 +145,58 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   }
 
+  const fetchHelpers = async () => {
+    try {
+      const res = await fetch('/api/admin/helpers')
+      if (res.ok) {
+        const data = await res.json()
+        setHelpers(data.helpers || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch helpers:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'helpers') {
+      fetchHelpers()
+    }
+  }, [activeTab])
+
+  const handleAddHelper = async () => {
+    if (!newHelperName || !newHelperPin) return
+    try {
+      const res = await fetch('/api/admin/helpers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newHelperName, pin: newHelperPin }),
+      })
+      if (res.ok) {
+        setNewHelperName('')
+        setNewHelperPin('')
+        setShowAddHelper(false)
+        fetchHelpers()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to add helper')
+      }
+    } catch (error) {
+      console.error('Failed to add helper:', error)
+    }
+  }
+
+  const handleDeleteHelper = async (id: string) => {
+    if (!confirm('Are you sure you want to deactivate this helper?')) return
+    try {
+      const res = await fetch(`/api/admin/helpers?id=${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        fetchHelpers()
+      }
+    } catch (error) {
+      console.error('Failed to delete helper:', error)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -166,6 +236,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
               { id: 'overview', label: 'Overview', icon: LayoutDashboard },
               { id: 'prizes', label: 'Prizes', icon: Trophy },
               { id: 'bidders', label: 'Bidders', icon: Users },
+              { id: 'helpers', label: 'Helpers', icon: UserCheck },
               { id: 'settings', label: 'Settings', icon: Settings },
             ].map(({ id, label, icon: Icon }) => (
               <button
@@ -363,6 +434,117 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                   </div>
                 ))}
               </div>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'helpers' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Helpers ({helpers.filter(h => h.isActive).length} active)</h2>
+              <Button variant="gold" size="sm" onClick={() => setShowAddHelper(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Helper
+              </Button>
+            </div>
+
+            {showAddHelper && (
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-medium mb-4">Add New Helper</h3>
+                  <div className="flex gap-4">
+                    <input
+                      type="text"
+                      placeholder="Helper Name"
+                      value={newHelperName}
+                      onChange={(e) => setNewHelperName(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="4-digit PIN"
+                      value={newHelperPin}
+                      onChange={(e) => setNewHelperPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      maxLength={4}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] text-center font-mono"
+                    />
+                    <Button variant="gold" onClick={handleAddHelper}>Add</Button>
+                    <Button variant="outline" onClick={() => { setShowAddHelper(false); setNewHelperName(''); setNewHelperPin(''); }}>Cancel</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <div className="divide-y">
+                {helpers.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    No helpers yet. Add your first helper above.
+                  </div>
+                ) : (
+                  helpers.map((helper) => (
+                    <div key={helper.id} className={`p-4 flex items-center justify-between ${!helper.isActive ? 'opacity-50' : ''}`}>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                          style={{ backgroundColor: helper.avatarColor }}
+                        >
+                          {helper.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900">{helper.name}</p>
+                            {!helper.isActive && (
+                              <Badge variant="navy" size="sm">Inactive</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500">PIN: {helper.pin}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-medium">{helper._count.bidsPrompted} bids</p>
+                          <p className="text-sm text-gray-500">{helper._count.paperBids} paper bids</p>
+                        </div>
+                        {helper.isActive && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteHelper(helper.id)}
+                            className="text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-medium text-gray-900 mb-2">Helper Portal</h3>
+                <p className="text-sm text-gray-500 mb-3">
+                  Share this URL with your helpers. They can log in with their 4-digit PIN.
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono">
+                    {typeof window !== 'undefined' ? `${window.location.origin}/helper` : '/helper'}
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/helper`)
+                      alert('URL copied!')
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           </div>
         )}

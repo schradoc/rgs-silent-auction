@@ -546,6 +546,28 @@ async function main() {
     console.log(`Created demo bidder: ${bidder.name}`)
   }
 
+  // Clear and create helpers
+  await prisma.paperBid.deleteMany()
+  await prisma.helper.deleteMany()
+
+  const helpers = [
+    { name: 'Alice', pin: '1111', avatarColor: '#EF4444' },
+    { name: 'Bob', pin: '2222', avatarColor: '#F97316' },
+    { name: 'Charlie', pin: '3333', avatarColor: '#EAB308' },
+    { name: 'Diana', pin: '4444', avatarColor: '#22C55E' },
+    { name: 'Edward', pin: '5555', avatarColor: '#06B6D4' },
+    { name: 'Fiona', pin: '6666', avatarColor: '#3B82F6' },
+    { name: 'George', pin: '7777', avatarColor: '#8B5CF6' },
+    { name: 'Hannah', pin: '8888', avatarColor: '#EC4899' },
+    { name: 'Ian', pin: '9999', avatarColor: '#F43F5E' },
+    { name: 'Julia', pin: '0000', avatarColor: '#14B8A6' },
+  ]
+
+  for (const helper of helpers) {
+    await prisma.helper.create({ data: helper })
+    console.log(`Created helper: ${helper.name} (PIN: ${helper.pin})`)
+  }
+
   console.log('Seeding complete!')
 }
 

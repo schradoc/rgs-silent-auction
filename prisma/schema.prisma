@@ -18,8 +18,23 @@ model Bidder {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  bids         Bid[]
-  winners      Winner[]
+  // Contact & Notification preferences (Phase 2)
+  phone            String?
+  whatsappOptIn    Boolean @default(false)
+  smsOptIn         Boolean @default(false)
+  emailOptIn       Boolean @default(true)
+  notificationPref NotificationChannel @default(EMAIL)
+
+  // Passwordless auth (Phase 2)
+  magicLinkToken   String?
+  magicLinkExpires DateTime?
+  otpCode          String?
+  otpExpires       DateTime?
+
+  bids          Bid[]
+  winners       Winner[]
+  favorites     Favorite[]
+  notifications Notification[]
 }
 
 model Prize {
@@ -53,6 +68,7 @@ model Prize {
 
   bids                  Bid[]
   winners               Winner[]
+  favorites             Favorite[]
 }
 
 enum Category {
@@ -75,10 +91,17 @@ model Bid {
   prizeId   String
   prize     Prize    @relation(fields: [prizeId], references: [id])
 
+  // Helper tracking (Phase 2)
+  helperId   String?
+  helper     Helper?  @relation(fields: [helperId], references: [id])
+  isPaperBid Boolean  @default(false)
+
   winner    Winner?
+  paperBid  PaperBid?
 
   @@index([prizeId, amount])
   @@index([bidderId])
+  @@index([helperId])
 }
 
 enum BidStatus {
@@ -117,4 +140,97 @@ model AdminSession {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+// ==========================================
+// Phase 2: Helper System & Gamification
+// ==========================================
+
+model Helper {
+  id          String   @id @default(cuid())
+  name        String
+  pin         String   // Simple 4-digit PIN for quick login
+  avatarColor String   // For visual identification (hex color)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  bidsPrompted Bid[]      // Bids this helper facilitated
+  paperBids    PaperBid[]
+}
+
+// ==========================================
+// Phase 2: Paper Bid System
+// ==========================================
+
+model PaperBid {
+  id             String   @id @default(cuid())
+  imageUrl       String?  // Stored photo of paper bid
+  tableNumber    String
+  bidderName     String
+  prizeId        String
+  amount         Int
+  email          String?
+  phone          String?
+  notifyIfOutbid Boolean  @default(false)
+
+  processedAt DateTime @default(now())
+  helperId    String
+  helper      Helper   @relation(fields: [helperId], references: [id])
+
+  // Links to actual bid once processed
+  bidId String? @unique
+  bid   Bid?    @relation(fields: [bidId], references: [id])
+
+  @@index([helperId])
+  @@index([prizeId])
+}
+
+// ==========================================
+// Phase 2: Notification System
+// ==========================================
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotificationType {
+  OUTBID
+  WINNING
+  AUCTION_CLOSING
+  WON
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  type      NotificationType
+  channel   NotificationChannel
+  bidderId  String
+  bidder    Bidder              @relation(fields: [bidderId], references: [id])
+  prizeId   String?
+  message   String              @db.Text
+  sentAt    DateTime            @default(now())
+  delivered Boolean             @default(false)
+  error     String?
+
+  @@index([bidderId])
+  @@index([prizeId])
+}
+
+// ==========================================
+// Phase 2: Watchlist/Favorites
+// ==========================================
+
+model Favorite {
+  id        String   @id @default(cuid())
+  bidderId  String
+  bidder    Bidder   @relation(fields: [bidderId], references: [id])
+  prizeId   String
+  prize     Prize    @relation(fields: [prizeId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([bidderId, prizeId])
+  @@index([bidderId])
+  @@index([prizeId])
 }
