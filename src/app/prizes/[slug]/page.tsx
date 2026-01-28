@@ -38,12 +38,5 @@ export default async function PrizePage({ params }: Props) {
   return <PrizeDetail prize={prize} />
 }
 
-export async function generateStaticParams() {
-  const prizes = await prisma.prize.findMany({
-    select: { slug: true },
-  })
-
-  return prizes.map((prize) => ({
-    slug: prize.slug,
-  }))
-}
+// Dynamic route - no static params needed for SSR
+export const dynamic = 'force-dynamic'

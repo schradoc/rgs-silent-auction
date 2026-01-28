@@ -3,6 +3,8 @@ import { PrizeGrid } from '@/components/prizes/prize-grid'
 import Link from 'next/link'
 import { User } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 async function getPrizes() {
   const prizes = await prisma.prize.findMany({
     where: {
