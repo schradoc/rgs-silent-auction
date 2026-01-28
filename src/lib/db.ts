@@ -1,14 +1,17 @@
-import { prisma } from './prisma'
 import { mockPrizes, getMockPrize, mockBids } from './mock-data'
 
-// Check if database is configured
-const isDatabaseConfigured = !!process.env.DATABASE_URL
+// Check if database is configured at runtime
+function isDatabaseConfigured() {
+  return !!process.env.DATABASE_URL
+}
 
 export async function getPrizes() {
-  if (!isDatabaseConfigured) {
+  if (!isDatabaseConfigured()) {
     console.log('[DB] Using mock data - DATABASE_URL not configured')
     return mockPrizes
   }
+
+  const { prisma } = await import('./prisma')
 
   try {
     const prizes = await prisma.prize.findMany({
@@ -29,10 +32,12 @@ export async function getPrizes() {
 }
 
 export async function getPrizeBySlug(slug: string) {
-  if (!isDatabaseConfigured) {
+  if (!isDatabaseConfigured()) {
     console.log('[DB] Using mock data - DATABASE_URL not configured')
     return getMockPrize(slug)
   }
+
+  const { prisma } = await import('./prisma')
 
   try {
     const prize = await prisma.prize.findUnique({
