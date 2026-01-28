@@ -1,7 +1,7 @@
 import { getPrizes } from '@/lib/db'
 import { PrizeGrid } from '@/components/prizes/prize-grid'
 import Link from 'next/link'
-import { User } from 'lucide-react'
+import { User, Sparkles } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,56 +9,65 @@ export default async function PrizesPage() {
   const prizes = await getPrizes()
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-[#fafaf8]">
       {/* Header */}
-      <header className="bg-[#1e3a5f] text-white sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/">
-              <div>
-                <h1 className="text-lg font-bold">RGS-HK Auction</h1>
-                <p className="text-white/70 text-sm">30th Anniversary Gala</p>
+      <header className="bg-[#1a2f4a] text-white sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center transition-colors group-hover:bg-white/20">
+                <span className="text-xs font-semibold">RGS</span>
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-sm font-medium">Silent Auction</p>
+                <p className="text-xs text-white/50">30th Anniversary</p>
               </div>
             </Link>
             <Link
               href="/my-bids"
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-all border border-white/10 hover:border-white/20"
             >
               <User className="w-4 h-4" />
-              <span className="text-sm">My Bids</span>
+              <span className="text-sm font-medium">My Bids</span>
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Auction Status Banner */}
-        <div className="bg-[#c9a227]/10 border border-[#c9a227]/30 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[#1e3a5f] font-medium">Auction is OPEN</p>
-              <p className="text-gray-600 text-sm">Bidding closes at 10:30pm</p>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-b from-[#1a2f4a] to-[#1a2f4a]/95 text-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+            <div className="animate-fade-in-up">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#b8941f]/20 border border-[#b8941f]/30 mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#b8941f] animate-pulse" />
+                <span className="text-[#b8941f] text-xs font-medium tracking-wide uppercase">Auction Open</span>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-2">
+                Browse Prizes
+              </h1>
+              <p className="text-white/60 text-base">
+                {prizes.length} exclusive items available for bidding
+              </p>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-[#1e3a5f]">{prizes.length}</p>
-              <p className="text-gray-600 text-sm">prizes available</p>
+            <div className="flex items-center gap-2 text-white/50 text-sm animate-fade-in" style={{ animationDelay: '200ms' }}>
+              <Sparkles className="w-4 h-4" />
+              <span>Bidding closes 10:30pm</span>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Demo Mode Banner */}
-        {!process.env.DATABASE_URL && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
-            <p className="text-blue-800 text-sm">
-              <strong>Demo Mode:</strong> Showing sample prizes. Connect a database to see full auction.
-            </p>
-          </div>
-        )}
-
+      {/* Content */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* Prize Grid */}
-        <PrizeGrid prizes={prizes as any} />
+        <div className="stagger-children">
+          <PrizeGrid prizes={prizes as any} />
+        </div>
       </div>
+
+      {/* Bottom padding for mobile */}
+      <div className="h-8" />
     </main>
   )
 }
