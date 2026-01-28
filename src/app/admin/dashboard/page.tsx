@@ -1,6 +1,3 @@
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { COOKIE_NAMES } from '@/lib/constants'
 import { AdminDashboard } from './admin-dashboard'
 
 export const dynamic = 'force-dynamic'
@@ -44,13 +41,6 @@ async function getAdminData() {
 }
 
 export default async function AdminDashboardPage() {
-  const cookieStore = await cookies()
-  const adminSession = cookieStore.get(COOKIE_NAMES.adminSession)?.value
-
-  if (adminSession !== 'authenticated') {
-    redirect('/admin')
-  }
-
   const data = await getAdminData()
 
   return <AdminDashboard initialData={data} />
