@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { COOKIE_NAMES } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const isAdmin = cookieStore.get('admin_session')?.value === 'true'
+    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
 
     if (!isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const isAdmin = cookieStore.get('admin_session')?.value === 'true'
+    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
 
     if (!isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const isAdmin = cookieStore.get('admin_session')?.value === 'true'
+    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
 
     if (!isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Gavel, Mail, Lock, User, AlertCircle } from 'lucide-react'
+import { Gavel, Mail, Lock, User, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui'
 
-type Mode = 'login' | 'setup' | 'loading'
+type Mode = 'loading' | 'magic-link' | 'setup' | 'sent'
 
 export default function AdminLoginPage() {
   const [mode, setMode] = useState<Mode>('loading')
@@ -22,42 +22,40 @@ export default function AdminLoginPage() {
     fetch('/api/admin/login')
       .then((res) => res.json())
       .then((data) => {
-        setMode(data.needsSetup ? 'setup' : 'login')
+        setMode(data.needsSetup ? 'setup' : 'magic-link')
       })
-      .catch(() => setMode('login'))
+      .catch(() => setMode('magic-link'))
   }, [])
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetch('/api/admin/magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          mode === 'setup' ? { password } : { email, password }
-        ),
+        body: JSON.stringify({ email }),
       })
 
       const data = await res.json()
 
-      if (!res.ok) {
-        setError(data.error || 'Login failed')
-        return
-      }
-
       if (data.needsSetup) {
-        // Legacy password worked, now show setup
+        // First time setup
         setMode('setup')
-        setPassword('')
+        setLoading(false)
         return
       }
 
-      router.push('/admin/dashboard')
+      if (!res.ok) {
+        setError(data.error || 'Failed to send login link')
+        return
+      }
+
+      setMode('sent')
     } catch (err) {
-      setError('Login failed')
+      setError('Failed to send login link')
     } finally {
       setLoading(false)
     }
@@ -67,6 +65,12 @@ export default function AdminLoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      setLoading(false)
+      return
+    }
 
     try {
       // Create owner account
@@ -94,7 +98,7 @@ export default function AdminLoginPage() {
         router.push('/admin/dashboard')
       } else {
         setError('Account created but login failed. Try logging in.')
-        setMode('login')
+        setMode('magic-link')
       }
     } catch (err) {
       setError('Setup failed')
@@ -121,41 +125,101 @@ export default function AdminLoginPage() {
           </div>
           <h1 className="text-2xl font-semibold text-white">RGS-HK Admin</h1>
           <p className="text-white/50 text-sm mt-1">
-            {mode === 'setup' ? 'Create Owner Account' : 'Silent Auction Dashboard'}
+            {mode === 'setup' ? 'Create Owner Account' :
+             mode === 'sent' ? 'Check Your Email' :
+             'Silent Auction Dashboard'}
           </p>
         </div>
 
         {/* Form */}
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+          {/* Setup Mode */}
           {mode === 'setup' && (
-            <div className="mb-6 p-3 bg-[#c9a227]/20 rounded-lg border border-[#c9a227]/30">
-              <p className="text-[#c9a227] text-sm font-medium">First Time Setup</p>
-              <p className="text-white/70 text-xs mt-1">
-                Create the owner account. This account will have full admin access.
-              </p>
-            </div>
+            <>
+              <div className="mb-6 p-3 bg-[#c9a227]/20 rounded-lg border border-[#c9a227]/30">
+                <p className="text-[#c9a227] text-sm font-medium">First Time Setup</p>
+                <p className="text-white/70 text-xs mt-1">
+                  Create the owner account. This account will have full admin access.
+                </p>
+              </div>
+
+              <form onSubmit={handleSetup}>
+                <div className="mb-4">
+                  <label className="block text-white/70 text-sm mb-2">Your Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="John Smith"
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227]"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-white/70 text-sm mb-2">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@example.com"
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227]"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-white/70 text-sm mb-2">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Min. 8 characters"
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227]"
+                      required
+                      minLength={8}
+                    />
+                  </div>
+                  <p className="text-white/40 text-xs mt-2">
+                    You&apos;ll use magic links to sign in after setup
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2 text-red-300 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {error}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="gold"
+                  className="w-full py-3"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    'Create Account'
+                  )}
+                </Button>
+              </form>
+            </>
           )}
 
-          <form onSubmit={mode === 'setup' ? handleSetup : handleLogin}>
-            {mode === 'setup' && (
-              <div className="mb-4">
-                <label className="block text-white/70 text-sm mb-2">Your Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="John Smith"
-                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227]"
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
-            {mode !== 'setup' || true ? (
-              <div className="mb-4">
+          {/* Magic Link Mode */}
+          {mode === 'magic-link' && (
+            <form onSubmit={handleMagicLink}>
+              <div className="mb-6">
                 <label className="block text-white/70 text-sm mb-2">Email</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
@@ -165,53 +229,63 @@ export default function AdminLoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@example.com"
                     className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227]"
-                    required={mode === 'login' || mode === 'setup'}
+                    required
                   />
                 </div>
               </div>
-            ) : null}
 
-            <div className="mb-6">
-              <label className="block text-white/70 text-sm mb-2">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227]"
-                  required
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2 text-red-300 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                {error}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              variant="gold"
-              className="w-full py-3"
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : mode === 'setup' ? (
-                'Create Account'
-              ) : (
-                'Sign In'
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2 text-red-300 text-sm">
+                  <AlertCircle className="w-4 h-4" />
+                  {error}
+                </div>
               )}
-            </Button>
-          </form>
+
+              <Button
+                type="submit"
+                variant="gold"
+                className="w-full py-3"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4 mr-2" />
+                    Send Login Link
+                  </>
+                )}
+              </Button>
+
+              <p className="text-center text-white/40 text-xs mt-4">
+                We&apos;ll send a secure login link to your email
+              </p>
+            </form>
+          )}
+
+          {/* Sent Mode */}
+          {mode === 'sent' && (
+            <div className="text-center py-4">
+              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-10 h-10 text-green-400" />
+              </div>
+              <h2 className="text-white font-medium text-lg mb-2">Check your email</h2>
+              <p className="text-white/60 text-sm mb-6">
+                We sent a login link to <strong className="text-white">{email}</strong>
+              </p>
+              <button
+                onClick={() => { setMode('magic-link'); setError(''); }}
+                className="flex items-center justify-center gap-2 text-white/60 hover:text-white text-sm mx-auto transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Use a different email
+              </button>
+            </div>
+          )}
         </div>
 
         <p className="text-center text-white/30 text-xs mt-6">
-          RGS-HK 30th Anniversary Gala • Silent Auction
+          RGS-HK 30th Anniversary Gala &bull; Silent Auction
         </p>
       </div>
     </main>

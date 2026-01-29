@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { formatCurrency } from '@/lib/utils'
+import { COOKIE_NAMES } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const isAdmin = cookieStore.get('admin_session')?.value === 'true'
+    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
 
     if (!isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

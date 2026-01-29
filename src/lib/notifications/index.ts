@@ -56,7 +56,7 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
     switch (channel) {
       case 'EMAIL':
         if (resend && bidder.email) {
-          const result = await sendEmail(bidder.email, message.subject, message.body)
+          const result = await sendNotificationEmail(bidder.email, message.subject, message.body)
           success = result.success
           error = result.error
         }
@@ -126,7 +126,7 @@ function buildMessage(payload: NotificationPayload, bidderName: string): { subje
   }
 }
 
-async function sendEmail(to: string, subject: string, body: string): Promise<{ success: boolean; error?: string }> {
+async function sendNotificationEmail(to: string, subject: string, body: string): Promise<{ success: boolean; error?: string }> {
   if (!resend) return { success: false, error: 'Resend not configured' }
 
   try {
@@ -282,6 +282,35 @@ export async function notifyOutbidBidders(prizeId: string, newBidAmount: number,
     }
   } catch (err) {
     console.error('Error notifying outbid bidder:', err)
+  }
+}
+
+// Send a generic email (for admin logins, etc.)
+export async function sendEmail(params: {
+  to: string
+  subject: string
+  html: string
+  text?: string
+}): Promise<{ success: boolean; error?: string }> {
+  if (!resend) {
+    console.log('[Email] Resend not configured, logging email:')
+    console.log(`To: ${params.to}`)
+    console.log(`Subject: ${params.subject}`)
+    return { success: false, error: 'Resend not configured' }
+  }
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+    })
+    return { success: true }
+  } catch (err) {
+    console.error('Email send error:', err)
+    return { success: false, error: String(err) }
   }
 }
 
