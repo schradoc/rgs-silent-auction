@@ -55,7 +55,14 @@ src/
 │   │   ├── login/            # Admin magic link login
 │   │   └── print-winners/    # Printable winner sheets
 │   ├── api/
-│   │   ├── admin/            # Admin APIs (settings, users, invitations, etc.)
+│   │   ├── admin/            # Admin APIs
+│   │   │   ├── analytics/    # Dashboard analytics data
+│   │   │   ├── prizes/[id]/  # Prize detail with bid history
+│   │   │   ├── settings/     # Auction and display settings
+│   │   │   ├── test-email/   # Send test email
+│   │   │   ├── upload/       # Image upload to Supabase
+│   │   │   ├── users/        # Team management
+│   │   │   └── invitations/  # Admin invitations
 │   │   ├── auth/             # Bidder auth (magic link, OTP)
 │   │   ├── helpers/          # Helper portal APIs
 │   │   └── ...               # Prizes, bids, favorites, etc.
@@ -226,7 +233,11 @@ const handleDelete = async () => {
 ### Overview Tab
 - Real-time stats (prizes, bidders, bids, total value)
 - Auction state banner with quick action
-- Analytics charts (bid activity, category breakdown)
+- **Enhanced analytics charts**:
+  - Key metrics row (bids/value last hour, active bidders, engagement rate)
+  - 24-hour bid activity chart with hover tooltips
+  - Top prizes leaderboard
+  - Category performance breakdown with avg bids/prize
 - Live bid feed
 
 ### Prizes Tab
@@ -234,6 +245,10 @@ const handleDelete = async () => {
 - Multi-image upload with drag-drop
 - Category filtering
 - Activation/deactivation
+- **Prize detail modal** (click any prize):
+  - Stats grid (current bid, total bids, unique bidders, avg bid)
+  - Winner section if confirmed
+  - Full bid history with bidder names, tables, amounts, timestamps
 
 ### Bidders Tab
 - List with bid counts
@@ -255,7 +270,7 @@ const handleDelete = async () => {
 - **Auction Management**: State machine, end time, mock data tools
 - **Display Settings**: Donor names, bidder names, rotation interval, QR URL
 - **Team Management**: Users, roles, invitations
-- **Email & Notifications**: Provider status, test email, template preview
+- **Email & Notifications**: Provider status, test email (sends real email), template preview
 - **Data & Export**: CSV exports for all data
 - **Support**: Contact, documentation, version info
 
@@ -310,6 +325,11 @@ npx prisma db push
 - [x] Camera functionality fixes for helpers
 - [x] Magic link resend with countdown
 - [x] Comprehensive settings page
+- [x] Prize detail modal with bid history
+- [x] Enhanced analytics with better visuals
+- [x] Test email functionality (sends real emails)
+- [x] Improved email templates (HTML/CSS styling)
+- [x] Graceful error handling for missing Supabase config
 
 ### Phase 3 - Polish
 - [x] Real-time updates (Supabase Realtime)
