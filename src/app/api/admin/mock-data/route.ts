@@ -23,10 +23,25 @@ const LAST_NAMES = [
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
+    const adminSessionValue = cookieStore.get(COOKIE_NAMES.adminSession)?.value
+    const isAdmin = adminSessionValue === 'true'
+
+    // Debug logging
+    console.log('Mock data POST - cookies:', {
+      cookieName: COOKIE_NAMES.adminSession,
+      cookieValue: adminSessionValue,
+      isAdmin,
+      allCookies: cookieStore.getAll().map(c => ({ name: c.name, valueLength: c.value?.length }))
+    })
 
     if (!isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({
+        error: 'Unauthorized',
+        debug: {
+          expectedCookie: COOKIE_NAMES.adminSession,
+          receivedValue: adminSessionValue,
+        }
+      }, { status: 401 })
     }
 
     const { prisma } = await import('@/lib/prisma')

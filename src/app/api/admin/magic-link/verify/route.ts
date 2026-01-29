@@ -63,6 +63,16 @@ export async function POST(request: NextRequest) {
 
     // Set cookies
     const cookieStore = await cookies()
+
+    console.log('Magic link verify - setting cookies:', {
+      sessionCookieName: COOKIE_NAMES.adminSession,
+      sessionCookieValue: 'true',
+      tokenCookieName: 'admin_token',
+      tokenLength: token.length,
+      secure: process.env.NODE_ENV === 'production',
+      nodeEnv: process.env.NODE_ENV
+    })
+
     cookieStore.set(COOKIE_NAMES.adminSession, 'true', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
