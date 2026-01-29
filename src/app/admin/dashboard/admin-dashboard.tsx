@@ -169,7 +169,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/admin/data')
+        const res = await fetch('/api/admin/data', { credentials: 'include' })
         if (res.ok) {
           const newData = await res.json()
           setData(newData)
@@ -185,7 +185,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      const res = await fetch('/api/admin/data')
+      const res = await fetch('/api/admin/data', { credentials: 'include' })
       if (res.ok) {
         const newData = await res.json()
         setData(newData)
@@ -203,6 +203,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isAuctionOpen: !data.settings?.isAuctionOpen }),
+        credentials: 'include',
       })
       if (res.ok) {
         handleRefresh()
@@ -219,7 +220,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
 
   const fetchHelpers = async () => {
     try {
-      const res = await fetch('/api/admin/helpers')
+      const res = await fetch('/api/admin/helpers', { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setHelpers(data.helpers || [])
@@ -231,7 +232,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
 
   const fetchWinners = async () => {
     try {
-      const res = await fetch('/api/admin/winners')
+      const res = await fetch('/api/admin/winners', { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setPotentialWinners(data.potentialWinners || [])
@@ -248,6 +249,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prizeId, bidId, bidderId, sendNotification }),
+        credentials: 'include',
       })
       if (res.ok) {
         fetchWinners()
@@ -269,6 +271,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ auctionEndTime: new Date(auctionEndTime).toISOString() }),
+        credentials: 'include',
       })
       if (res.ok) {
         handleRefresh()
@@ -296,6 +299,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bidderCount: 25, bidsPerPrize: 4 }),
+        credentials: 'include',
       })
       const data = await res.json()
       if (res.ok) {
@@ -315,7 +319,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
     if (!confirm('This will delete ALL mock bidders and bids. This cannot be undone. Continue?')) return
     setMockDataLoading(true)
     try {
-      const res = await fetch('/api/admin/mock-data', { method: 'DELETE' })
+      const res = await fetch('/api/admin/mock-data', { method: 'DELETE', credentials: 'include' })
       const data = await res.json()
       if (res.ok) {
         alert(`Deleted ${data.deleted.bidders} bidders and ${data.deleted.bids} bids`)
@@ -339,6 +343,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newState }),
+        credentials: 'include',
       })
       const result = await res.json()
       if (res.ok) {
@@ -422,6 +427,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
     try {
       const res = await fetch(`/api/admin/prizes?id=${prizeId}${permanent ? '&permanent=true' : ''}`, {
         method: 'DELETE',
+        credentials: 'include',
       })
       const data = await res.json()
       if (res.ok) {
@@ -441,6 +447,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newHelperName, pin: newHelperPin }),
+        credentials: 'include',
       })
       if (res.ok) {
         setNewHelperName('')
@@ -459,7 +466,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
   const handleDeleteHelper = async (id: string) => {
     if (!confirm('Are you sure you want to deactivate this helper?')) return
     try {
-      const res = await fetch(`/api/admin/helpers?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/helpers?id=${id}`, { method: 'DELETE', credentials: 'include' })
       if (res.ok) {
         fetchHelpers()
       }
