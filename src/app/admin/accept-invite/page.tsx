@@ -60,6 +60,7 @@ function AcceptInviteContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, name }),
+        credentials: 'include',
       })
 
       const data = await res.json()

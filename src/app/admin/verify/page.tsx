@@ -23,6 +23,7 @@ function VerifyContent() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
+      credentials: 'include',
     })
       .then(async (res) => {
         const data = await res.json()
