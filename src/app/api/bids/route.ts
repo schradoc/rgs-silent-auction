@@ -107,6 +107,16 @@ export async function POST(request: NextRequest) {
 
     const hadPreviousBid = prize.currentHighestBid > 0
 
+    // Find the previous winning bidder before updating
+    let previousWinningBidderId: string | undefined
+    if (hadPreviousBid) {
+      const previousWinningBid = await prisma.bid.findFirst({
+        where: { prizeId, status: 'WINNING' },
+        select: { bidderId: true },
+      })
+      previousWinningBidderId = previousWinningBid?.bidderId
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       if (hadPreviousBid) {
         await tx.bid.updateMany({
@@ -132,10 +142,10 @@ export async function POST(request: NextRequest) {
       return bid
     })
 
-    // Send outbid notifications (async, don't await)
-    if (hadPreviousBid) {
+    // Send outbid notification to previous winner (async, don't await)
+    if (hadPreviousBid && previousWinningBidderId && previousWinningBidderId !== bidderId) {
       import('@/lib/notifications').then(({ notifyOutbidBidders }) => {
-        notifyOutbidBidders(prizeId, amount).catch(console.error)
+        notifyOutbidBidders(prizeId, amount, previousWinningBidderId).catch(console.error)
       })
     }
 

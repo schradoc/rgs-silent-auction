@@ -191,42 +191,179 @@ async function sendWhatsApp(to: string, body: string): Promise<{ success: boolea
   }
 }
 
-// Send outbid notifications to all outbid bidders
-export async function notifyOutbidBidders(prizeId: string, newBidAmount: number): Promise<void> {
+// Send outbid notification to the previous winning bidder
+export async function notifyOutbidBidders(prizeId: string, newBidAmount: number, previousWinningBidderId?: string): Promise<void> {
   try {
     const prize = await prisma.prize.findUnique({
       where: { id: prizeId },
-      select: { title: true },
+      select: { title: true, slug: true },
     })
 
     if (!prize) return
 
-    // Find all outbid bidders for this prize
-    const outbidBids = await prisma.bid.findMany({
-      where: {
-        prizeId,
-        status: 'OUTBID',
-      },
-      include: {
-        bidder: true,
-      },
-      distinct: ['bidderId'],
+    // If we know the previous winner, notify just them
+    // Otherwise, find the most recent outbid bid (the one just marked outbid)
+    let bidderToNotify: string | undefined = previousWinningBidderId
+
+    if (!bidderToNotify) {
+      const lastOutbidBid = await prisma.bid.findFirst({
+        where: {
+          prizeId,
+          status: 'OUTBID',
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { bidderId: true },
+      })
+      bidderToNotify = lastOutbidBid?.bidderId
+    }
+
+    if (!bidderToNotify) return
+
+    const bidder = await prisma.bidder.findUnique({
+      where: { id: bidderToNotify },
     })
 
-    // Send notifications
-    for (const bid of outbidBids) {
-      // Only notify if they have notifications enabled
-      if (bid.bidder.emailOptIn || bid.bidder.smsOptIn || bid.bidder.whatsappOptIn) {
-        await sendNotification({
-          bidderId: bid.bidderId,
+    if (!bidder) return
+
+    // Send via email (primary channel for outbid alerts)
+    if (bidder.emailOptIn && bidder.email && resend) {
+      const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
+      const prizeUrl = `${APP_URL}/prizes/${prize.slug}`
+
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: bidder.email,
+        subject: `You've been outbid on ${prize.title}!`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: #1e3a5f; padding: 20px; text-align: center;">
+              <h1 style="color: #c9a227; margin: 0;">RGS-HK Auction</h1>
+            </div>
+            <div style="padding: 30px; background: #f9f9f9;">
+              <p style="font-size: 18px; line-height: 1.6; color: #333;">
+                Hi ${bidder.name},
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                Someone has outbid you on <strong>"${prize.title}"</strong>!
+              </p>
+              <div style="background: #fff; border: 2px solid #c9a227; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0; color: #666; font-size: 14px;">Current Highest Bid</p>
+                <p style="margin: 10px 0 0 0; color: #1e3a5f; font-size: 32px; font-weight: bold;">
+                  ${formatCurrency(newBidAmount)}
+                </p>
+              </div>
+              <div style="margin: 30px 0; text-align: center;">
+                <a href="${prizeUrl}" style="background: #c9a227; color: white; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
+                  Place a Higher Bid
+                </a>
+              </div>
+              <p style="font-size: 14px; color: #666; text-align: center;">
+                Don't let this prize slip away!
+              </p>
+            </div>
+            <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
+              Royal Geographical Society - Hong Kong | 30th Anniversary Gala
+            </div>
+          </div>
+        `,
+      })
+
+      // Log the notification
+      await prisma.notification.create({
+        data: {
           type: 'OUTBID',
+          channel: 'EMAIL',
+          bidderId: bidderToNotify,
           prizeId,
-          prizeTitle: prize.title,
-          currentHighestBid: newBidAmount,
-        })
-      }
+          message: `Outbid on ${prize.title} - new high bid ${formatCurrency(newBidAmount)}`,
+          delivered: true,
+        },
+      })
     }
   } catch (err) {
-    console.error('Error notifying outbid bidders:', err)
+    console.error('Error notifying outbid bidder:', err)
+  }
+}
+
+// Send winner notification
+export async function sendWinnerNotification(winnerId: string): Promise<boolean> {
+  try {
+    const winner = await prisma.winner.findUnique({
+      where: { id: winnerId },
+      include: {
+        bid: true,
+        bidder: true,
+        prize: true,
+      },
+    })
+
+    if (!winner) return false
+
+    const { bidder, prize, bid } = winner
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
+
+    // Send email notification
+    if (resend && bidder.email) {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: bidder.email,
+        subject: `Congratulations! You won "${prize.title}"!`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: #1e3a5f; padding: 20px; text-align: center;">
+              <h1 style="color: #c9a227; margin: 0;">RGS-HK Auction</h1>
+            </div>
+            <div style="padding: 30px; background: #f9f9f9;">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="font-size: 48px;">🎉</span>
+              </div>
+              <h2 style="text-align: center; color: #1e3a5f; margin-bottom: 20px;">
+                Congratulations, ${bidder.name}!
+              </h2>
+              <p style="font-size: 16px; line-height: 1.6; color: #333; text-align: center;">
+                You've won the auction for:
+              </p>
+              <div style="background: #fff; border: 2px solid #c9a227; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+                <h3 style="margin: 0 0 10px 0; color: #1e3a5f; font-size: 20px;">
+                  ${prize.title}
+                </h3>
+                <p style="margin: 0; color: #666; font-size: 14px;">Winning Bid</p>
+                <p style="margin: 5px 0 0 0; color: #c9a227; font-size: 28px; font-weight: bold;">
+                  ${formatCurrency(bid.amount)}
+                </p>
+              </div>
+              <p style="font-size: 14px; line-height: 1.6; color: #333; text-align: center;">
+                Thank you for supporting the Royal Geographical Society Hong Kong!
+              </p>
+              <p style="font-size: 14px; line-height: 1.6; color: #333; text-align: center;">
+                A member of our team will be in touch shortly to arrange collection and payment.
+              </p>
+            </div>
+            <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
+              Royal Geographical Society - Hong Kong | 30th Anniversary Gala
+            </div>
+          </div>
+        `,
+      })
+
+      // Log the notification
+      await prisma.notification.create({
+        data: {
+          type: 'WON',
+          channel: 'EMAIL',
+          bidderId: bidder.id,
+          prizeId: prize.id,
+          message: `Won ${prize.title} with bid of ${formatCurrency(bid.amount)}`,
+          delivered: true,
+        },
+      })
+
+      return true
+    }
+
+    return false
+  } catch (err) {
+    console.error('Error sending winner notification:', err)
+    return false
   }
 }

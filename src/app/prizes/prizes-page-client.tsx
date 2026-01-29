@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { User, Search, Filter, Flame, Clock, ArrowUpRight, X } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
+import { AuctionCountdown } from '@/components/auction-countdown'
 import type { Prize } from '@prisma/client'
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop'
@@ -23,14 +24,25 @@ const CATEGORIES = [
   { id: 'PLEDGES', label: 'Pledges' },
 ]
 
+interface AuctionStatus {
+  isAuctionOpen: boolean
+  auctionEndTime: string | null
+}
+
 export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
   const [mounted, setMounted] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'popular' | 'price-high' | 'price-low'>('popular')
+  const [auctionStatus, setAuctionStatus] = useState<AuctionStatus | null>(null)
 
   useEffect(() => {
     setMounted(true)
+    // Fetch auction status
+    fetch('/api/auction-status')
+      .then(res => res.json())
+      .then(data => setAuctionStatus(data))
+      .catch(() => {})
   }, [])
 
   // Filter and sort prizes
@@ -76,6 +88,15 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
 
   return (
     <main className="min-h-screen bg-[#fafaf8]">
+      {/* Auction Countdown Banner */}
+      {auctionStatus && (
+        <AuctionCountdown
+          endTime={auctionStatus.auctionEndTime}
+          isOpen={auctionStatus.isAuctionOpen}
+          variant="banner"
+        />
+      )}
+
       {/* Header */}
       <header className="bg-[#0f1d2d] text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">

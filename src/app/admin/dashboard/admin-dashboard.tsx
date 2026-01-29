@@ -16,7 +16,13 @@ import {
   UserCheck,
   Plus,
   Edit2,
-  Trash2
+  Trash2,
+  Award,
+  Download,
+  Check,
+  X,
+  Mail,
+  Printer
 } from 'lucide-react'
 import { Button, Card, CardContent, Badge } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
@@ -74,6 +80,26 @@ interface Stats {
   totalValue: number
 }
 
+interface PotentialWinner {
+  prizeId: string
+  prizeTitle: string
+  prizeSlug: string
+  minimumBid: number
+  currentHighestBid: number
+  winningBid: {
+    id: string
+    amount: number
+    bidder: { id: string; name: string; email: string; tableNumber: string }
+  } | null
+  isConfirmed: boolean
+  confirmedWinners: Array<{
+    id: string
+    bidder: { id: string; name: string; tableNumber: string }
+  }>
+  multiWinnerEligible: boolean
+  multiWinnerSlots: number | null
+}
+
 interface AdminDashboardProps {
   initialData: {
     prizes: Prize[]
@@ -86,12 +112,15 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ initialData }: AdminDashboardProps) {
   const [data, setData] = useState(initialData)
-  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'bidders' | 'helpers' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'bidders' | 'winners' | 'helpers' | 'settings'>('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [helpers, setHelpers] = useState<Helper[]>([])
   const [showAddHelper, setShowAddHelper] = useState(false)
   const [newHelperName, setNewHelperName] = useState('')
   const [newHelperPin, setNewHelperPin] = useState('')
+  const [potentialWinners, setPotentialWinners] = useState<PotentialWinner[]>([])
+  const [confirmingWinner, setConfirmingWinner] = useState<string | null>(null)
+  const [auctionEndTime, setAuctionEndTime] = useState('')
 
   // Poll for updates every 5 seconds
   useEffect(() => {
@@ -157,9 +186,62 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
     }
   }
 
+  const fetchWinners = async () => {
+    try {
+      const res = await fetch('/api/admin/winners')
+      if (res.ok) {
+        const data = await res.json()
+        setPotentialWinners(data.potentialWinners || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch winners:', error)
+    }
+  }
+
+  const handleConfirmWinner = async (prizeId: string, bidId: string, bidderId: string, sendNotification: boolean) => {
+    setConfirmingWinner(prizeId)
+    try {
+      const res = await fetch('/api/admin/winners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prizeId, bidId, bidderId, sendNotification }),
+      })
+      if (res.ok) {
+        fetchWinners()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to confirm winner')
+      }
+    } catch (error) {
+      console.error('Failed to confirm winner:', error)
+    } finally {
+      setConfirmingWinner(null)
+    }
+  }
+
+  const handleSetEndTime = async () => {
+    if (!auctionEndTime) return
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auctionEndTime: new Date(auctionEndTime).toISOString() }),
+      })
+      if (res.ok) {
+        handleRefresh()
+        alert('Auction end time updated!')
+      }
+    } catch (error) {
+      console.error('Failed to set end time:', error)
+    }
+  }
+
   useEffect(() => {
     if (activeTab === 'helpers') {
       fetchHelpers()
+    }
+    if (activeTab === 'winners') {
+      fetchWinners()
     }
   }, [activeTab])
 
@@ -236,6 +318,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
               { id: 'overview', label: 'Overview', icon: LayoutDashboard },
               { id: 'prizes', label: 'Prizes', icon: Trophy },
               { id: 'bidders', label: 'Bidders', icon: Users },
+              { id: 'winners', label: 'Winners', icon: Award },
               { id: 'helpers', label: 'Helpers', icon: UserCheck },
               { id: 'settings', label: 'Settings', icon: Settings },
             ].map(({ id, label, icon: Icon }) => (
@@ -438,6 +521,147 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
           </div>
         )}
 
+        {activeTab === 'winners' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Winner Selection</h2>
+              <div className="flex gap-2">
+                <a
+                  href="/api/admin/export?type=winners"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export Winners
+                </a>
+                <a
+                  href="/admin/print-winners"
+                  target="_blank"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print Sheets
+                </a>
+              </div>
+            </div>
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <p className="text-3xl font-bold text-gray-900">
+                    {potentialWinners.filter(w => w.winningBid).length}
+                  </p>
+                  <p className="text-sm text-gray-500">Prizes with Bids</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <p className="text-3xl font-bold text-green-600">
+                    {potentialWinners.filter(w => w.isConfirmed).length}
+                  </p>
+                  <p className="text-sm text-gray-500">Confirmed</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <p className="text-3xl font-bold text-orange-500">
+                    {potentialWinners.filter(w => w.winningBid && !w.isConfirmed).length}
+                  </p>
+                  <p className="text-sm text-gray-500">Pending</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Winners List */}
+            <Card>
+              <div className="divide-y">
+                {potentialWinners.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    Loading winners...
+                  </div>
+                ) : (
+                  potentialWinners.map((pw) => (
+                    <div key={pw.prizeId} className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-gray-900">{pw.prizeTitle}</h3>
+                            {pw.isConfirmed && (
+                              <Badge variant="navy" size="sm" className="bg-green-100 text-green-700">
+                                <Check className="w-3 h-3 mr-1" />
+                                Confirmed
+                              </Badge>
+                            )}
+                          </div>
+
+                          {pw.winningBid ? (
+                            <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    {pw.winningBid.bidder.name}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    Table {pw.winningBid.bidder.tableNumber} • {pw.winningBid.bidder.email}
+                                  </p>
+                                </div>
+                                <p className="text-xl font-bold text-[#c9a227]">
+                                  {formatCurrency(pw.winningBid.amount)}
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic">No bids received</p>
+                          )}
+                        </div>
+
+                        {pw.winningBid && !pw.isConfirmed && (
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="gold"
+                              size="sm"
+                              disabled={confirmingWinner === pw.prizeId}
+                              onClick={() => handleConfirmWinner(
+                                pw.prizeId,
+                                pw.winningBid!.id,
+                                pw.winningBid!.bidder.id,
+                                true
+                              )}
+                            >
+                              {confirmingWinner === pw.prizeId ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Mail className="w-4 h-4 mr-1" />
+                                  Confirm & Notify
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={confirmingWinner === pw.prizeId}
+                              onClick={() => handleConfirmWinner(
+                                pw.prizeId,
+                                pw.winningBid!.id,
+                                pw.winningBid!.bidder.id,
+                                false
+                              )}
+                            >
+                              <Check className="w-4 h-4 mr-1" />
+                              Confirm Only
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+
         {activeTab === 'helpers' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -560,12 +784,41 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                   <p className="text-sm text-gray-500 mb-4">
                     Control whether bidding is currently open or closed.
                   </p>
-                  <Button
-                    variant={data.settings?.isAuctionOpen ? 'outline' : 'gold'}
-                    onClick={handleToggleAuction}
-                  >
-                    {data.settings?.isAuctionOpen ? 'Close Auction' : 'Open Auction'}
-                  </Button>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-3 h-3 rounded-full ${data.settings?.isAuctionOpen ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                    <span className="font-medium">{data.settings?.isAuctionOpen ? 'Auction is OPEN' : 'Auction is CLOSED'}</span>
+                    <Button
+                      variant={data.settings?.isAuctionOpen ? 'outline' : 'gold'}
+                      onClick={handleToggleAuction}
+                    >
+                      {data.settings?.isAuctionOpen ? 'Close Auction' : 'Open Auction'}
+                    </Button>
+                  </div>
+                </div>
+
+                <hr />
+
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-2">Auction End Time</h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Set when the auction will automatically close. A countdown will be shown to bidders.
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="datetime-local"
+                      value={auctionEndTime}
+                      onChange={(e) => setAuctionEndTime(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                    />
+                    <Button variant="gold" onClick={handleSetEndTime} disabled={!auctionEndTime}>
+                      Set End Time
+                    </Button>
+                  </div>
+                  {data.settings?.auctionEndTime && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      Current end time: {new Date(data.settings.auctionEndTime).toLocaleString()}
+                    </p>
+                  )}
                 </div>
 
                 <hr />
@@ -573,22 +826,65 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Export Data</h3>
                   <p className="text-sm text-gray-500 mb-4">
-                    Download all bids and bidder information as CSV.
+                    Download auction data as CSV files.
                   </p>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <a
-                      href="/api/admin/export/bids"
-                      download
-                      className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                      href="/api/admin/export?type=summary"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      Export Bids
+                      <Download className="w-4 h-4" />
+                      Summary Report
                     </a>
                     <a
-                      href="/api/admin/export/bidders"
-                      download
-                      className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                      href="/api/admin/export?type=winners"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      Export Bidders
+                      <Award className="w-4 h-4" />
+                      Winners
+                    </a>
+                    <a
+                      href="/api/admin/export?type=bids"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Gavel className="w-4 h-4" />
+                      All Bids
+                    </a>
+                    <a
+                      href="/api/admin/export?type=bidders"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Users className="w-4 h-4" />
+                      All Bidders
+                    </a>
+                  </div>
+                </div>
+
+                <hr />
+
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-2">Live Display</h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Show this URL on a projector during the event.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/live` : '/live'}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/live`)
+                        alert('URL copied!')
+                      }}
+                    >
+                      Copy
+                    </Button>
+                    <a href="/live" target="_blank">
+                      <Button variant="outline" size="sm">
+                        Open
+                      </Button>
                     </a>
                   </div>
                 </div>
