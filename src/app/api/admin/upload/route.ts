@@ -10,11 +10,14 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 // Lazy initialization of Supabase client
 let supabase: SupabaseClient | null = null
-function getSupabase(): SupabaseClient {
+function getSupabase(): SupabaseClient | null {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return null
+  }
   if (!supabase) {
     supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
     )
   }
   return supabase
@@ -63,6 +66,14 @@ export async function POST(request: NextRequest) {
     // Upload to Supabase Storage
     const buffer = await file.arrayBuffer()
     const storage = getSupabase()
+
+    if (!storage) {
+      return NextResponse.json(
+        { error: 'Storage not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.' },
+        { status: 503 }
+      )
+    }
+
     const { data, error } = await storage.storage
       .from(BUCKET_NAME)
       .upload(filename, buffer, {
@@ -155,11 +166,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Extract path from URL for storage deletion
-    const url = new URL(image.url)
-    const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/prize-images\/(.+)/)
-    if (pathMatch) {
-      const filePath = pathMatch[1]
-      await getSupabase().storage.from(BUCKET_NAME).remove([filePath])
+    const storage = getSupabase()
+    if (storage) {
+      const url = new URL(image.url)
+      const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/prize-images\/(.+)/)
+      if (pathMatch) {
+        const filePath = pathMatch[1]
+        await storage.storage.from(BUCKET_NAME).remove([filePath])
+      }
     }
 
     // Delete the database record

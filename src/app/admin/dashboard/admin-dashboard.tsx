@@ -216,6 +216,32 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
   // Prize images state for new prizes
   const [prizeImages, setPrizeImages] = useState<PrizeImage[]>([])
 
+  // Prize detail modal state
+  const [selectedPrize, setSelectedPrize] = useState<{
+    id: string
+    title: string
+    shortDescription: string
+    currentHighestBid: number
+    minimumBid: number
+    donorName: string
+    category: string
+    stats: { totalBids: number; uniqueBidders: number; averageBid: number }
+    bids: Array<{
+      id: string
+      amount: number
+      createdAt: string
+      status: string
+      bidder: { id: string; name: string; tableNumber: string; email: string }
+    }>
+    winners: Array<{
+      id: string
+      bidder: { id: string; name: string; tableNumber: string }
+      bid: { amount: number }
+    }>
+  } | null>(null)
+  const [loadingPrize, setLoadingPrize] = useState(false)
+  const [loadingPrizeId, setLoadingPrizeId] = useState<string | null>(null)
+
   // Settings page state
   const [settingsSection, setSettingsSection] = useState<'auction' | 'display' | 'team' | 'email' | 'export' | 'support'>('auction')
   const [displaySettings, setDisplaySettings] = useState({
@@ -572,9 +598,16 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
   const handleSendTestEmail = async () => {
     setTestingEmail(true)
     try {
-      // This would need a test email endpoint - for now just simulate
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      toast.success('Test email sent to your address')
+      const res = await fetch('/api/admin/test-email', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message || 'Test email sent to your address')
+      } else {
+        toast.error(data.error || 'Failed to send test email')
+      }
     } catch (error) {
       toast.error('Failed to send test email')
     } finally {
@@ -835,6 +868,27 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       toast.error('Failed to deactivate helper')
     } finally {
       setDeletingHelper(null)
+    }
+  }
+
+  // Fetch prize with full bid history
+  const handleViewPrize = async (prizeId: string) => {
+    setLoadingPrizeId(prizeId)
+    setLoadingPrize(true)
+    try {
+      const res = await fetch(`/api/admin/prizes/${prizeId}`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setSelectedPrize(data.prize)
+      } else {
+        toast.error('Failed to load prize details')
+      }
+    } catch (error) {
+      console.error('Failed to fetch prize:', error)
+      toast.error('Failed to load prize details')
+    } finally {
+      setLoadingPrize(false)
+      setLoadingPrizeId(null)
     }
   }
 
@@ -1309,10 +1363,13 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
 
             <div className="grid gap-4">
               {data.prizes.map((prize) => (
-                <Card key={prize.id} className={!prize.isActive ? 'opacity-50' : ''}>
+                <Card key={prize.id} className={`${!prize.isActive ? 'opacity-50' : ''} hover:shadow-md transition-shadow cursor-pointer`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                      <div
+                        className="flex-1 cursor-pointer"
+                        onClick={() => handleViewPrize(prize.id)}
+                      >
                         <div className="flex items-center gap-2 mb-1">
                           <Badge variant="navy" size="sm">
                             {CATEGORY_LABELS[prize.category as keyof typeof CATEGORY_LABELS]}
@@ -1321,11 +1378,15 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                           {!prize.isActive && (
                             <Badge variant="navy" size="sm" className="bg-red-100 text-red-700">Inactive</Badge>
                           )}
+                          {loadingPrizeId === prize.id && (
+                            <Loader2 className="w-4 h-4 animate-spin text-[#c9a227]" />
+                          )}
                         </div>
                         <h3 className="font-semibold text-gray-900">{prize.title}</h3>
+                        <p className="text-sm text-gray-500 mt-1">Click to view bid history</p>
                       </div>
                       <div className="flex items-center gap-4">
-                        <div className="text-right">
+                        <div className="text-right" onClick={() => handleViewPrize(prize.id)}>
                           <p className="text-sm text-gray-500">Current Bid</p>
                           <p className={`text-xl font-bold ${prize.currentHighestBid > 0 ? 'text-[#c9a227]' : 'text-gray-400'}`}>
                             {prize.currentHighestBid > 0
@@ -1337,7 +1398,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleEditPrize(prize)}
+                            onClick={(e) => { e.stopPropagation(); handleEditPrize(prize); }}
                             className="text-gray-500 hover:text-gray-700"
                             disabled={deletingPrize === prize.id}
                           >
@@ -1346,7 +1407,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeletePrize(prize.id)}
+                            onClick={(e) => { e.stopPropagation(); handleDeletePrize(prize.id); }}
                             className="text-red-500 hover:text-red-700"
                             disabled={deletingPrize === prize.id}
                           >
@@ -1508,6 +1569,142 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
 
                   <div className="p-4 border-t">
                     <Button variant="outline" onClick={() => setSelectedBidder(null)} className="w-full">
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Prize Detail Modal */}
+            {selectedPrize && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedPrize(null)}>
+                <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                  <div className="p-6 border-b flex items-start justify-between bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f]">
+                    <div>
+                      <Badge variant="navy" size="sm" className="mb-2 bg-white/20 text-white">
+                        {CATEGORY_LABELS[selectedPrize.category as keyof typeof CATEGORY_LABELS]}
+                      </Badge>
+                      <h3 className="text-xl font-bold text-white">{selectedPrize.title}</h3>
+                      <p className="text-sm text-white/70 mt-1">Donated by {selectedPrize.donorName}</p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedPrize(null)}
+                      className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/70 hover:text-white"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-4 gap-4">
+                      <div className="p-4 bg-[#c9a227]/10 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-[#c9a227]">
+                          {formatCurrency(selectedPrize.currentHighestBid || selectedPrize.minimumBid)}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {selectedPrize.currentHighestBid > 0 ? 'Current Bid' : 'Minimum Bid'}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-gray-900">{selectedPrize.stats.totalBids}</p>
+                        <p className="text-xs text-gray-500 mt-1">Total Bids</p>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-gray-900">{selectedPrize.stats.uniqueBidders}</p>
+                        <p className="text-xs text-gray-500 mt-1">Unique Bidders</p>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-gray-900">{formatCurrency(selectedPrize.stats.averageBid)}</p>
+                        <p className="text-xs text-gray-500 mt-1">Avg Bid</p>
+                      </div>
+                    </div>
+
+                    {/* Winner if exists */}
+                    {selectedPrize.winners.length > 0 && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Trophy className="w-5 h-5 text-green-600" />
+                          <h4 className="font-semibold text-green-800">Winner Confirmed</h4>
+                        </div>
+                        {selectedPrize.winners.map((winner) => (
+                          <div key={winner.id} className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900">{winner.bidder.name}</p>
+                              <p className="text-sm text-gray-500">Table {winner.bidder.tableNumber}</p>
+                            </div>
+                            <p className="text-xl font-bold text-green-600">{formatCurrency(winner.bid.amount)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Bid History */}
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <Gavel className="w-5 h-5 text-[#1e3a5f]" />
+                        Bid History ({selectedPrize.bids.length})
+                      </h4>
+                      {selectedPrize.bids.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Gavel className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                          <p>No bids yet</p>
+                        </div>
+                      ) : (
+                        <div className="border rounded-xl overflow-hidden">
+                          <table className="w-full">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Rank</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Bidder</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Table</th>
+                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Time</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {selectedPrize.bids.map((bid, index) => (
+                                <tr key={bid.id} className={index === 0 ? 'bg-[#c9a227]/5' : ''}>
+                                  <td className="px-4 py-3">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                      index === 0 ? 'bg-[#c9a227] text-white' :
+                                      index === 1 ? 'bg-gray-300 text-gray-700' :
+                                      index === 2 ? 'bg-amber-600 text-white' :
+                                      'bg-gray-100 text-gray-500'
+                                    }`}>
+                                      {index + 1}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <p className="font-medium text-gray-900">{bid.bidder.name}</p>
+                                    <p className="text-xs text-gray-500">{bid.bidder.email}</p>
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-600">Table {bid.bidder.tableNumber}</td>
+                                  <td className="px-4 py-3 text-right">
+                                    <span className={`font-bold ${index === 0 ? 'text-[#c9a227]' : 'text-gray-900'}`}>
+                                      {formatCurrency(bid.amount)}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right text-sm text-gray-500">
+                                    {new Date(bid.createdAt).toLocaleString(undefined, {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 border-t">
+                    <Button variant="outline" onClick={() => setSelectedPrize(null)} className="w-full">
                       Close
                     </Button>
                   </div>

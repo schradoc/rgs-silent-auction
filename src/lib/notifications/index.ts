@@ -126,8 +126,76 @@ function buildMessage(payload: NotificationPayload, bidderName: string): { subje
   }
 }
 
+// Reusable email wrapper for consistent styling
+function wrapEmailContent(content: string, buttonUrl?: string, buttonText?: string): string {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
+  const finalButtonUrl = buttonUrl || `${APP_URL}/prizes`
+  const finalButtonText = buttonText || 'View Auction'
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              <!-- Header -->
+              <tr>
+                <td style="background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); padding: 32px 40px 24px;">
+                  <h1 style="margin: 0; color: #c9a227; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">
+                    RGS-HK Silent Auction
+                  </h1>
+                  <p style="margin: 6px 0 0; color: rgba(255,255,255,0.7); font-size: 13px;">
+                    30th Anniversary Gala Dinner
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 40px;">
+                  ${content}
+
+                  <div style="text-align: center; margin-top: 32px;">
+                    <a href="${finalButtonUrl}"
+                       style="display: inline-block; background: linear-gradient(135deg, #c9a227 0%, #d4af37 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 2px 4px rgba(201, 162, 39, 0.3);">
+                      ${finalButtonText}
+                    </a>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #f8fafc; padding: 24px 40px; border-top: 1px solid #e2e8f0;">
+                  <p style="margin: 0; color: #64748b; font-size: 13px; text-align: center;">
+                    Royal Geographical Society - Hong Kong<br>
+                    28 February 2026 • Hong Kong Club
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
 async function sendNotificationEmail(to: string, subject: string, body: string): Promise<{ success: boolean; error?: string }> {
   if (!resend) return { success: false, error: 'Resend not configured' }
+
+  const content = `
+    <p style="margin: 0 0 20px; color: #374151; font-size: 16px; line-height: 1.7;">
+      ${body}
+    </p>
+  `
 
   try {
     await resend.emails.send({
@@ -135,22 +203,7 @@ async function sendNotificationEmail(to: string, subject: string, body: string):
       to,
       subject,
       text: body,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #1e3a5f; padding: 20px; text-align: center;">
-            <h1 style="color: #c9a227; margin: 0;">RGS-HK Auction</h1>
-          </div>
-          <div style="padding: 30px; background: #f9f9f9;">
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">${body}</p>
-            <div style="margin-top: 30px; text-align: center;">
-              <a href="https://rgs-auction.vercel.app/prizes" style="background: #c9a227; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">View Auction</a>
-            </div>
-          </div>
-          <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
-            Royal Geographical Society - Hong Kong | 30th Anniversary Gala
-          </div>
-        </div>
-      `,
+      html: wrapEmailContent(content),
     })
     return { success: true }
   } catch (err) {
@@ -230,42 +283,41 @@ export async function notifyOutbidBidders(prizeId: string, newBidAmount: number,
       const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
       const prizeUrl = `${APP_URL}/prizes/${prize.slug}`
 
+      const content = `
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 48px;">⚡</span>
+        </div>
+
+        <h2 style="margin: 0 0 16px; color: #1e3a5f; font-size: 22px; font-weight: 600; text-align: center;">
+          You've Been Outbid!
+        </h2>
+
+        <p style="margin: 0 0 8px; color: #374151; font-size: 16px; line-height: 1.6; text-align: center;">
+          Hi ${bidder.name},
+        </p>
+        <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.6; text-align: center;">
+          Someone just placed a higher bid on <strong style="color: #1e3a5f;">"${prize.title}"</strong>
+        </p>
+
+        <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center;">
+          <p style="margin: 0 0 8px; color: #92400e; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+            New Highest Bid
+          </p>
+          <p style="margin: 0; color: #1e3a5f; font-size: 36px; font-weight: 700; letter-spacing: -1px;">
+            ${formatCurrency(newBidAmount)}
+          </p>
+        </div>
+
+        <p style="margin: 24px 0 0; color: #6b7280; font-size: 14px; text-align: center;">
+          Act fast — don't let this prize slip away!
+        </p>
+      `
+
       await resend.emails.send({
         from: FROM_EMAIL,
         to: bidder.email,
-        subject: `You've been outbid on ${prize.title}!`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: #1e3a5f; padding: 20px; text-align: center;">
-              <h1 style="color: #c9a227; margin: 0;">RGS-HK Auction</h1>
-            </div>
-            <div style="padding: 30px; background: #f9f9f9;">
-              <p style="font-size: 18px; line-height: 1.6; color: #333;">
-                Hi ${bidder.name},
-              </p>
-              <p style="font-size: 16px; line-height: 1.6; color: #333;">
-                Someone has outbid you on <strong>"${prize.title}"</strong>!
-              </p>
-              <div style="background: #fff; border: 2px solid #c9a227; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
-                <p style="margin: 0; color: #666; font-size: 14px;">Current Highest Bid</p>
-                <p style="margin: 10px 0 0 0; color: #1e3a5f; font-size: 32px; font-weight: bold;">
-                  ${formatCurrency(newBidAmount)}
-                </p>
-              </div>
-              <div style="margin: 30px 0; text-align: center;">
-                <a href="${prizeUrl}" style="background: #c9a227; color: white; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
-                  Place a Higher Bid
-                </a>
-              </div>
-              <p style="font-size: 14px; color: #666; text-align: center;">
-                Don't let this prize slip away!
-              </p>
-            </div>
-            <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
-              Royal Geographical Society - Hong Kong | 30th Anniversary Gala
-            </div>
-          </div>
-        `,
+        subject: `⚡ You've been outbid on ${prize.title}!`,
+        html: wrapEmailContent(content, prizeUrl, 'Place a Higher Bid'),
       })
 
       // Log the notification
@@ -333,46 +385,52 @@ export async function sendWinnerNotification(winnerId: string): Promise<boolean>
 
     // Send email notification
     if (resend && bidder.email) {
+      const content = `
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 56px;">🎉</span>
+        </div>
+
+        <h2 style="margin: 0 0 16px; color: #1e3a5f; font-size: 26px; font-weight: 700; text-align: center;">
+          Congratulations, ${bidder.name}!
+        </h2>
+
+        <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.6; text-align: center;">
+          You've won the auction!
+        </p>
+
+        <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); border-radius: 12px; padding: 28px; margin: 24px 0; text-align: center;">
+          <p style="margin: 0 0 8px; color: rgba(255,255,255,0.7); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">
+            Your Prize
+          </p>
+          <h3 style="margin: 0 0 16px; color: #ffffff; font-size: 20px; font-weight: 600;">
+            ${prize.title}
+          </h3>
+          <div style="background: rgba(201, 162, 39, 0.2); border-radius: 8px; padding: 16px; display: inline-block;">
+            <p style="margin: 0 0 4px; color: #c9a227; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+              Winning Bid
+            </p>
+            <p style="margin: 0; color: #c9a227; font-size: 32px; font-weight: 700; letter-spacing: -1px;">
+              ${formatCurrency(bid.amount)}
+            </p>
+          </div>
+        </div>
+
+        <div style="background-color: #f0fdf4; border-radius: 8px; padding: 20px; margin: 24px 0;">
+          <p style="margin: 0 0 8px; color: #166534; font-size: 14px; font-weight: 600;">
+            What happens next?
+          </p>
+          <p style="margin: 0; color: #15803d; font-size: 14px; line-height: 1.6;">
+            A member of our team will be in touch shortly to arrange collection and payment.
+            Thank you for supporting the Royal Geographical Society Hong Kong!
+          </p>
+        </div>
+      `
+
       await resend.emails.send({
         from: FROM_EMAIL,
         to: bidder.email,
-        subject: `Congratulations! You won "${prize.title}"!`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: #1e3a5f; padding: 20px; text-align: center;">
-              <h1 style="color: #c9a227; margin: 0;">RGS-HK Auction</h1>
-            </div>
-            <div style="padding: 30px; background: #f9f9f9;">
-              <div style="text-align: center; margin-bottom: 20px;">
-                <span style="font-size: 48px;">🎉</span>
-              </div>
-              <h2 style="text-align: center; color: #1e3a5f; margin-bottom: 20px;">
-                Congratulations, ${bidder.name}!
-              </h2>
-              <p style="font-size: 16px; line-height: 1.6; color: #333; text-align: center;">
-                You've won the auction for:
-              </p>
-              <div style="background: #fff; border: 2px solid #c9a227; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
-                <h3 style="margin: 0 0 10px 0; color: #1e3a5f; font-size: 20px;">
-                  ${prize.title}
-                </h3>
-                <p style="margin: 0; color: #666; font-size: 14px;">Winning Bid</p>
-                <p style="margin: 5px 0 0 0; color: #c9a227; font-size: 28px; font-weight: bold;">
-                  ${formatCurrency(bid.amount)}
-                </p>
-              </div>
-              <p style="font-size: 14px; line-height: 1.6; color: #333; text-align: center;">
-                Thank you for supporting the Royal Geographical Society Hong Kong!
-              </p>
-              <p style="font-size: 14px; line-height: 1.6; color: #333; text-align: center;">
-                A member of our team will be in touch shortly to arrange collection and payment.
-              </p>
-            </div>
-            <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
-              Royal Geographical Society - Hong Kong | 30th Anniversary Gala
-            </div>
-          </div>
-        `,
+        subject: `🎉 Congratulations! You won "${prize.title}"!`,
+        html: wrapEmailContent(content, undefined, 'View My Wins'),
       })
 
       // Log the notification
