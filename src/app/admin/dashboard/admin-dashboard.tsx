@@ -34,11 +34,15 @@ import {
   AlertTriangle,
   ChevronRight,
   BarChart3,
-  Activity
+  Activity,
+  HelpCircle,
+  BookOpen,
 } from 'lucide-react'
 import { Button, Card, CardContent, Badge } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
+import { OnboardingTutorial, useOnboarding } from '@/components/admin/onboarding-tutorial'
+import { AnalyticsCharts } from '@/components/admin/analytics-charts'
 
 interface Prize {
   id: string
@@ -135,6 +139,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
   const [data, setData] = useState(initialData)
   const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'bidders' | 'winners' | 'helpers' | 'settings'>('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const { showOnboarding, completeOnboarding, startOnboarding } = useOnboarding()
   const [helpers, setHelpers] = useState<Helper[]>([])
   const [showAddHelper, setShowAddHelper] = useState(false)
   const [newHelperName, setNewHelperName] = useState('')
@@ -464,7 +469,16 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      {/* Onboarding Tutorial */}
+      {showOnboarding && (
+        <OnboardingTutorial
+          onClose={completeOnboarding}
+          onTabChange={setActiveTab}
+        />
+      )}
+
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-[#1e3a5f] text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -479,6 +493,15 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
           </div>
 
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={startOnboarding}
+              className="text-white hover:bg-white/10"
+              title="Start tutorial"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -653,6 +676,15 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Analytics Section */}
+            <div className="pt-4">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="w-5 h-5 text-gray-500" />
+                <h2 className="font-semibold text-gray-900">Analytics</h2>
+              </div>
+              <AnalyticsCharts />
+            </div>
 
             {/* Live Bid Feed */}
             <Card>
@@ -1383,5 +1415,6 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         )}
       </main>
     </div>
+    </>
   )
 }

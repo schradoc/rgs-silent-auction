@@ -14,7 +14,10 @@ import {
   Shield,
   Share2,
   Heart,
-  AlertCircle
+  AlertCircle,
+  Lock,
+  Eye,
+  Ban,
 } from 'lucide-react'
 import { Button, Card, CardContent, Badge } from '@/components/ui'
 import { formatCurrency, formatDate, getMinimumNextBid, getMinimumBidIncrement } from '@/lib/utils'
@@ -33,6 +36,8 @@ interface PrizeDetailProps {
   prize: PrizeWithBids
 }
 
+type AuctionState = 'DRAFT' | 'TESTING' | 'PRELAUNCH' | 'LIVE' | 'CLOSED'
+
 export function PrizeDetail({ prize }: PrizeDetailProps) {
   const [showBidSheet, setShowBidSheet] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
@@ -41,6 +46,8 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
   const [viewerCount] = useState(() => Math.floor(Math.random() * 8) + 3)
   const [isFavorite, setIsFavorite] = useState(false)
   const [favoriteLoading, setFavoriteLoading] = useState(false)
+  const [auctionState, setAuctionState] = useState<AuctionState | null>(null)
+  const [isAuctionOpen, setIsAuctionOpen] = useState(true)
 
   useEffect(() => {
     setMounted(true)
@@ -52,7 +59,32 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
         setIsFavorite(favs.some((f: { prizeId: string }) => f.prizeId === prize.id))
       })
       .catch(() => {})
+
+    // Check auction state
+    fetch('/api/auction-state')
+      .then(res => res.json())
+      .then(data => {
+        setAuctionState(data.state)
+        setIsAuctionOpen(data.isOpen)
+      })
+      .catch(() => {})
   }, [prize.id])
+
+  const canBid = auctionState === 'LIVE' && isAuctionOpen
+
+  const getAuctionStateMessage = () => {
+    switch (auctionState) {
+      case 'DRAFT':
+      case 'TESTING':
+        return { icon: Lock, title: 'Preview Mode', message: 'The auction is being prepared. Bidding will open soon.' }
+      case 'PRELAUNCH':
+        return { icon: Eye, title: 'Coming Soon', message: 'Browse the prizes! Bidding opens at the event.' }
+      case 'CLOSED':
+        return { icon: Ban, title: 'Auction Closed', message: 'This auction has ended. Thank you for participating!' }
+      default:
+        return null
+    }
+  }
 
   const toggleFavorite = async () => {
     setFavoriteLoading(true)
@@ -208,35 +240,71 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
 
               {/* Quick Bid Buttons */}
               <div className="mt-6">
-                <p className="text-sm text-gray-500 mb-3">Quick bid options:</p>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  {quickBidAmounts.map((amount, i) => (
-                    <button
-                      key={amount}
+                {/* Auction State Message */}
+                {auctionState && !canBid && (
+                  <div className="mb-4 p-4 rounded-xl bg-gray-100 border border-gray-200">
+                    {(() => {
+                      const msg = getAuctionStateMessage()
+                      if (!msg) return null
+                      const Icon = msg.icon
+                      return (
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                            <Icon className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{msg.title}</p>
+                            <p className="text-sm text-gray-600">{msg.message}</p>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+
+                {canBid ? (
+                  <>
+                    <p className="text-sm text-gray-500 mb-3">Quick bid options:</p>
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      {quickBidAmounts.map((amount, i) => (
+                        <button
+                          key={amount}
+                          onClick={() => setShowBidSheet(true)}
+                          className={`py-3 px-4 rounded-xl font-medium transition-all ${
+                            i === 0
+                              ? 'bg-[#b8941f] text-white hover:bg-[#a3821b] shadow-lg shadow-[#b8941f]/20'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {formatCurrency(amount)}
+                        </button>
+                      ))}
+                    </div>
+
+                    <Button
+                      variant="gold"
+                      size="lg"
+                      className="w-full py-4 text-lg font-medium shadow-lg shadow-[#b8941f]/25"
                       onClick={() => setShowBidSheet(true)}
-                      className={`py-3 px-4 rounded-xl font-medium transition-all ${
-                        i === 0
-                          ? 'bg-[#b8941f] text-white hover:bg-[#a3821b] shadow-lg shadow-[#b8941f]/20'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
                     >
-                      {formatCurrency(amount)}
-                    </button>
-                  ))}
-                </div>
+                      Place Custom Bid
+                    </Button>
 
-                <Button
-                  variant="gold"
-                  size="lg"
-                  className="w-full py-4 text-lg font-medium shadow-lg shadow-[#b8941f]/25"
-                  onClick={() => setShowBidSheet(true)}
-                >
-                  Place Custom Bid
-                </Button>
-
-                <p className="text-center text-xs text-gray-400 mt-3">
-                  Next minimum: {formatCurrency(minimumNextBid)} • Increment: +{formatCurrency(bidIncrement)}
-                </p>
+                    <p className="text-center text-xs text-gray-400 mt-3">
+                      Next minimum: {formatCurrency(minimumNextBid)} • Increment: +{formatCurrency(bidIncrement)}
+                    </p>
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full py-4 text-lg font-medium"
+                    disabled
+                  >
+                    <Lock className="w-5 h-5 mr-2" />
+                    Bidding {auctionState === 'CLOSED' ? 'Ended' : 'Not Yet Open'}
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -351,14 +419,26 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
               {formatCurrency(hasActiveBid ? prize.currentHighestBid : prize.minimumBid)}
             </p>
           </div>
-          <Button
-            variant="gold"
-            size="lg"
-            className="px-8 shadow-lg shadow-[#b8941f]/25"
-            onClick={() => setShowBidSheet(true)}
-          >
-            Place Bid
-          </Button>
+          {canBid ? (
+            <Button
+              variant="gold"
+              size="lg"
+              className="px-8 shadow-lg shadow-[#b8941f]/25"
+              onClick={() => setShowBidSheet(true)}
+            >
+              Place Bid
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="lg"
+              className="px-6"
+              disabled
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              {auctionState === 'CLOSED' ? 'Ended' : 'Coming Soon'}
+            </Button>
+          )}
         </div>
       </div>
 

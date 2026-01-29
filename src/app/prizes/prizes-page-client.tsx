@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { User, Search, Filter, Flame, Clock, ArrowUpRight, X } from 'lucide-react'
+import { User, Search, Filter, Flame, Clock, ArrowUpRight, X, Lock, Eye, Rocket } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { AuctionCountdown } from '@/components/auction-countdown'
@@ -24,9 +24,12 @@ const CATEGORIES = [
   { id: 'PLEDGES', label: 'Pledges' },
 ]
 
+type AuctionState = 'DRAFT' | 'TESTING' | 'PRELAUNCH' | 'LIVE' | 'CLOSED'
+
 interface AuctionStatus {
   isAuctionOpen: boolean
   auctionEndTime: string | null
+  auctionState: AuctionState
 }
 
 export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
@@ -39,9 +42,13 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
   useEffect(() => {
     setMounted(true)
     // Fetch auction status
-    fetch('/api/auction-status')
+    fetch('/api/auction-state')
       .then(res => res.json())
-      .then(data => setAuctionStatus(data))
+      .then(data => setAuctionStatus({
+        isAuctionOpen: data.isOpen,
+        auctionEndTime: data.endTime,
+        auctionState: data.state,
+      }))
       .catch(() => {})
   }, [])
 
@@ -86,10 +93,53 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
     totalValue: prizes.reduce((sum, p) => sum + p.currentHighestBid, 0),
   }), [prizes])
 
+  // Get auction state banner info
+  const getStateBanner = () => {
+    if (!auctionStatus) return null
+    const { auctionState } = auctionStatus
+
+    switch (auctionState) {
+      case 'DRAFT':
+      case 'TESTING':
+        return {
+          icon: Lock,
+          bg: 'bg-purple-600',
+          message: 'Preview Mode - Auction is being prepared',
+        }
+      case 'PRELAUNCH':
+        return {
+          icon: Eye,
+          bg: 'bg-blue-600',
+          message: 'Browse the prizes! Bidding opens at the event.',
+        }
+      case 'CLOSED':
+        return {
+          icon: Lock,
+          bg: 'bg-gray-600',
+          message: 'Auction has ended. Thank you for participating!',
+        }
+      case 'LIVE':
+      default:
+        return null // Show countdown instead
+    }
+  }
+
+  const stateBanner = getStateBanner()
+
   return (
     <main className="min-h-screen bg-[#fafaf8]">
-      {/* Auction Countdown Banner */}
-      {auctionStatus && (
+      {/* Auction State Banner */}
+      {stateBanner && (
+        <div className={`${stateBanner.bg} text-white py-3`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-center gap-3">
+            <stateBanner.icon className="w-5 h-5" />
+            <span className="text-sm font-medium">{stateBanner.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Auction Countdown Banner (only when LIVE) */}
+      {auctionStatus && auctionStatus.auctionState === 'LIVE' && (
         <AuctionCountdown
           endTime={auctionStatus.auctionEndTime}
           isOpen={auctionStatus.isAuctionOpen}
