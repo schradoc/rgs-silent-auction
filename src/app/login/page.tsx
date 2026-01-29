@@ -86,7 +86,11 @@ function LoginPageContent() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Failed to send magic link')
+        if (data.notFound) {
+          setError('No account found. Please register first.')
+        } else {
+          setError(data.error || 'Failed to send magic link')
+        }
         return
       }
 

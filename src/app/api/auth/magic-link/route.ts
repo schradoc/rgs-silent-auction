@@ -21,11 +21,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (!bidder) {
-      // Don't reveal if email exists or not for security
       return NextResponse.json({
-        success: true,
-        message: 'If an account exists with this email, a magic link has been sent.',
-      })
+        error: 'No account found with this email. Please register first.',
+        notFound: true,
+      }, { status: 404 })
     }
 
     // Generate magic link token

@@ -5,6 +5,54 @@ import { COOKIE_NAMES } from '@/lib/constants'
 
 const isDatabaseConfigured = !!process.env.DATABASE_URL
 
+async function sendVerificationEmail(email: string, name: string, code: string) {
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[DEV] Verification code for ${email}: ${code}`)
+    return false
+  }
+
+  try {
+    const { Resend } = await import('resend')
+    const resend = new Resend(process.env.RESEND_API_KEY)
+
+    await resend.emails.send({
+      from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
+      to: email,
+      subject: 'Your RGS-HK Auction Verification Code',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #1e3a5f; padding: 20px; text-align: center;">
+            <h1 style="color: #c9a227; margin: 0;">RGS-HK Auction</h1>
+          </div>
+          <div style="padding: 30px; background: #f9f9f9;">
+            <p style="font-size: 16px; line-height: 1.6; color: #333;">
+              Hi ${name},
+            </p>
+            <p style="font-size: 16px; line-height: 1.6; color: #333;">
+              Your verification code is:
+            </p>
+            <div style="margin: 30px 0; text-align: center;">
+              <span style="background: #1e3a5f; color: #c9a227; padding: 16px 32px; font-size: 32px; font-weight: bold; letter-spacing: 8px; border-radius: 8px; display: inline-block;">
+                ${code}
+              </span>
+            </div>
+            <p style="font-size: 14px; color: #666;">
+              Enter this code to complete your registration and start bidding.
+            </p>
+          </div>
+          <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
+            Royal Geographical Society - Hong Kong | 30th Anniversary Gala
+          </div>
+        </div>
+      `,
+    })
+    return true
+  } catch (error) {
+    console.error('Failed to send verification email:', error)
+    return false
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -77,12 +125,12 @@ export async function POST(request: NextRequest) {
         data: { verificationCode, name, tableNumber },
       })
 
-      console.log(`[MOCK EMAIL] Verification code for ${email}: ${verificationCode}`)
+      await sendVerificationEmail(email, name, verificationCode)
 
       return NextResponse.json({
         success: true,
         requiresVerification: true,
-        message: 'Verification code sent',
+        message: 'Verification code sent to your email',
       })
     }
 
@@ -105,7 +153,7 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24,
     })
 
-    console.log(`[MOCK EMAIL] Verification code for ${email}: ${verificationCode}`)
+    await sendVerificationEmail(email, name, verificationCode)
 
     return NextResponse.json({
       success: true,
@@ -117,7 +165,7 @@ export async function POST(request: NextRequest) {
         emailVerified: bidder.emailVerified,
       },
       requiresVerification: true,
-      _demoCode: verificationCode,
+      message: 'Verification code sent to your email',
     })
   } catch (error) {
     console.error('Registration error:', error)
