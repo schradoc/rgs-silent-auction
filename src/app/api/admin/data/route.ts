@@ -1,32 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { COOKIE_NAMES } from '@/lib/constants'
+import { verifyAdminSession } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const adminSession = cookieStore.get(COOKIE_NAMES.adminSession)?.value
-    const adminToken = cookieStore.get('admin_token')?.value
-
-    // Debug logging
-    console.log('Admin data request - cookies:', {
-      adminSessionName: COOKIE_NAMES.adminSession,
-      adminSessionValue: adminSession,
-      hasAdminToken: !!adminToken,
-      allCookies: cookieStore.getAll().map(c => ({ name: c.name, valueLength: c.value?.length }))
-    })
-
-    if (adminSession !== 'true') {
-      return NextResponse.json({
-        error: 'Unauthorized',
-        debug: {
-          expectedCookie: COOKIE_NAMES.adminSession,
-          receivedValue: adminSession,
-          hasToken: !!adminToken
-        }
-      }, { status: 401 })
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { prisma } = await import('@/lib/prisma')

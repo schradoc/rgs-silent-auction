@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { COOKIE_NAMES } from '@/lib/constants'
+import { verifyAdminSession } from '@/lib/admin-auth'
+
 
 export const dynamic = 'force-dynamic'
 
 // Get all winners or potential winners
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -85,10 +83,8 @@ export async function GET(request: NextRequest) {
 // Confirm a winner
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -144,10 +140,8 @@ export async function POST(request: NextRequest) {
 // Remove a winner (undo confirmation)
 export async function DELETE(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

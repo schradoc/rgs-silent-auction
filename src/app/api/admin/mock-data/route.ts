@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { COOKIE_NAMES } from '@/lib/constants'
+import { verifyAdminSession } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,26 +21,9 @@ const LAST_NAMES = [
 // Generate mock data based on existing prizes
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const adminSessionValue = cookieStore.get(COOKIE_NAMES.adminSession)?.value
-    const isAdmin = adminSessionValue === 'true'
-
-    // Debug logging
-    console.log('Mock data POST - cookies:', {
-      cookieName: COOKIE_NAMES.adminSession,
-      cookieValue: adminSessionValue,
-      isAdmin,
-      allCookies: cookieStore.getAll().map(c => ({ name: c.name, valueLength: c.value?.length }))
-    })
-
-    if (!isAdmin) {
-      return NextResponse.json({
-        error: 'Unauthorized',
-        debug: {
-          expectedCookie: COOKIE_NAMES.adminSession,
-          receivedValue: adminSessionValue,
-        }
-      }, { status: 401 })
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { prisma } = await import('@/lib/prisma')
@@ -144,10 +126,8 @@ export async function POST(request: NextRequest) {
 // Clear all mock data
 export async function DELETE(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

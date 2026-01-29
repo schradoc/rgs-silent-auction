@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { COOKIE_NAMES } from '@/lib/constants'
+import { verifyAdminSession } from '@/lib/admin-auth'
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
@@ -22,10 +22,8 @@ function getSupabase(): SupabaseClient {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -132,10 +130,8 @@ export async function POST(request: NextRequest) {
 // Delete an image
 export async function DELETE(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

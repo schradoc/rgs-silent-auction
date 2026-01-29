@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { COOKIE_NAMES } from '@/lib/constants'
+import { verifyAdminSession } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,10 +18,8 @@ const ALLOWED_TRANSITIONS: Record<AuctionState, AuctionState[]> = {
 // Get current auction state
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -54,10 +51,8 @@ export async function GET(request: NextRequest) {
 // Update auction state
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

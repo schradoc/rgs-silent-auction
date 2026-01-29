@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { COOKIE_NAMES } from '@/lib/constants'
+import { verifyAdminSession } from '@/lib/admin-auth'
+
 
 export const dynamic = 'force-dynamic'
 
 // Get all prizes with details
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -53,10 +51,8 @@ export async function GET(request: NextRequest) {
 // Create new prize
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -124,10 +120,8 @@ export async function POST(request: NextRequest) {
 // Update prize
 export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -161,10 +155,8 @@ export async function PUT(request: NextRequest) {
 // Delete prize (soft delete by deactivating)
 export async function DELETE(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-
-    if (!isAdmin) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

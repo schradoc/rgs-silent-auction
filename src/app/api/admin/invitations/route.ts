@@ -1,39 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { verifyAdminSession } from '@/lib/admin-auth'
 import { randomBytes } from 'crypto'
-import { COOKIE_NAMES } from '@/lib/constants'
+
 
 export const dynamic = 'force-dynamic'
 
 // Get pending invitations
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-    const token = cookieStore.get('admin_token')?.value
-
-    if (!isAdmin || !token) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { prisma } = await import('@/lib/prisma')
-
-    // Get current user
-    const session = await prisma.adminSession.findUnique({
-      where: { token },
-    })
-
-    if (!session?.adminUserId) {
-      return NextResponse.json({ error: 'Session invalid' }, { status: 401 })
-    }
-
-    const currentUser = await prisma.adminUser.findUnique({
-      where: { id: session.adminUserId },
-    })
-
+    const currentUser = auth.user
     if (!currentUser || currentUser.role === 'EMPLOYEE') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
+
+    const { prisma } = await import('@/lib/prisma')
 
     // Get pending invitations
     const invitations = await prisma.adminInvitation.findMany({
@@ -59,33 +44,17 @@ export async function GET(request: NextRequest) {
 // Create invitation
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-    const token = cookieStore.get('admin_token')?.value
-
-    if (!isAdmin || !token) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { prisma } = await import('@/lib/prisma')
-
-    // Get current user
-    const session = await prisma.adminSession.findUnique({
-      where: { token },
-    })
-
-    if (!session?.adminUserId) {
-      return NextResponse.json({ error: 'Session invalid' }, { status: 401 })
-    }
-
-    const currentUser = await prisma.adminUser.findUnique({
-      where: { id: session.adminUserId },
-    })
-
+    const currentUser = auth.user
     if (!currentUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    const { prisma } = await import('@/lib/prisma')
     const body = await request.json()
     const { email, role } = body
 
@@ -181,12 +150,14 @@ export async function POST(request: NextRequest) {
 // Revoke invitation
 export async function DELETE(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
-    const token = cookieStore.get('admin_token')?.value
-
-    if (!isAdmin || !token) {
+    const auth = await verifyAdminSession()
+    if (!auth.valid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const currentUser = auth.user
+    if (!currentUser || currentUser.role === 'EMPLOYEE') {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
@@ -197,23 +168,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { prisma } = await import('@/lib/prisma')
-
-    // Get current user
-    const session = await prisma.adminSession.findUnique({
-      where: { token },
-    })
-
-    if (!session?.adminUserId) {
-      return NextResponse.json({ error: 'Session invalid' }, { status: 401 })
-    }
-
-    const currentUser = await prisma.adminUser.findUnique({
-      where: { id: session.adminUserId },
-    })
-
-    if (!currentUser || currentUser.role === 'EMPLOYEE') {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
 
     await prisma.adminInvitation.delete({
       where: { id: invitationId },
