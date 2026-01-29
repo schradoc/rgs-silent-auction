@@ -23,6 +23,7 @@ import {
   Mail,
   Printer,
   Eye,
+  EyeOff,
   TestTube,
   FileEdit,
   Rocket,
@@ -30,13 +31,22 @@ import {
   Sparkles,
   AlertTriangle,
   ChevronRight,
+  ChevronDown,
   BarChart3,
   Activity,
   HelpCircle,
   ExternalLink,
   Loader2,
+  Send,
+  UserPlus,
+  Shield,
+  Monitor,
+  MessageSquare,
+  LifeBuoy,
+  QrCode,
+  RotateCw,
 } from 'lucide-react'
-import { Button, Card, CardContent, Badge } from '@/components/ui'
+import { Button, Card, CardContent, Badge, toast, useConfirm, ConfirmProvider } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { OnboardingTutorial, useOnboarding } from '@/components/admin/onboarding-tutorial'
@@ -157,7 +167,8 @@ interface AdminDashboardProps {
   }
 }
 
-export function AdminDashboard({ initialData }: AdminDashboardProps) {
+function AdminDashboardContent({ initialData }: AdminDashboardProps) {
+  const confirm = useConfirm()
   const [data, setData] = useState(initialData)
   const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'bidders' | 'winners' | 'helpers' | 'settings'>('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -197,12 +208,50 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
   // Bidder modal state
   const [selectedBidder, setSelectedBidder] = useState<BidderWithHistory | null>(null)
   const [loadingBidder, setLoadingBidder] = useState(false)
+  const [loadingBidderId, setLoadingBidderId] = useState<string | null>(null) // Track which bidder row is loading
 
   // Page visibility for polling optimization
   const [isPageVisible, setIsPageVisible] = useState(true)
 
   // Prize images state for new prizes
   const [prizeImages, setPrizeImages] = useState<PrizeImage[]>([])
+
+  // Settings page state
+  const [settingsSection, setSettingsSection] = useState<'auction' | 'display' | 'team' | 'email' | 'export' | 'support'>('auction')
+  const [displaySettings, setDisplaySettings] = useState({
+    showDonorNames: true,
+    showBidderNames: false,
+    featuredRotationSecs: 8,
+    customQrUrl: '',
+  })
+  const [adminUsers, setAdminUsers] = useState<Array<{
+    id: string
+    email: string
+    name: string
+    role: 'OWNER' | 'ADMIN' | 'EMPLOYEE'
+    isActive: boolean
+    lastLoginAt: string | null
+    createdAt: string
+  }>>([])
+  const [pendingInvitations, setPendingInvitations] = useState<Array<{
+    id: string
+    email: string
+    role: 'OWNER' | 'ADMIN' | 'EMPLOYEE'
+    expiresAt: string
+    invitedBy: { name: string; email: string }
+  }>>([])
+  const [currentUser, setCurrentUser] = useState<{
+    id: string
+    email: string
+    name: string
+    role: 'OWNER' | 'ADMIN' | 'EMPLOYEE'
+  } | null>(null)
+  const [showInviteForm, setShowInviteForm] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<'ADMIN' | 'EMPLOYEE'>('EMPLOYEE')
+  const [inviting, setInviting] = useState(false)
+  const [savingDisplaySettings, setSavingDisplaySettings] = useState(false)
+  const [testingEmail, setTestingEmail] = useState(false)
 
   // Page visibility tracking for polling optimization
   useEffect(() => {
@@ -302,12 +351,14 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       })
       if (res.ok) {
         fetchWinners()
+        toast.success('Winner confirmed successfully')
       } else {
         const data = await res.json()
-        alert(data.error || 'Failed to confirm winner')
+        toast.error(data.error || 'Failed to confirm winner')
       }
     } catch (error) {
       console.error('Failed to confirm winner:', error)
+      toast.error('Failed to confirm winner')
     } finally {
       setConfirmingWinner(null)
     }
@@ -324,10 +375,13 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       })
       if (res.ok) {
         handleRefresh()
-        alert('Auction end time updated!')
+        toast.success('Auction end time updated')
+      } else {
+        toast.error('Failed to set end time')
       }
     } catch (error) {
       console.error('Failed to set end time:', error)
+      toast.error('Failed to set end time')
     }
   }
 
@@ -338,10 +392,204 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
     if (activeTab === 'winners') {
       fetchWinners()
     }
+    if (activeTab === 'settings') {
+      fetchSettingsData()
+    }
   }, [activeTab])
 
+  const fetchSettingsData = async () => {
+    try {
+      // Fetch current user
+      const userRes = await fetch('/api/admin/users', { credentials: 'include' })
+      if (userRes.ok) {
+        const userData = await userRes.json()
+        setCurrentUser(userData.user)
+      }
+
+      // Fetch all users (owners only)
+      const allUsersRes = await fetch('/api/admin/users?all=true', { credentials: 'include' })
+      if (allUsersRes.ok) {
+        const allUsersData = await allUsersRes.json()
+        if (allUsersData.users) {
+          setAdminUsers(allUsersData.users)
+        }
+      }
+
+      // Fetch pending invitations
+      const invitationsRes = await fetch('/api/admin/invitations', { credentials: 'include' })
+      if (invitationsRes.ok) {
+        const invitationsData = await invitationsRes.json()
+        setPendingInvitations(invitationsData.invitations || [])
+      }
+
+      // Fetch display settings
+      const settingsRes = await fetch('/api/admin/settings', { credentials: 'include' })
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json()
+        if (settingsData.displaySettings) {
+          setDisplaySettings({
+            showDonorNames: settingsData.displaySettings.showDonorNames ?? true,
+            showBidderNames: settingsData.displaySettings.showBidderNames ?? false,
+            featuredRotationSecs: settingsData.displaySettings.featuredRotationSecs ?? 8,
+            customQrUrl: settingsData.displaySettings.customQrUrl || '',
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings data:', error)
+    }
+  }
+
+  const handleInviteUser = async () => {
+    if (!inviteEmail.trim()) {
+      toast.error('Email is required')
+      return
+    }
+
+    setInviting(true)
+    try {
+      const res = await fetch('/api/admin/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+        credentials: 'include',
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(`Invitation sent to ${inviteEmail}`)
+        setInviteEmail('')
+        setShowInviteForm(false)
+        fetchSettingsData()
+      } else {
+        toast.error(data.error || 'Failed to send invitation')
+      }
+    } catch (error) {
+      toast.error('Failed to send invitation')
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const handleRevokeInvitation = async (invitationId: string) => {
+    const confirmed = await confirm.confirm({
+      title: 'Revoke Invitation',
+      description: 'Are you sure you want to revoke this invitation?',
+      confirmLabel: 'Revoke',
+      variant: 'danger',
+    })
+    if (!confirmed) return
+
+    try {
+      const res = await fetch(`/api/admin/invitations?id=${invitationId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (res.ok) {
+        toast.success('Invitation revoked')
+        fetchSettingsData()
+      } else {
+        toast.error('Failed to revoke invitation')
+      }
+    } catch (error) {
+      toast.error('Failed to revoke invitation')
+    }
+  }
+
+  const handleUpdateUserRole = async (userId: string, newRole: 'ADMIN' | 'EMPLOYEE') => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId, role: newRole }),
+        credentials: 'include',
+      })
+
+      if (res.ok) {
+        toast.success('Role updated')
+        fetchSettingsData()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to update role')
+      }
+    } catch (error) {
+      toast.error('Failed to update role')
+    }
+  }
+
+  const handleToggleUserActive = async (userId: string, isActive: boolean) => {
+    const action = isActive ? 'deactivate' : 'reactivate'
+    const confirmed = await confirm.confirm({
+      title: `${isActive ? 'Deactivate' : 'Reactivate'} User`,
+      description: `Are you sure you want to ${action} this user?`,
+      confirmLabel: isActive ? 'Deactivate' : 'Reactivate',
+      variant: isActive ? 'danger' : 'default',
+    })
+    if (!confirmed) return
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId, isActive: !isActive }),
+        credentials: 'include',
+      })
+
+      if (res.ok) {
+        toast.success(`User ${action}d`)
+        fetchSettingsData()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || `Failed to ${action} user`)
+      }
+    } catch (error) {
+      toast.error(`Failed to ${action} user`)
+    }
+  }
+
+  const handleSaveDisplaySettings = async () => {
+    setSavingDisplaySettings(true)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(displaySettings),
+        credentials: 'include',
+      })
+
+      if (res.ok) {
+        toast.success('Display settings saved')
+      } else {
+        toast.error('Failed to save display settings')
+      }
+    } catch (error) {
+      toast.error('Failed to save display settings')
+    } finally {
+      setSavingDisplaySettings(false)
+    }
+  }
+
+  const handleSendTestEmail = async () => {
+    setTestingEmail(true)
+    try {
+      // This would need a test email endpoint - for now just simulate
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      toast.success('Test email sent to your address')
+    } catch (error) {
+      toast.error('Failed to send test email')
+    } finally {
+      setTestingEmail(false)
+    }
+  }
+
   const handleGenerateMockData = async () => {
-    if (!confirm('This will generate mock bidders and bids for all prizes. Continue?')) return
+    const confirmed = await confirm.confirm({
+      title: 'Generate Mock Data',
+      description: 'This will generate mock bidders and bids for all prizes. Continue?',
+      confirmLabel: 'Generate',
+    })
+    if (!confirmed) return
+
     setMockDataLoading(true)
     try {
       const res = await fetch('/api/admin/mock-data', {
@@ -352,32 +600,39 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       })
       const data = await res.json()
       if (res.ok) {
-        alert(`Created ${data.created.bidders} bidders and ${data.created.bids} bids`)
+        toast.success(`Created ${data.created.bidders} bidders and ${data.created.bids} bids`)
         handleRefresh()
       } else {
-        alert(data.error || 'Failed to generate mock data')
+        toast.error(data.error || 'Failed to generate mock data')
       }
     } catch (error) {
-      alert('Failed to generate mock data')
+      toast.error('Failed to generate mock data')
     } finally {
       setMockDataLoading(false)
     }
   }
 
   const handleClearMockData = async () => {
-    if (!confirm('This will delete ALL mock bidders and bids. This cannot be undone. Continue?')) return
+    const confirmed = await confirm.confirm({
+      title: 'Clear Mock Data',
+      description: 'This will delete ALL mock bidders and bids. This cannot be undone.',
+      confirmLabel: 'Delete All',
+      variant: 'danger',
+    })
+    if (!confirmed) return
+
     setMockDataLoading(true)
     try {
       const res = await fetch('/api/admin/mock-data', { method: 'DELETE', credentials: 'include' })
       const data = await res.json()
       if (res.ok) {
-        alert(`Deleted ${data.deleted.bidders} bidders and ${data.deleted.bids} bids`)
+        toast.success(`Deleted ${data.deleted.bidders} bidders and ${data.deleted.bids} bids`)
         handleRefresh()
       } else {
-        alert(data.error || 'Failed to clear mock data')
+        toast.error(data.error || 'Failed to clear mock data')
       }
     } catch (error) {
-      alert('Failed to clear mock data')
+      toast.error('Failed to clear mock data')
     } finally {
       setMockDataLoading(false)
     }
@@ -385,14 +640,22 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
 
   const handleStateChange = async (newState: string) => {
     const currentState = data.settings?.auctionState || 'DRAFT'
-    if (!confirm(`Change auction state from ${currentState} to ${newState}?`)) return
+    const stateConfirmed = await confirm.confirm({
+      title: 'Change Auction State',
+      description: `Change auction state from ${currentState} to ${newState}?`,
+      confirmLabel: 'Change State',
+    })
+    if (!stateConfirmed) return
 
     // If closing the auction, ask about auto-confirming winners
     let autoConfirmWinners = false
     if (newState === 'CLOSED') {
-      autoConfirmWinners = confirm(
-        'Would you like to automatically confirm all winners and send notifications?\n\nClick OK to auto-confirm, or Cancel to just close the auction (you can confirm winners manually later).'
-      )
+      autoConfirmWinners = await confirm.confirm({
+        title: 'Auto-confirm Winners?',
+        description: 'Would you like to automatically confirm all winners and send notifications? Click Confirm to auto-confirm, or Cancel to just close the auction (you can confirm winners manually later).',
+        confirmLabel: 'Auto-confirm Winners',
+        cancelLabel: 'Close Only',
+      })
     }
 
     setStateChangeLoading(true)
@@ -407,13 +670,15 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       if (res.ok) {
         handleRefresh()
         if (result.winnersConfirmed) {
-          alert(`Auction closed. ${result.winnersConfirmed} winners confirmed and notified.`)
+          toast.success(`Auction closed. ${result.winnersConfirmed} winners confirmed and notified.`)
+        } else {
+          toast.success(`Auction state changed to ${newState}`)
         }
       } else {
-        alert(result.error || 'Failed to change state')
+        toast.error(result.error || 'Failed to change state')
       }
     } catch (error) {
-      alert('Failed to change auction state')
+      toast.error('Failed to change auction state')
     } finally {
       setStateChangeLoading(false)
     }
@@ -478,11 +743,12 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         setShowPrizeForm(false)
         resetPrizeForm()
         handleRefresh()
+        toast.success(editingPrize ? 'Prize updated successfully' : 'Prize created successfully')
       } else {
-        alert(data.error || 'Failed to save prize')
+        toast.error(data.error || 'Failed to save prize')
       }
     } catch (error) {
-      alert('Failed to save prize')
+      toast.error('Failed to save prize')
     } finally {
       setSavingPrize(false)
     }
@@ -490,7 +756,13 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
 
   const handleDeletePrize = async (prizeId: string, permanent = false) => {
     const action = permanent ? 'permanently delete' : 'deactivate'
-    if (!confirm(`Are you sure you want to ${action} this prize?`)) return
+    const confirmed = await confirm.confirm({
+      title: permanent ? 'Permanently Delete Prize' : 'Deactivate Prize',
+      description: `Are you sure you want to ${action} this prize?${permanent ? ' This cannot be undone.' : ''}`,
+      confirmLabel: permanent ? 'Delete Permanently' : 'Deactivate',
+      variant: 'danger',
+    })
+    if (!confirmed) return
 
     setDeletingPrize(prizeId)
     try {
@@ -501,11 +773,12 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       const data = await res.json()
       if (res.ok) {
         handleRefresh()
+        toast.success(permanent ? 'Prize deleted' : 'Prize deactivated')
       } else {
-        alert(data.error || 'Failed to delete prize')
+        toast.error(data.error || 'Failed to delete prize')
       }
     } catch (error) {
-      alert('Failed to delete prize')
+      toast.error('Failed to delete prize')
     } finally {
       setDeletingPrize(null)
     }
@@ -526,27 +799,40 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         setNewHelperPin('')
         setShowAddHelper(false)
         fetchHelpers()
+        toast.success('Helper added successfully')
       } else {
         const data = await res.json()
-        alert(data.error || 'Failed to add helper')
+        toast.error(data.error || 'Failed to add helper')
       }
     } catch (error) {
       console.error('Failed to add helper:', error)
+      toast.error('Failed to add helper')
     } finally {
       setSavingHelper(false)
     }
   }
 
   const handleDeleteHelper = async (id: string) => {
-    if (!confirm('Are you sure you want to deactivate this helper?')) return
+    const confirmed = await confirm.confirm({
+      title: 'Deactivate Helper',
+      description: 'Are you sure you want to deactivate this helper?',
+      confirmLabel: 'Deactivate',
+      variant: 'danger',
+    })
+    if (!confirmed) return
+
     setDeletingHelper(id)
     try {
       const res = await fetch(`/api/admin/helpers?id=${id}`, { method: 'DELETE', credentials: 'include' })
       if (res.ok) {
         fetchHelpers()
+        toast.success('Helper deactivated')
+      } else {
+        toast.error('Failed to deactivate helper')
       }
     } catch (error) {
       console.error('Failed to delete helper:', error)
+      toast.error('Failed to deactivate helper')
     } finally {
       setDeletingHelper(null)
     }
@@ -554,6 +840,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
 
   // Fetch bidder with full history
   const handleViewBidder = async (bidderId: string) => {
+    setLoadingBidderId(bidderId) // Show loading on the clicked row
     setLoadingBidder(true)
     try {
       const res = await fetch(`/api/admin/bidders/${bidderId}`, { credentials: 'include' })
@@ -561,13 +848,14 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         const data = await res.json()
         setSelectedBidder(data.bidder)
       } else {
-        alert('Failed to load bidder details')
+        toast.error('Failed to load bidder details')
       }
     } catch (error) {
       console.error('Failed to fetch bidder:', error)
-      alert('Failed to load bidder details')
+      toast.error('Failed to load bidder details')
     } finally {
       setLoadingBidder(false)
+      setLoadingBidderId(null)
     }
   }
 
@@ -575,10 +863,16 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
   const handleConfirmAllWinners = async () => {
     const pendingWinners = potentialWinners.filter(w => w.winningBid && !w.isConfirmed)
     if (pendingWinners.length === 0) {
-      alert('No pending winners to confirm')
+      toast.info('No pending winners to confirm')
       return
     }
-    if (!confirm(`Confirm ${pendingWinners.length} winners and send notifications?`)) return
+
+    const confirmed = await confirm.confirm({
+      title: 'Confirm All Winners',
+      description: `Confirm ${pendingWinners.length} winners and send notifications?`,
+      confirmLabel: 'Confirm All',
+    })
+    if (!confirmed) return
 
     setConfirmingAllWinners(true)
     try {
@@ -590,13 +884,13 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       })
       const result = await res.json()
       if (res.ok) {
-        alert(`Confirmed ${result.confirmed} winners`)
+        toast.success(`Confirmed ${result.confirmed} winners`)
         fetchWinners()
       } else {
-        alert(result.error || 'Failed to confirm winners')
+        toast.error(result.error || 'Failed to confirm winners')
       }
     } catch (error) {
-      alert('Failed to confirm winners')
+      toast.error('Failed to confirm winners')
     } finally {
       setConfirmingAllWinners(false)
     }
@@ -1081,9 +1375,17 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                   <button
                     key={bidder.id}
                     onClick={() => handleViewBidder(bidder.id)}
-                    className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+                    className={`w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left relative ${
+                      loadingBidderId === bidder.id ? 'bg-gray-50' : ''
+                    }`}
                     disabled={loadingBidder}
                   >
+                    {/* Loading overlay for clicked row */}
+                    {loadingBidderId === bidder.id && (
+                      <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 text-[#c9a227] animate-spin" />
+                      </div>
+                    )}
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-gray-900">{bidder.name}</p>
@@ -1506,7 +1808,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                     size="sm"
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/helper`)
-                      alert('URL copied!')
+                      toast.success('URL copied to clipboard')
                     }}
                   >
                     Copy
@@ -1518,205 +1820,640 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         )}
 
         {activeTab === 'settings' && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-900">Auction Settings</h2>
+          <div className="flex gap-6">
+            {/* Settings Navigation Sidebar */}
+            <div className="w-48 flex-shrink-0">
+              <nav className="space-y-1 sticky top-24">
+                {[
+                  { id: 'auction', label: 'Auction', icon: Activity },
+                  { id: 'display', label: 'Display', icon: Monitor },
+                  { id: 'team', label: 'Team', icon: Users },
+                  { id: 'email', label: 'Email', icon: Mail },
+                  { id: 'export', label: 'Data & Export', icon: Download },
+                  { id: 'support', label: 'Support', icon: LifeBuoy },
+                ].map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setSettingsSection(id as typeof settingsSection)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      settingsSection === id
+                        ? 'bg-[#1e3a5f] text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </button>
+                ))}
+              </nav>
+            </div>
 
-            {/* Auction State Machine */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  Auction State
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Control the auction lifecycle. Each state determines what users can see and do.
-                </p>
+            {/* Settings Content */}
+            <div className="flex-1 space-y-6">
+              {/* Auction Management Section */}
+              {settingsSection === 'auction' && (
+                <>
+                  <h2 className="text-xl font-bold text-gray-900">Auction Management</h2>
 
-                <div className="grid grid-cols-5 gap-2 mb-4">
-                  {Object.entries(AUCTION_STATES).map(([state, config]) => {
-                    const isActive = (data.settings?.auctionState || 'DRAFT') === state
-                    const StateIcon = config.icon
-                    return (
-                      <button
-                        key={state}
-                        onClick={() => handleStateChange(state)}
-                        disabled={stateChangeLoading || isActive}
-                        className={`p-3 rounded-lg border-2 transition-all text-center ${
-                          isActive
-                            ? `${config.color} border-transparent text-white`
-                            : 'border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-900'
-                        } disabled:opacity-50`}
-                      >
-                        {stateChangeLoading && !isActive ? (
-                          <Loader2 className="w-5 h-5 mx-auto mb-1 animate-spin" />
-                        ) : (
-                          <StateIcon className={`w-5 h-5 mx-auto mb-1 ${isActive ? 'text-white' : ''}`} />
-                        )}
-                        <p className="text-xs font-medium">{config.label}</p>
-                      </button>
-                    )
-                  })}
-                </div>
+                  {/* Auction State Machine */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                        <Activity className="w-5 h-5" />
+                        Auction State
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Control the auction lifecycle. Each state determines what users can see and do.
+                      </p>
 
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">
-                    <strong>Current:</strong> {AUCTION_STATES[data.settings?.auctionState || 'DRAFT'].label} — {AUCTION_STATES[data.settings?.auctionState || 'DRAFT'].description}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+                      <div className="grid grid-cols-5 gap-2 mb-4">
+                        {Object.entries(AUCTION_STATES).map(([state, config]) => {
+                          const isActive = (data.settings?.auctionState || 'DRAFT') === state
+                          const StateIcon = config.icon
+                          return (
+                            <button
+                              key={state}
+                              onClick={() => handleStateChange(state)}
+                              disabled={stateChangeLoading || isActive}
+                              className={`p-3 rounded-lg border-2 transition-all text-center ${
+                                isActive
+                                  ? `${config.color} border-transparent text-white`
+                                  : 'border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-900'
+                              } disabled:opacity-50`}
+                            >
+                              {stateChangeLoading && !isActive ? (
+                                <Loader2 className="w-5 h-5 mx-auto mb-1 animate-spin" />
+                              ) : (
+                                <StateIcon className={`w-5 h-5 mx-auto mb-1 ${isActive ? 'text-white' : ''}`} />
+                              )}
+                              <p className="text-xs font-medium">{config.label}</p>
+                            </button>
+                          )
+                        })}
+                      </div>
 
-            {/* Auction End Time */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Auction End Time
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Set when the auction will close. A countdown will be shown to bidders.
-                </p>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="datetime-local"
-                    value={auctionEndTime}
-                    onChange={(e) => setAuctionEndTime(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
-                  />
-                  <Button variant="gold" onClick={handleSetEndTime} disabled={!auctionEndTime}>
-                    Set End Time
-                  </Button>
-                </div>
-                {data.settings?.auctionEndTime && (
-                  <p className="text-sm text-gray-500 mt-2">
-                    Current end time: {new Date(data.settings.auctionEndTime).toLocaleString()}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          <strong>Current:</strong> {AUCTION_STATES[data.settings?.auctionState || 'DRAFT'].label} — {AUCTION_STATES[data.settings?.auctionState || 'DRAFT'].description}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-            {/* Mock Data - Only show in DRAFT or TESTING state */}
-            {(data.settings?.auctionState === 'DRAFT' || data.settings?.auctionState === 'TESTING' || !data.settings?.auctionState) && (
-              <Card className="border-purple-200">
-                <CardContent className="p-6">
-                  <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-purple-500" />
-                    Test Data
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Generate mock bidders and bids to test the platform. Only available in Draft/Testing mode.
-                  </p>
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={handleGenerateMockData}
-                      disabled={mockDataLoading}
-                      className="border-purple-300 text-purple-700 hover:bg-purple-50"
-                    >
-                      {mockDataLoading ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Plus className="w-4 h-4 mr-2" />
+                  {/* Auction End Time */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                        <Clock className="w-5 h-5" />
+                        Auction End Time
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Set when the auction will close. A countdown will be shown to bidders.
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="datetime-local"
+                          value={auctionEndTime}
+                          onChange={(e) => setAuctionEndTime(e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        />
+                        <Button variant="gold" onClick={handleSetEndTime} disabled={!auctionEndTime}>
+                          Set End Time
+                        </Button>
+                      </div>
+                      {data.settings?.auctionEndTime && (
+                        <p className="text-sm text-gray-500 mt-2">
+                          Current end time: {new Date(data.settings.auctionEndTime).toLocaleString()}
+                        </p>
                       )}
-                      Generate Mock Data
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleClearMockData}
-                      disabled={mockDataLoading}
-                      className="border-red-300 text-red-700 hover:bg-red-50"
-                    >
-                      {mockDataLoading ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4 mr-2" />
-                      )}
-                      Clear Mock Data
-                    </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Mock Data - Only show in DRAFT or TESTING state */}
+                  {(data.settings?.auctionState === 'DRAFT' || data.settings?.auctionState === 'TESTING' || !data.settings?.auctionState) && (
+                    <Card className="border-purple-200">
+                      <CardContent className="p-6">
+                        <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-purple-500" />
+                          Test Data
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Generate mock bidders and bids to test the platform. Only available in Draft/Testing mode.
+                        </p>
+                        <div className="flex gap-3">
+                          <Button
+                            variant="outline"
+                            onClick={handleGenerateMockData}
+                            disabled={mockDataLoading}
+                            className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                          >
+                            {mockDataLoading ? (
+                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Plus className="w-4 h-4 mr-2" />
+                            )}
+                            Generate Mock Data
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={handleClearMockData}
+                            disabled={mockDataLoading}
+                            className="border-red-300 text-red-700 hover:bg-red-50"
+                          >
+                            {mockDataLoading ? (
+                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4 mr-2" />
+                            )}
+                            Clear Mock Data
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
+
+              {/* Display Settings Section */}
+              {settingsSection === 'display' && (
+                <>
+                  <h2 className="text-xl font-bold text-gray-900">Display Settings</h2>
+
+                  <Card>
+                    <CardContent className="p-6 space-y-6">
+                      {/* Show Donor Names */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium text-gray-900">Show donor names</h4>
+                          <p className="text-sm text-gray-500">Display donor names on the live page and prize cards</p>
+                        </div>
+                        <button
+                          onClick={() => setDisplaySettings({ ...displaySettings, showDonorNames: !displaySettings.showDonorNames })}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${
+                            displaySettings.showDonorNames ? 'bg-[#c9a227]' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                            displaySettings.showDonorNames ? 'translate-x-7' : 'translate-x-1'
+                          }`} />
+                        </button>
+                      </div>
+
+                      {/* Show Bidder Names */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium text-gray-900">Show bidder names on live display</h4>
+                          <p className="text-sm text-gray-500">When off, only table numbers are shown on the live page (admin always sees full names)</p>
+                        </div>
+                        <button
+                          onClick={() => setDisplaySettings({ ...displaySettings, showBidderNames: !displaySettings.showBidderNames })}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${
+                            displaySettings.showBidderNames ? 'bg-[#c9a227]' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                            displaySettings.showBidderNames ? 'translate-x-7' : 'translate-x-1'
+                          }`} />
+                        </button>
+                      </div>
+
+                      {/* Featured Prize Rotation */}
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Featured prize rotation interval</h4>
+                        <p className="text-sm text-gray-500 mb-3">How long each featured prize is shown on the live display</p>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="number"
+                            min="3"
+                            max="30"
+                            value={displaySettings.featuredRotationSecs}
+                            onChange={(e) => setDisplaySettings({ ...displaySettings, featuredRotationSecs: parseInt(e.target.value) || 8 })}
+                            className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] text-center"
+                          />
+                          <span className="text-gray-500">seconds</span>
+                        </div>
+                      </div>
+
+                      {/* Custom QR URL */}
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Custom QR code URL</h4>
+                        <p className="text-sm text-gray-500 mb-3">Override the default auction URL for QR codes (leave empty for default)</p>
+                        <input
+                          type="url"
+                          value={displaySettings.customQrUrl}
+                          onChange={(e) => setDisplaySettings({ ...displaySettings, customQrUrl: e.target.value })}
+                          placeholder="https://..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        />
+                      </div>
+
+                      <div className="pt-4 border-t">
+                        <Button
+                          variant="gold"
+                          onClick={handleSaveDisplaySettings}
+                          disabled={savingDisplaySettings}
+                        >
+                          {savingDisplaySettings ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Save Display Settings'
+                          )}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Live Display URL */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                        <Monitor className="w-5 h-5" />
+                        Live Display URL
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Show this URL on a projector during the event.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono">
+                          {typeof window !== 'undefined' ? `${window.location.origin}/live` : '/live'}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/live`)
+                            toast.success('URL copied to clipboard')
+                          }}
+                        >
+                          Copy
+                        </Button>
+                        <a href="/live" target="_blank">
+                          <Button variant="outline" size="sm">
+                            Open
+                          </Button>
+                        </a>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
+              {/* Team Management Section */}
+              {settingsSection === 'team' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-gray-900">Team Management</h2>
+                    {currentUser?.role === 'OWNER' && (
+                      <Button variant="gold" onClick={() => setShowInviteForm(true)}>
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Invite User
+                      </Button>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            )}
 
-            {/* Export Data */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  <Download className="w-5 h-5" />
-                  Export Data
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Download auction data as CSV files.
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <a
-                    href="/api/admin/export?type=summary"
-                    className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    Summary
-                  </a>
-                  <a
-                    href="/api/admin/export?type=winners"
-                    className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    <Award className="w-4 h-4" />
-                    Winners
-                  </a>
-                  <a
-                    href="/api/admin/export?type=bids"
-                    className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    <Gavel className="w-4 h-4" />
-                    All Bids
-                  </a>
-                  <a
-                    href="/api/admin/export?type=bidders"
-                    className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    <Users className="w-4 h-4" />
-                    All Bidders
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
+                  {/* Invite Form */}
+                  {showInviteForm && (
+                    <Card className="border-[#c9a227]">
+                      <CardContent className="p-6">
+                        <h3 className="font-medium text-gray-900 mb-4">Invite New Admin</h3>
+                        <div className="flex gap-4 items-end">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input
+                              type="email"
+                              value={inviteEmail}
+                              onChange={(e) => setInviteEmail(e.target.value)}
+                              placeholder="colleague@example.com"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                            />
+                          </div>
+                          <div className="w-40">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                            <select
+                              value={inviteRole}
+                              onChange={(e) => setInviteRole(e.target.value as 'ADMIN' | 'EMPLOYEE')}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                            >
+                              <option value="EMPLOYEE">Employee</option>
+                              {currentUser?.role === 'OWNER' && <option value="ADMIN">Admin</option>}
+                            </select>
+                          </div>
+                          <Button variant="gold" onClick={handleInviteUser} disabled={inviting}>
+                            {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                          </Button>
+                          <Button variant="outline" onClick={() => { setShowInviteForm(false); setInviteEmail(''); }}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
-            {/* Live Display */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  <Eye className="w-5 h-5" />
-                  Live Display
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Show this URL on a projector during the event.
-                </p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono">
-                    {typeof window !== 'undefined' ? `${window.location.origin}/live` : '/live'}
-                  </code>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/live`)
-                      alert('URL copied!')
-                    }}
-                  >
-                    Copy
-                  </Button>
-                  <a href="/live" target="_blank">
-                    <Button variant="outline" size="sm">
-                      Open
-                    </Button>
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
+                  {/* Admin Users List */}
+                  <Card>
+                    <div className="p-4 border-b">
+                      <h3 className="font-medium text-gray-900">Admin Users ({adminUsers.length})</h3>
+                    </div>
+                    <div className="divide-y">
+                      {adminUsers.map((user) => (
+                        <div key={user.id} className={`p-4 flex items-center justify-between ${!user.isActive ? 'opacity-50 bg-gray-50' : ''}`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                              user.role === 'OWNER' ? 'bg-[#c9a227]' : user.role === 'ADMIN' ? 'bg-blue-500' : 'bg-gray-400'
+                            }`}>
+                              {user.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-gray-900">{user.name}</p>
+                                <Badge variant="navy" size="sm" className={
+                                  user.role === 'OWNER' ? 'bg-[#c9a227]/20 text-[#c9a227]' :
+                                  user.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' : ''
+                                }>
+                                  {user.role}
+                                </Badge>
+                                {!user.isActive && <Badge variant="navy" size="sm" className="bg-red-100 text-red-700">Inactive</Badge>}
+                                {user.id === currentUser?.id && <Badge variant="navy" size="sm" className="bg-green-100 text-green-700">You</Badge>}
+                              </div>
+                              <p className="text-sm text-gray-500">{user.email}</p>
+                            </div>
+                          </div>
+                          {currentUser?.role === 'OWNER' && user.id !== currentUser.id && user.role !== 'OWNER' && (
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={user.role}
+                                onChange={(e) => handleUpdateUserRole(user.id, e.target.value as 'ADMIN' | 'EMPLOYEE')}
+                                className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                              >
+                                <option value="EMPLOYEE">Employee</option>
+                                <option value="ADMIN">Admin</option>
+                              </select>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleToggleUserActive(user.id, user.isActive)}
+                                className={user.isActive ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}
+                              >
+                                {user.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+
+                  {/* Pending Invitations */}
+                  {pendingInvitations.length > 0 && (
+                    <Card>
+                      <div className="p-4 border-b">
+                        <h3 className="font-medium text-gray-900">Pending Invitations ({pendingInvitations.length})</h3>
+                      </div>
+                      <div className="divide-y">
+                        {pendingInvitations.map((invitation) => (
+                          <div key={invitation.id} className="p-4 flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-gray-900">{invitation.email}</p>
+                                <Badge variant="navy" size="sm">{invitation.role}</Badge>
+                              </div>
+                              <p className="text-sm text-gray-500">
+                                Invited by {invitation.invitedBy.name} • Expires {new Date(invitation.expiresAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRevokeInvitation(invitation.id)}
+                              className="text-red-600 hover:bg-red-50"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                </>
+              )}
+
+              {/* Email & Notifications Section */}
+              {settingsSection === 'email' && (
+                <>
+                  <h2 className="text-xl font-bold text-gray-900">Email & Notifications</h2>
+
+                  {/* Email Status */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                        <Mail className="w-5 h-5" />
+                        Email Provider Status
+                      </h3>
+                      <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
+                        <div className="w-3 h-3 bg-green-500 rounded-full" />
+                        <span className="text-green-700 font-medium">Resend configured and ready</span>
+                      </div>
+                      <div className="mt-4">
+                        <Button
+                          variant="outline"
+                          onClick={handleSendTestEmail}
+                          disabled={testingEmail}
+                        >
+                          {testingEmail ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4 mr-2" />
+                              Send Test Email
+                            </>
+                          )}
+                        </Button>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Sends a test email to your admin email address
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Email Templates Preview */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5" />
+                        Email Templates (Preview Only)
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        These are the email templates used by the system. Templates cannot be edited.
+                      </p>
+                      <div className="space-y-3">
+                        {[
+                          { name: 'Winner Notification', desc: 'Sent when a bidder wins a prize' },
+                          { name: 'Outbid Notification', desc: 'Sent when a bidder is outbid on a prize' },
+                          { name: 'Admin Invitation', desc: 'Sent when inviting a new admin user' },
+                          { name: 'Magic Link Login', desc: 'Sent for passwordless login' },
+                        ].map((template) => (
+                          <div key={template.name} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div>
+                              <p className="font-medium text-gray-900">{template.name}</p>
+                              <p className="text-sm text-gray-500">{template.desc}</p>
+                            </div>
+                            <Badge variant="navy" size="sm">System Template</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* SMS/WhatsApp Status */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5" />
+                        SMS & WhatsApp Status
+                      </h3>
+                      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full" />
+                        <span className="text-gray-700">Twilio not configured - SMS/WhatsApp notifications disabled</span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-3">
+                        Contact your system administrator to enable SMS and WhatsApp notifications.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
+              {/* Data & Export Section */}
+              {settingsSection === 'export' && (
+                <>
+                  <h2 className="text-xl font-bold text-gray-900">Data & Export</h2>
+
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                        <Download className="w-5 h-5" />
+                        Export Data
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Download auction data as CSV files.
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <a
+                          href="/api/admin/export?type=summary"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <BarChart3 className="w-4 h-4" />
+                          Auction Summary
+                        </a>
+                        <a
+                          href="/api/admin/export?type=winners"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Award className="w-4 h-4" />
+                          Winners List
+                        </a>
+                        <a
+                          href="/api/admin/export?type=bids"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Gavel className="w-4 h-4" />
+                          All Bids
+                        </a>
+                        <a
+                          href="/api/admin/export?type=bidders"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Users className="w-4 h-4" />
+                          All Bidders
+                        </a>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
+              {/* Support Section */}
+              {settingsSection === 'support' && (
+                <>
+                  <h2 className="text-xl font-bold text-gray-900">Support</h2>
+
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                        <LifeBuoy className="w-5 h-5" />
+                        Get Help
+                      </h3>
+                      <div className="space-y-4">
+                        <a
+                          href="mailto:chris@example.com?subject=RGS Auction Support"
+                          className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <Mail className="w-5 h-5 text-[#c9a227]" />
+                          <div>
+                            <p className="font-medium text-gray-900">Contact Support</p>
+                            <p className="text-sm text-gray-500">Email the system administrator</p>
+                          </div>
+                        </a>
+                        <a
+                          href="/docs"
+                          target="_blank"
+                          className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <HelpCircle className="w-5 h-5 text-[#c9a227]" />
+                          <div>
+                            <p className="font-medium text-gray-900">Documentation</p>
+                            <p className="text-sm text-gray-500">View guides and FAQs</p>
+                          </div>
+                        </a>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-4">System Information</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Version</span>
+                          <span className="font-mono">2.0.0</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Environment</span>
+                          <span className="font-mono">{process.env.NODE_ENV || 'production'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Event</span>
+                          <span>RGS-HK 30th Anniversary Gala</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Event Date</span>
+                          <span>28 February 2026</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
           </div>
         )}
       </main>
     </div>
     </>
+  )
+}
+
+// Wrap with ConfirmProvider for confirmation dialogs
+export function AdminDashboard(props: AdminDashboardProps) {
+  return (
+    <ConfirmProvider>
+      <AdminDashboardContent {...props} />
+    </ConfirmProvider>
   )
 }

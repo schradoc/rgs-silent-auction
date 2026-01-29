@@ -13,6 +13,8 @@ export default function AdminLoginPage() {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendCountdown, setResendCountdown] = useState(0)
+  const [resending, setResending] = useState(false)
 
   const router = useRouter()
 
@@ -52,10 +54,47 @@ export default function AdminLoginPage() {
       }
 
       setMode('sent')
+      // Start countdown for resend button
+      setResendCountdown(60)
     } catch (err) {
       setError('Failed to send login link')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Countdown timer for resend button
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [resendCountdown])
+
+  const handleResendLink = async () => {
+    if (resendCountdown > 0) return
+
+    setResending(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/admin/magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Failed to resend login link')
+        return
+      }
+
+      setResendCountdown(60)
+    } catch (err) {
+      setError('Failed to resend login link')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -243,11 +282,48 @@ export default function AdminLoginPage() {
                 <CheckCircle className="w-10 h-10 text-green-400" />
               </div>
               <h2 className="text-white font-medium text-lg mb-2">Check your email</h2>
-              <p className="text-white/60 text-sm mb-6">
+              <p className="text-white/60 text-sm mb-2">
                 We sent a login link to <strong className="text-white">{email}</strong>
               </p>
+
+              {/* Helper text */}
+              <div className="bg-white/5 rounded-lg p-3 mb-4 text-left">
+                <p className="text-white/50 text-xs">
+                  <strong className="text-white/70">Tip:</strong> Check your spam or junk folder if you don&apos;t see the email within a minute.
+                </p>
+              </div>
+
+              {/* Resend button */}
               <button
-                onClick={() => { setMode('magic-link'); setError(''); }}
+                onClick={handleResendLink}
+                disabled={resendCountdown > 0 || resending}
+                className={`w-full py-2 rounded-lg border text-sm font-medium transition-colors mb-4 ${
+                  resendCountdown > 0
+                    ? 'border-white/10 text-white/40 cursor-not-allowed'
+                    : 'border-white/20 text-white/70 hover:bg-white/5'
+                }`}
+              >
+                {resending ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </span>
+                ) : resendCountdown > 0 ? (
+                  `Resend link in ${resendCountdown}s`
+                ) : (
+                  'Resend login link'
+                )}
+              </button>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2 text-red-300 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={() => { setMode('magic-link'); setError(''); setResendCountdown(0); }}
                 className="flex items-center justify-center gap-2 text-white/60 hover:text-white text-sm mx-auto transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />

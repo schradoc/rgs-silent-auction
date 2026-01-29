@@ -167,6 +167,19 @@ model AuctionSettings {
 }
 
 // ==========================================
+// Display Settings for Live Page
+// ==========================================
+
+model DisplaySettings {
+  id                   String   @id @default("display")
+  showDonorNames       Boolean  @default(true)   // Show donor names on live/public pages
+  showBidderNames      Boolean  @default(false)  // false = show "Table X" only on live display
+  featuredRotationSecs Int      @default(8)      // Seconds between featured prize rotation
+  customQrUrl          String?                   // Optional custom URL for QR codes
+  updatedAt            DateTime @updatedAt
+}
+
+// ==========================================
 // Admin User System
 // ==========================================
 

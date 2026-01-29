@@ -19,8 +19,11 @@ npm install
 cp .env.example .env.local
 # Edit .env.local with your Supabase credentials
 
+# Generate Prisma client
+npx prisma generate
+
 # Push database schema
-npm run db:push
+npx prisma db push
 
 # Seed prize data
 npm run db:seed
@@ -36,6 +39,10 @@ npm run dev
 - **Database**: Supabase (PostgreSQL)
 - **Real-time**: Supabase Realtime
 - **ORM**: Prisma
+- **Email**: Resend
+- **SMS/WhatsApp**: Twilio (optional)
+- **Toast Notifications**: Sonner
+- **OCR**: Tesseract.js (paper bid scanning)
 - **Deployment**: Vercel
 
 ## Project Structure
@@ -43,22 +50,48 @@ npm run dev
 ```
 src/
 ├── app/
-│   ├── (bidder)/           # Bidder-facing routes (future)
-│   ├── admin/              # Admin dashboard (TODO)
+│   ├── admin/
+│   │   ├── dashboard/        # Admin dashboard with tabs
+│   │   ├── login/            # Admin magic link login
+│   │   └── print-winners/    # Printable winner sheets
 │   ├── api/
-│   │   ├── auth/           # Registration, verification, session
-│   │   └── bids/           # Bid placement and retrieval
-│   ├── prizes/
-│   │   ├── [slug]/         # Prize detail page
-│   │   └── page.tsx        # Prize listing
-│   ├── register/           # Bidder registration
-│   └── page.tsx            # Landing page
+│   │   ├── admin/            # Admin APIs (settings, users, invitations, etc.)
+│   │   ├── auth/             # Bidder auth (magic link, OTP)
+│   │   ├── helpers/          # Helper portal APIs
+│   │   └── ...               # Prizes, bids, favorites, etc.
+│   ├── helper/
+│   │   ├── dashboard/        # Helper dashboard
+│   │   ├── scan-bid/         # OCR paper bid scanning
+│   │   └── submit-bid/       # Manual bid entry
+│   ├── live/                 # Live display for projectors
+│   ├── prizes/               # Prize listing and detail pages
+│   ├── login/                # Bidder login
+│   ├── register/             # Bidder registration
+│   └── page.tsx              # Landing page
 ├── components/
-│   ├── admin/              # Admin components (TODO)
-│   ├── prizes/             # Prize cards and grids
-│   └── ui/                 # Base UI components
-├── hooks/                  # Custom React hooks
-└── lib/                    # Utilities, clients, constants
+│   ├── admin/                # Admin-specific components
+│   │   ├── analytics-charts.tsx
+│   │   ├── image-upload.tsx
+│   │   └── onboarding-tutorial.tsx
+│   ├── prizes/               # Prize cards and grids
+│   └── ui/                   # Base UI components
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── badge.tsx
+│       ├── input.tsx
+│       ├── toast.tsx         # Custom toast helper (wraps Sonner)
+│       └── confirm-dialog.tsx # Confirmation modal component
+├── hooks/
+│   ├── useBidder.tsx         # Current bidder context
+│   ├── useRealtimeBids.ts    # Real-time bid subscription
+│   └── useRealtime.tsx       # Supabase realtime hook
+└── lib/
+    ├── admin-auth.ts         # Admin session verification
+    ├── constants.ts          # Categories, colors, site config
+    ├── notifications/        # Email/SMS notification service
+    ├── prisma.ts             # Prisma client singleton
+    ├── supabase.ts           # Supabase client
+    └── utils.ts              # formatCurrency, classNames, etc.
 ```
 
 ## Key Routes
@@ -66,34 +99,111 @@ src/
 ### Bidder Routes
 - `/` - Landing page (QR destination)
 - `/register` - Bidder registration
-- `/prizes` - Prize listing
+- `/login` - Magic link / OTP login
+- `/prizes` - Prize listing with filtering
 - `/prizes/[slug]` - Prize detail + bidding
-- `/my-bids` - Personal bid history (TODO)
+- `/my-bids` - Personal bid history
 
-### Admin Routes (TODO)
-- `/admin` - Admin login
-- `/admin/dashboard` - Real-time bid overview
-- `/admin/prizes` - Prize management
-- `/admin/winners` - Winner selection
+### Admin Routes
+- `/admin/login` - Admin magic link login
+- `/admin/dashboard` - Full admin dashboard with tabs:
+  - Overview (stats, live bid feed, analytics)
+  - Prizes (CRUD management)
+  - Bidders (list with detail modal)
+  - Winners (confirmation and notifications)
+  - Helpers (manage event helpers)
+  - Settings (comprehensive settings panel)
+
+### Helper Routes
+- `/helper` - Helper login (4-digit PIN)
+- `/helper/dashboard` - Helper dashboard
+- `/helper/scan-bid` - OCR paper bid scanning
+- `/helper/submit-bid` - Manual bid entry
+
+### Public Routes
+- `/live` - Live display for projector
 
 ## Environment Variables
 
 ```env
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+
+# Database (Prisma)
 DATABASE_URL=
 DIRECT_URL=
-ADMIN_PASSWORD=
+
+# Email (Resend)
+RESEND_API_KEY=
+
+# SMS/WhatsApp (Twilio - optional)
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+
+# App
+NEXT_PUBLIC_APP_URL=
 ```
 
 ## Database Schema
 
-- **Bidder**: id, name, email, tableNumber, emailVerified
-- **Prize**: id, slug, title, descriptions, donor, bids, category, etc.
-- **Bid**: id, amount, status, bidderId, prizeId
-- **Winner**: id, bidId, prizeId, bidderId
-- **AuctionSettings**: endTime, isOpen
+### Core Models
+- **Bidder**: Registration, contact info, notification preferences, auth tokens
+- **Prize**: Title, descriptions, donor, category, images, multi-winner settings
+- **PrizeImage**: Multiple images per prize with primary flag
+- **Bid**: Amount, status (ACTIVE/OUTBID/WINNING/WON/LOST), helper tracking
+- **Winner**: Confirmed winners with acceptance timestamp
+- **Favorite**: Bidder watchlist
+
+### Auction Management
+- **AuctionSettings**: State machine (DRAFT/TESTING/PRELAUNCH/LIVE/CLOSED), end time
+- **DisplaySettings**: Show donor/bidder names, featured rotation, custom QR URL
+
+### Admin System
+- **AdminUser**: Email, name, role (OWNER/ADMIN/EMPLOYEE), active status
+- **AdminSession**: Token-based sessions
+- **AdminInvitation**: Pending invitations with expiry
+- **AuditLog**: Admin action tracking
+
+### Helper System
+- **Helper**: Name, PIN, avatar color, activity tracking
+- **PaperBid**: Scanned paper bid records with image
+
+### Notifications
+- **Notification**: Outbid, winning, auction closing, won notifications
+
+## UI Components
+
+### Custom Toast System
+```tsx
+import { toast } from '@/components/ui'
+
+toast.success('Bid placed successfully')
+toast.error('Failed to place bid')
+toast.info('Auction closes in 10 minutes')
+toast.warning('You have been outbid')
+```
+
+### Confirmation Dialog
+```tsx
+import { useConfirm } from '@/components/ui'
+
+const confirm = useConfirm()
+
+const handleDelete = async () => {
+  const confirmed = await confirm.confirm({
+    title: 'Delete Prize',
+    description: 'Are you sure? This cannot be undone.',
+    confirmLabel: 'Delete',
+    variant: 'danger',
+  })
+  if (confirmed) {
+    // proceed with deletion
+  }
+}
+```
 
 ## Design System
 
@@ -108,6 +218,46 @@ ADMIN_PASSWORD=
 - Input with validation
 - Card with header/content/footer
 - Badge variants
+- Toast notifications (success, error, info, warning)
+- Confirmation dialogs (default, danger)
+
+## Admin Dashboard Features
+
+### Overview Tab
+- Real-time stats (prizes, bidders, bids, total value)
+- Auction state banner with quick action
+- Analytics charts (bid activity, category breakdown)
+- Live bid feed
+
+### Prizes Tab
+- Full CRUD for prizes
+- Multi-image upload with drag-drop
+- Category filtering
+- Activation/deactivation
+
+### Bidders Tab
+- List with bid counts
+- Detail modal with full bid history
+- Loading states on row click
+
+### Winners Tab
+- Pending/confirmed winner management
+- Bulk confirm with notifications
+- Export to CSV
+- Print-friendly sheets
+
+### Helpers Tab
+- Helper management (add, deactivate)
+- PIN-based authentication
+- Activity tracking
+
+### Settings Tab (Comprehensive)
+- **Auction Management**: State machine, end time, mock data tools
+- **Display Settings**: Donor names, bidder names, rotation interval, QR URL
+- **Team Management**: Users, roles, invitations
+- **Email & Notifications**: Provider status, test email, template preview
+- **Data & Export**: CSV exports for all data
+- **Support**: Contact, documentation, version info
 
 ## Deployment
 
@@ -118,34 +268,56 @@ To deploy:
 1. Set environment variables in Vercel dashboard
 2. Push to main branch (auto-deploys)
 
-## TODO
+After schema changes:
+```bash
+npx prisma generate
+npx prisma db push
+```
 
-### Phase 1 - Core Bidding (Current)
+## Completed Features
+
+### Phase 1 - Core Bidding
 - [x] Landing page
 - [x] Bidder registration
-- [x] Email verification (mock)
-- [x] Prize listing
-- [x] Prize detail page
-- [x] Bid placement
-- [x] Seed data (26 prizes)
-- [ ] My Bids page
-- [ ] Outbid notifications
+- [x] Email verification (magic link)
+- [x] Prize listing with filtering
+- [x] Prize detail page with images
+- [x] Bid placement with validation
+- [x] My Bids page
+- [x] Real-time outbid notifications
+- [x] Favorites/watchlist
 
 ### Phase 2 - Admin Dashboard
-- [ ] Admin authentication
-- [ ] Real-time bid feed
-- [ ] Prize management
-- [ ] Bidder list
-- [ ] Winner selection
-- [ ] Data export
+- [x] Admin authentication (magic link)
+- [x] Real-time bid feed
+- [x] Prize management (CRUD)
+- [x] Multi-image upload
+- [x] Bidder list with detail modal
+- [x] Winner selection and notifications
+- [x] Data export (CSV)
+- [x] Helper system for paper bids
+- [x] OCR paper bid scanning
+- [x] Analytics charts
+- [x] Onboarding tutorial
+- [x] Auction state machine
+- [x] Team management (users, invitations)
+
+### Phase 2.5 - UX Improvements
+- [x] Custom toast notifications (replacing native alerts)
+- [x] Custom confirmation dialogs (replacing native confirms)
+- [x] Loading states for async operations
+- [x] Bidder modal loading indicator
+- [x] Camera functionality fixes for helpers
+- [x] Magic link resend with countdown
+- [x] Comprehensive settings page
 
 ### Phase 3 - Polish
-- [ ] Real-time updates (Supabase Realtime)
-- [ ] Toast notifications
-- [ ] Loading states
+- [x] Real-time updates (Supabase Realtime)
+- [x] Toast notifications
+- [x] Loading states
 - [ ] Error boundaries
 - [ ] Confetti on successful bid
 
 ---
 
-**Last Updated**: 2026-01-28
+**Last Updated**: 2026-01-29

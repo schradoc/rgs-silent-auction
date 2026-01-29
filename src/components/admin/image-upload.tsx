@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { Upload, X, Star, Loader2, Image as ImageIcon, GripVertical } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, toast } from '@/components/ui'
 
 interface PrizeImage {
   id: string
@@ -68,7 +68,7 @@ export function ImageUpload({
       }
     } catch (error) {
       console.error('Upload error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to upload image')
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image')
       return null
     }
   }
@@ -78,7 +78,7 @@ export function ImageUpload({
 
     const remainingSlots = maxImages - images.length
     if (remainingSlots <= 0) {
-      alert(`Maximum ${maxImages} images allowed`)
+      toast.warning(`Maximum ${maxImages} images allowed`)
       return
     }
 
@@ -145,12 +145,13 @@ export function ImageUpload({
           updatedImages[0].isPrimary = true
         }
         onImagesChange(updatedImages)
+        toast.success('Image deleted')
       } else {
         const data = await res.json()
-        alert(data.error || 'Failed to delete image')
+        toast.error(data.error || 'Failed to delete image')
       }
     } catch (error) {
-      alert('Failed to delete image')
+      toast.error('Failed to delete image')
     } finally {
       setDeletingId(null)
     }

@@ -26,6 +26,54 @@ interface ExtractedData {
   phone: string
 }
 
+// Camera error types for better error messages
+type CameraErrorType = 'permission_denied' | 'not_found' | 'in_use' | 'https_required' | 'unknown'
+
+function getCameraErrorMessage(error: unknown): { type: CameraErrorType; message: string } {
+  if (error instanceof DOMException) {
+    switch (error.name) {
+      case 'NotAllowedError':
+        return {
+          type: 'permission_denied',
+          message: 'Camera access was denied. Please allow camera access in your browser settings and try again.',
+        }
+      case 'NotFoundError':
+        return {
+          type: 'not_found',
+          message: 'No camera found on this device. Please connect a camera or try a different device.',
+        }
+      case 'NotReadableError':
+        return {
+          type: 'in_use',
+          message: 'Camera is in use by another application. Please close other apps using the camera and try again.',
+        }
+      case 'OverconstrainedError':
+        return {
+          type: 'not_found',
+          message: 'Camera does not support the required settings. Try using a different camera.',
+        }
+      case 'SecurityError':
+        return {
+          type: 'https_required',
+          message: 'Camera access requires a secure connection (HTTPS). Please use HTTPS to access this page.',
+        }
+    }
+  }
+
+  // Check if we're on HTTP instead of HTTPS
+  if (typeof window !== 'undefined' && window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+    return {
+      type: 'https_required',
+      message: 'Camera access requires a secure connection (HTTPS). Please use HTTPS to access this page.',
+    }
+  }
+
+  return {
+    type: 'unknown',
+    message: 'Failed to access camera. Please check your camera settings and try again.',
+  }
+}
+
 interface Prize {
   id: string
   title: string
@@ -52,6 +100,11 @@ export default function ScanBidPage() {
   const [selectedPrize, setSelectedPrize] = useState<Prize | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  // Camera-specific state
+  const [cameraLoading, setCameraLoading] = useState(true)
+  const [cameraError, setCameraError] = useState<{ type: CameraErrorType; message: string } | null>(null)
+  const [cameraReady, setCameraReady] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -99,17 +152,70 @@ export default function ScanBidPage() {
   }
 
   const startCamera = async () => {
+    setCameraLoading(true)
+    setCameraError(null)
+    setCameraReady(false)
+
     try {
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraError({
+          type: 'https_required',
+          message: 'Camera access is not available. This may require HTTPS or a more recent browser.',
+        })
+        setCameraLoading(false)
+        return
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
       })
+
+      // Verify we actually have a video track
+      const videoTracks = stream.getVideoTracks()
+      if (videoTracks.length === 0) {
+        setCameraError({
+          type: 'not_found',
+          message: 'No video track available from camera.',
+        })
+        setCameraLoading(false)
+        return
+      }
+
       streamRef.current = stream
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+
+        // Wait for video to be ready
+        videoRef.current.onloadedmetadata = () => {
+          // Force play for iOS compatibility
+          videoRef.current?.play().then(() => {
+            setCameraReady(true)
+            setCameraLoading(false)
+          }).catch((playError) => {
+            console.error('Video play error:', playError)
+            // Try again without await
+            videoRef.current?.play()
+            setCameraReady(true)
+            setCameraLoading(false)
+          })
+        }
+
+        // Handle video errors
+        videoRef.current.onerror = () => {
+          setCameraError({
+            type: 'unknown',
+            message: 'Failed to load video stream.',
+          })
+          setCameraLoading(false)
+        }
       }
     } catch (err) {
-      console.error('Camera access denied:', err)
-      setError('Camera access denied. Please allow camera access to scan paper bids.')
+      console.error('Camera access error:', err)
+      const errorInfo = getCameraErrorMessage(err)
+      setCameraError(errorInfo)
+      setCameraLoading(false)
     }
   }
 
@@ -297,6 +403,9 @@ export default function ScanBidPage() {
     setSelectedPrize(null)
     setError('')
     setSuccess('')
+    setCameraError(null)
+    setCameraLoading(true)
+    setCameraReady(false)
     setStep('camera')
   }
 
@@ -324,33 +433,82 @@ export default function ScanBidPage() {
         {step === 'camera' && (
           <div className={`space-y-4 transition-all duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
             <div className="relative aspect-[3/4] bg-black rounded-2xl overflow-hidden">
+              {/* Camera Loading State */}
+              {cameraLoading && !cameraError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-10">
+                  <Loader2 className="w-10 h-10 text-[#b8941f] animate-spin mb-4" />
+                  <p className="text-white/70 text-sm">Initializing camera...</p>
+                </div>
+              )}
+
+              {/* Camera Error State */}
+              {cameraError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-10 p-6 text-center">
+                  <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+                    <AlertCircle className="w-8 h-8 text-red-400" />
+                  </div>
+                  <h3 className="text-white font-medium mb-2">Camera Unavailable</h3>
+                  <p className="text-white/60 text-sm mb-6 max-w-xs">{cameraError.message}</p>
+                  <button
+                    onClick={() => {
+                      setCameraError(null)
+                      startCamera()
+                    }}
+                    className="px-6 py-2 rounded-lg bg-white/10 text-white font-medium hover:bg-white/20 transition-colors flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Try Again
+                  </button>
+                </div>
+              )}
+
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${cameraLoading || cameraError ? 'invisible' : 'visible'}`}
               />
-              {/* Overlay guide */}
-              <div className="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none">
-                <div className="absolute top-2 left-2 w-8 h-8 border-t-2 border-l-2 border-white/60 rounded-tl-lg" />
-                <div className="absolute top-2 right-2 w-8 h-8 border-t-2 border-r-2 border-white/60 rounded-tr-lg" />
-                <div className="absolute bottom-2 left-2 w-8 h-8 border-b-2 border-l-2 border-white/60 rounded-bl-lg" />
-                <div className="absolute bottom-2 right-2 w-8 h-8 border-b-2 border-r-2 border-white/60 rounded-br-lg" />
-              </div>
-              <div className="absolute bottom-4 left-0 right-0 text-center">
-                <p className="text-white/70 text-sm">Align paper bid form within frame</p>
-              </div>
+
+              {/* Overlay guide - only show when camera is ready */}
+              {cameraReady && !cameraError && (
+                <>
+                  <div className="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none">
+                    <div className="absolute top-2 left-2 w-8 h-8 border-t-2 border-l-2 border-white/60 rounded-tl-lg" />
+                    <div className="absolute top-2 right-2 w-8 h-8 border-t-2 border-r-2 border-white/60 rounded-tr-lg" />
+                    <div className="absolute bottom-2 left-2 w-8 h-8 border-b-2 border-l-2 border-white/60 rounded-bl-lg" />
+                    <div className="absolute bottom-2 right-2 w-8 h-8 border-b-2 border-r-2 border-white/60 rounded-br-lg" />
+                  </div>
+                  <div className="absolute bottom-4 left-0 right-0 text-center">
+                    <p className="text-white/70 text-sm">Align paper bid form within frame</p>
+                  </div>
+                </>
+              )}
             </div>
 
             <canvas ref={canvasRef} className="hidden" />
 
             <button
               onClick={captureImage}
-              className="w-full py-4 rounded-xl font-semibold text-lg bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
+              disabled={!cameraReady || cameraLoading || !!cameraError}
+              className="w-full py-4 rounded-xl font-semibold text-lg bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              <Camera className="w-5 h-5" />
-              Capture & Scan
+              {cameraLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Starting Camera...
+                </>
+              ) : cameraError ? (
+                <>
+                  <AlertCircle className="w-5 h-5" />
+                  Camera Unavailable
+                </>
+              ) : (
+                <>
+                  <Camera className="w-5 h-5" />
+                  Capture & Scan
+                </>
+              )}
             </button>
 
             <Link
