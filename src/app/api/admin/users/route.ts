@@ -125,10 +125,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, password, name, role } = body
+    const { email, password, name, role, isInitialSetup: bodyIsInitialSetup } = body
 
-    if (!email || !password || !name) {
-      return NextResponse.json({ error: 'Email, password, and name required' }, { status: 400 })
+    // For magic link flow (initial setup from login page), password is optional
+    if (!email || !name) {
+      return NextResponse.json({ error: 'Email and name required' }, { status: 400 })
     }
 
     // Check for existing user
@@ -141,10 +142,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user - first user is always owner
+    // Password is optional for magic link flow
     const user = await prisma.adminUser.create({
       data: {
         email: email.toLowerCase(),
-        passwordHash: hashPassword(password),
+        passwordHash: password ? hashPassword(password) : null,
         name,
         role: isInitialSetup ? 'OWNER' : (role || 'EMPLOYEE'),
       },

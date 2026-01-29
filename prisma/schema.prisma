@@ -51,7 +51,7 @@ model Prize {
   multiWinnerEligible   Boolean  @default(false)
   multiWinnerSlots      Int?     // null means unlimited (for pledges)
   validUntil            DateTime
-  imageUrl              String
+  imageUrl              String   // Primary image (kept for backwards compat)
   terms                 String?  @db.Text
   displayOrder          Int      @default(0)
   isActive              Boolean  @default(true)
@@ -70,6 +70,21 @@ model Prize {
   bids                  Bid[]
   winners               Winner[]
   favorites             Favorite[]
+  images                PrizeImage[]
+}
+
+model PrizeImage {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  order     Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  prizeId   String
+  prize     Prize    @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+
+  @@index([prizeId])
 }
 
 enum Category {
@@ -156,14 +171,15 @@ model AuctionSettings {
 // ==========================================
 
 enum AdminRole {
-  OWNER     // Full access, can change auction state
-  EMPLOYEE  // Limited access, can't change state or delete prizes
+  OWNER     // Full access, can manage all admins
+  ADMIN     // Can manage employees, almost full access
+  EMPLOYEE  // Limited access, can't change state or manage users
 }
 
 model AdminUser {
   id           String    @id @default(cuid())
   email        String    @unique
-  passwordHash String
+  passwordHash String?   // Optional - magic links preferred
   name         String
   role         AdminRole @default(EMPLOYEE)
   isActive     Boolean   @default(true)
@@ -171,15 +187,36 @@ model AdminUser {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  invitedById  String?   // Who invited this user
+  invitedBy    AdminUser? @relation("AdminInvites", fields: [invitedById], references: [id])
+  invitees     AdminUser[] @relation("AdminInvites")
+
   auditLogs    AuditLog[]
+  invitations  AdminInvitation[]
 }
 
 model AdminSession {
   id          String   @id @default(cuid())
   token       String   @unique
-  adminUserId String?  // null for legacy password sessions
+  adminUserId String?  // null for setup sessions
   expiresAt   DateTime
   createdAt   DateTime @default(now())
+}
+
+model AdminInvitation {
+  id           String    @id @default(cuid())
+  email        String
+  role         AdminRole @default(EMPLOYEE)
+  token        String    @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  invitedById  String
+  invitedBy    AdminUser @relation(fields: [invitedById], references: [id])
+
+  @@index([email])
+  @@index([token])
 }
 
 // ==========================================

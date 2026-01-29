@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { COOKIE_NAMES } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +21,13 @@ const AVATAR_COLORS = [
 // GET - List all helpers
 export async function GET(request: NextRequest) {
   try {
+    const cookieStore = await cookies()
+    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { prisma } = await import('@/lib/prisma')
 
     const helpers = await prisma.helper.findMany({
@@ -43,6 +52,13 @@ export async function GET(request: NextRequest) {
 // POST - Create new helper
 export async function POST(request: NextRequest) {
   try {
+    const cookieStore = await cookies()
+    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { name, pin } = await request.json()
 
     if (!name || !pin) {
@@ -104,6 +120,13 @@ export async function POST(request: NextRequest) {
 // PATCH - Update helper
 export async function PATCH(request: NextRequest) {
   try {
+    const cookieStore = await cookies()
+    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { id, name, pin, isActive } = await request.json()
 
     if (!id) {
@@ -148,6 +171,13 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Remove helper
 export async function DELETE(request: NextRequest) {
   try {
+    const cookieStore = await cookies()
+    const isAdmin = cookieStore.get(COOKIE_NAMES.adminSession)?.value === 'true'
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 

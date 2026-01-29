@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies()
     const adminSession = cookieStore.get(COOKIE_NAMES.adminSession)?.value
 
-    if (adminSession !== 'authenticated') {
+    if (adminSession !== 'true') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

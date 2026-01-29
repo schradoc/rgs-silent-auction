@@ -69,6 +69,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
 
+    // If user has no password, they should use magic link
+    if (!user.passwordHash) {
+      return NextResponse.json({
+        error: 'This account uses magic link login. Please request a login link.',
+        useMagicLink: true
+      }, { status: 400 })
+    }
+
     if (!verifyPassword(password, user.passwordHash)) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
