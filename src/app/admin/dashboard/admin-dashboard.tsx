@@ -144,6 +144,21 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
   const [auctionEndTime, setAuctionEndTime] = useState('')
   const [mockDataLoading, setMockDataLoading] = useState(false)
   const [stateChangeLoading, setStateChangeLoading] = useState(false)
+  const [showPrizeForm, setShowPrizeForm] = useState(false)
+  const [editingPrize, setEditingPrize] = useState<Prize | null>(null)
+  const [prizeForm, setPrizeForm] = useState({
+    title: '',
+    shortDescription: '',
+    fullDescription: '',
+    donorName: '',
+    minimumBid: '',
+    category: 'EXPERIENCES',
+    validUntil: '',
+    imageUrl: '',
+    terms: '',
+    multiWinnerEligible: false,
+    multiWinnerSlots: '',
+  })
 
   // Poll for updates every 5 seconds
   useEffect(() => {
@@ -330,6 +345,87 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       alert('Failed to change auction state')
     } finally {
       setStateChangeLoading(false)
+    }
+  }
+
+  const resetPrizeForm = () => {
+    setPrizeForm({
+      title: '',
+      shortDescription: '',
+      fullDescription: '',
+      donorName: '',
+      minimumBid: '',
+      category: 'EXPERIENCES',
+      validUntil: '',
+      imageUrl: '',
+      terms: '',
+      multiWinnerEligible: false,
+      multiWinnerSlots: '',
+    })
+    setEditingPrize(null)
+  }
+
+  const handleEditPrize = (prize: Prize) => {
+    setEditingPrize(prize)
+    setPrizeForm({
+      title: prize.title,
+      shortDescription: (prize as unknown as { shortDescription: string }).shortDescription || '',
+      fullDescription: (prize as unknown as { fullDescription: string }).fullDescription || '',
+      donorName: (prize as unknown as { donorName: string }).donorName || '',
+      minimumBid: String(prize.minimumBid),
+      category: prize.category,
+      validUntil: '',
+      imageUrl: (prize as unknown as { imageUrl: string }).imageUrl || '',
+      terms: (prize as unknown as { terms: string }).terms || '',
+      multiWinnerEligible: prize.multiWinnerEligible,
+      multiWinnerSlots: '',
+    })
+    setShowPrizeForm(true)
+  }
+
+  const handleSavePrize = async () => {
+    try {
+      const url = '/api/admin/prizes'
+      const method = editingPrize ? 'PUT' : 'POST'
+      const body = editingPrize
+        ? { id: editingPrize.id, ...prizeForm }
+        : prizeForm
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        setShowPrizeForm(false)
+        resetPrizeForm()
+        handleRefresh()
+      } else {
+        alert(data.error || 'Failed to save prize')
+      }
+    } catch (error) {
+      alert('Failed to save prize')
+    }
+  }
+
+  const handleDeletePrize = async (prizeId: string, permanent = false) => {
+    const action = permanent ? 'permanently delete' : 'deactivate'
+    if (!confirm(`Are you sure you want to ${action} this prize?`)) return
+
+    try {
+      const res = await fetch(`/api/admin/prizes?id=${prizeId}${permanent ? '&permanent=true' : ''}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (res.ok) {
+        handleRefresh()
+      } else {
+        alert(data.error || 'Failed to delete prize')
+      }
+    } catch (error) {
+      alert('Failed to delete prize')
     }
   }
 
@@ -599,10 +695,146 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
 
         {activeTab === 'prizes' && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900">All Prizes</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">All Prizes ({data.prizes.length})</h2>
+              <Button variant="gold" onClick={() => { resetPrizeForm(); setShowPrizeForm(true); }}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Prize
+              </Button>
+            </div>
+
+            {/* Prize Form Modal */}
+            {showPrizeForm && (
+              <Card className="border-2 border-[#c9a227]">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold text-lg mb-4">
+                    {editingPrize ? 'Edit Prize' : 'Add New Prize'}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                      <input
+                        type="text"
+                        value={prizeForm.title}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, title: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        placeholder="e.g., Champagne Tasting Experience"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Short Description *</label>
+                      <input
+                        type="text"
+                        value={prizeForm.shortDescription}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, shortDescription: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        placeholder="Brief description for cards"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Description *</label>
+                      <textarea
+                        value={prizeForm.fullDescription}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, fullDescription: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        rows={3}
+                        placeholder="Detailed description..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Donor Name *</label>
+                      <input
+                        type="text"
+                        value={prizeForm.donorName}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, donorName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Bid (HKD) *</label>
+                      <input
+                        type="number"
+                        value={prizeForm.minimumBid}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, minimumBid: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                      <select
+                        value={prizeForm.category}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, category: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                      >
+                        {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Valid Until *</label>
+                      <input
+                        type="date"
+                        value={prizeForm.validUntil}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, validUntil: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                      <input
+                        type="url"
+                        value={prizeForm.imageUrl}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, imageUrl: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Terms & Conditions</label>
+                      <textarea
+                        value={prizeForm.terms}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, terms: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="col-span-2 flex items-center gap-4">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={prizeForm.multiWinnerEligible}
+                          onChange={(e) => setPrizeForm({ ...prizeForm, multiWinnerEligible: e.target.checked })}
+                          className="w-4 h-4 rounded border-gray-300 text-[#c9a227] focus:ring-[#c9a227]"
+                        />
+                        <span className="text-sm text-gray-700">Multiple winners allowed</span>
+                      </label>
+                      {prizeForm.multiWinnerEligible && (
+                        <input
+                          type="number"
+                          value={prizeForm.multiWinnerSlots}
+                          onChange={(e) => setPrizeForm({ ...prizeForm, multiWinnerSlots: e.target.value })}
+                          className="w-24 px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                          placeholder="Slots"
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <Button variant="outline" onClick={() => { setShowPrizeForm(false); resetPrizeForm(); }}>
+                      Cancel
+                    </Button>
+                    <Button variant="gold" onClick={handleSavePrize}>
+                      {editingPrize ? 'Update Prize' : 'Create Prize'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid gap-4">
               {data.prizes.map((prize) => (
-                <Card key={prize.id}>
+                <Card key={prize.id} className={!prize.isActive ? 'opacity-50' : ''}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -611,16 +843,39 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                             {CATEGORY_LABELS[prize.category as keyof typeof CATEGORY_LABELS]}
                           </Badge>
                           <span className="text-sm text-gray-500">{prize._count.bids} bids</span>
+                          {!prize.isActive && (
+                            <Badge variant="navy" size="sm" className="bg-red-100 text-red-700">Inactive</Badge>
+                          )}
                         </div>
                         <h3 className="font-semibold text-gray-900">{prize.title}</h3>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500">Current Bid</p>
-                        <p className={`text-xl font-bold ${prize.currentHighestBid > 0 ? 'text-[#c9a227]' : 'text-gray-400'}`}>
-                          {prize.currentHighestBid > 0
-                            ? formatCurrency(prize.currentHighestBid)
-                            : formatCurrency(prize.minimumBid) + ' (min)'}
-                        </p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500">Current Bid</p>
+                          <p className={`text-xl font-bold ${prize.currentHighestBid > 0 ? 'text-[#c9a227]' : 'text-gray-400'}`}>
+                            {prize.currentHighestBid > 0
+                              ? formatCurrency(prize.currentHighestBid)
+                              : formatCurrency(prize.minimumBid) + ' (min)'}
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditPrize(prize)}
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeletePrize(prize.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
