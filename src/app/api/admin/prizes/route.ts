@@ -25,6 +25,9 @@ export async function GET(request: NextRequest) {
             include: { bidder: true },
             orderBy: { amount: 'desc' },
           },
+          images: {
+            orderBy: { order: 'asc' },
+          },
           _count: { select: { bids: true, favorites: true } },
         },
       })
@@ -37,6 +40,9 @@ export async function GET(request: NextRequest) {
       include: {
         _count: { select: { bids: true, favorites: true } },
         variants: true,
+        images: {
+          orderBy: { order: 'asc' },
+        },
       },
       orderBy: [{ displayOrder: 'asc' }, { title: 'asc' }],
     })

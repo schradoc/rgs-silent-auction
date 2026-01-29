@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Gavel,
   Users,
-  TrendingUp,
   Settings,
   LogOut,
   RefreshCw,
@@ -23,8 +22,6 @@ import {
   X,
   Mail,
   Printer,
-  Play,
-  Pause,
   Eye,
   TestTube,
   FileEdit,
@@ -36,13 +33,22 @@ import {
   BarChart3,
   Activity,
   HelpCircle,
-  BookOpen,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react'
 import { Button, Card, CardContent, Badge } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { OnboardingTutorial, useOnboarding } from '@/components/admin/onboarding-tutorial'
 import { AnalyticsCharts } from '@/components/admin/analytics-charts'
+import { ImageUpload } from '@/components/admin/image-upload'
+
+interface PrizeImage {
+  id: string
+  url: string
+  isPrimary: boolean
+  order: number
+}
 
 interface Prize {
   id: string
@@ -54,6 +60,7 @@ interface Prize {
   multiWinnerEligible: boolean
   isActive: boolean
   _count: { bids: number }
+  images?: PrizeImage[]
 }
 
 interface Bidder {
@@ -64,6 +71,21 @@ interface Bidder {
   emailVerified: boolean
   createdAt: Date | string
   _count: { bids: number }
+}
+
+interface BidderWithHistory extends Bidder {
+  bids: Array<{
+    id: string
+    amount: number
+    status: string
+    createdAt: Date | string
+    prize: {
+      id: string
+      title: string
+      slug: string
+    }
+  }>
+  totalBidAmount: number
 }
 
 interface Bid {
@@ -165,8 +187,35 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
     multiWinnerSlots: '',
   })
 
-  // Poll for updates every 5 seconds
+  // Loading states for async operations
+  const [savingPrize, setSavingPrize] = useState(false)
+  const [deletingPrize, setDeletingPrize] = useState<string | null>(null)
+  const [savingHelper, setSavingHelper] = useState(false)
+  const [deletingHelper, setDeletingHelper] = useState<string | null>(null)
+  const [confirmingAllWinners, setConfirmingAllWinners] = useState(false)
+
+  // Bidder modal state
+  const [selectedBidder, setSelectedBidder] = useState<BidderWithHistory | null>(null)
+  const [loadingBidder, setLoadingBidder] = useState(false)
+
+  // Page visibility for polling optimization
+  const [isPageVisible, setIsPageVisible] = useState(true)
+
+  // Prize images state for new prizes
+  const [prizeImages, setPrizeImages] = useState<PrizeImage[]>([])
+
+  // Page visibility tracking for polling optimization
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsPageVisible(!document.hidden)
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
+  // Poll for updates - reduced frequency when tab is hidden
+  useEffect(() => {
+    const pollInterval = isPageVisible ? 5000 : 30000 // 5s when visible, 30s when hidden
     const interval = setInterval(async () => {
       try {
         const res = await fetch('/api/admin/data', { credentials: 'include' })
@@ -177,10 +226,10 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       } catch (error) {
         console.error('Failed to refresh data:', error)
       }
-    }, 5000)
+    }, pollInterval)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [isPageVisible])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -337,17 +386,29 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
   const handleStateChange = async (newState: string) => {
     const currentState = data.settings?.auctionState || 'DRAFT'
     if (!confirm(`Change auction state from ${currentState} to ${newState}?`)) return
+
+    // If closing the auction, ask about auto-confirming winners
+    let autoConfirmWinners = false
+    if (newState === 'CLOSED') {
+      autoConfirmWinners = confirm(
+        'Would you like to automatically confirm all winners and send notifications?\n\nClick OK to auto-confirm, or Cancel to just close the auction (you can confirm winners manually later).'
+      )
+    }
+
     setStateChangeLoading(true)
     try {
       const res = await fetch('/api/admin/auction-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newState }),
+        body: JSON.stringify({ newState, autoConfirmWinners }),
         credentials: 'include',
       })
       const result = await res.json()
       if (res.ok) {
         handleRefresh()
+        if (result.winnersConfirmed) {
+          alert(`Auction closed. ${result.winnersConfirmed} winners confirmed and notified.`)
+        }
       } else {
         alert(result.error || 'Failed to change state')
       }
@@ -372,10 +433,11 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       multiWinnerEligible: false,
       multiWinnerSlots: '',
     })
+    setPrizeImages([])
     setEditingPrize(null)
   }
 
-  const handleEditPrize = (prize: Prize) => {
+  const handleEditPrize = async (prize: Prize) => {
     setEditingPrize(prize)
     setPrizeForm({
       title: prize.title,
@@ -390,10 +452,13 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       multiWinnerEligible: prize.multiWinnerEligible,
       multiWinnerSlots: '',
     })
+    // Load prize images if available
+    setPrizeImages(prize.images || [])
     setShowPrizeForm(true)
   }
 
   const handleSavePrize = async () => {
+    setSavingPrize(true)
     try {
       const url = '/api/admin/prizes'
       const method = editingPrize ? 'PUT' : 'POST'
@@ -405,6 +470,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        credentials: 'include',
       })
 
       const data = await res.json()
@@ -417,6 +483,8 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       }
     } catch (error) {
       alert('Failed to save prize')
+    } finally {
+      setSavingPrize(false)
     }
   }
 
@@ -424,6 +492,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
     const action = permanent ? 'permanently delete' : 'deactivate'
     if (!confirm(`Are you sure you want to ${action} this prize?`)) return
 
+    setDeletingPrize(prizeId)
     try {
       const res = await fetch(`/api/admin/prizes?id=${prizeId}${permanent ? '&permanent=true' : ''}`, {
         method: 'DELETE',
@@ -437,11 +506,14 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       }
     } catch (error) {
       alert('Failed to delete prize')
+    } finally {
+      setDeletingPrize(null)
     }
   }
 
   const handleAddHelper = async () => {
     if (!newHelperName || !newHelperPin) return
+    setSavingHelper(true)
     try {
       const res = await fetch('/api/admin/helpers', {
         method: 'POST',
@@ -460,11 +532,14 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       }
     } catch (error) {
       console.error('Failed to add helper:', error)
+    } finally {
+      setSavingHelper(false)
     }
   }
 
   const handleDeleteHelper = async (id: string) => {
     if (!confirm('Are you sure you want to deactivate this helper?')) return
+    setDeletingHelper(id)
     try {
       const res = await fetch(`/api/admin/helpers?id=${id}`, { method: 'DELETE', credentials: 'include' })
       if (res.ok) {
@@ -472,6 +547,58 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       }
     } catch (error) {
       console.error('Failed to delete helper:', error)
+    } finally {
+      setDeletingHelper(null)
+    }
+  }
+
+  // Fetch bidder with full history
+  const handleViewBidder = async (bidderId: string) => {
+    setLoadingBidder(true)
+    try {
+      const res = await fetch(`/api/admin/bidders/${bidderId}`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setSelectedBidder(data.bidder)
+      } else {
+        alert('Failed to load bidder details')
+      }
+    } catch (error) {
+      console.error('Failed to fetch bidder:', error)
+      alert('Failed to load bidder details')
+    } finally {
+      setLoadingBidder(false)
+    }
+  }
+
+  // Bulk confirm all winners
+  const handleConfirmAllWinners = async () => {
+    const pendingWinners = potentialWinners.filter(w => w.winningBid && !w.isConfirmed)
+    if (pendingWinners.length === 0) {
+      alert('No pending winners to confirm')
+      return
+    }
+    if (!confirm(`Confirm ${pendingWinners.length} winners and send notifications?`)) return
+
+    setConfirmingAllWinners(true)
+    try {
+      const res = await fetch('/api/admin/winners/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sendNotifications: true }),
+        credentials: 'include',
+      })
+      const result = await res.json()
+      if (res.ok) {
+        alert(`Confirmed ${result.confirmed} winners`)
+        fetchWinners()
+      } else {
+        alert(result.error || 'Failed to confirm winners')
+      }
+    } catch (error) {
+      alert('Failed to confirm winners')
+    } finally {
+      setConfirmingAllWinners(false)
     }
   }
 
@@ -500,6 +627,15 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
           </div>
 
           <div className="flex items-center gap-3">
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span className="hidden sm:inline">Visit Live Page</span>
+            </a>
             <Button
               variant="ghost"
               size="sm"
@@ -820,13 +956,12 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                      <input
-                        type="url"
-                        value={prizeForm.imageUrl}
-                        onChange={(e) => setPrizeForm({ ...prizeForm, imageUrl: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
-                        placeholder="https://..."
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Images</label>
+                      <ImageUpload
+                        prizeId={editingPrize?.id}
+                        images={prizeImages}
+                        onImagesChange={setPrizeImages}
+                        maxImages={5}
                       />
                     </div>
                     <div className="col-span-2">
@@ -860,11 +995,18 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-6">
-                    <Button variant="outline" onClick={() => { setShowPrizeForm(false); resetPrizeForm(); }}>
+                    <Button variant="outline" onClick={() => { setShowPrizeForm(false); resetPrizeForm(); }} disabled={savingPrize}>
                       Cancel
                     </Button>
-                    <Button variant="gold" onClick={handleSavePrize}>
-                      {editingPrize ? 'Update Prize' : 'Create Prize'}
+                    <Button variant="gold" onClick={handleSavePrize} disabled={savingPrize}>
+                      {savingPrize ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        editingPrize ? 'Update Prize' : 'Create Prize'
+                      )}
                     </Button>
                   </div>
                 </CardContent>
@@ -903,6 +1045,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                             size="sm"
                             onClick={() => handleEditPrize(prize)}
                             className="text-gray-500 hover:text-gray-700"
+                            disabled={deletingPrize === prize.id}
                           >
                             <Edit2 className="w-4 h-4" />
                           </Button>
@@ -911,8 +1054,13 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                             size="sm"
                             onClick={() => handleDeletePrize(prize.id)}
                             className="text-red-500 hover:text-red-700"
+                            disabled={deletingPrize === prize.id}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {deletingPrize === prize.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -930,7 +1078,12 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
             <Card>
               <div className="divide-y">
                 {data.bidders.map((bidder) => (
-                  <div key={bidder.id} className="p-4 flex items-center justify-between">
+                  <button
+                    key={bidder.id}
+                    onClick={() => handleViewBidder(bidder.id)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+                    disabled={loadingBidder}
+                  >
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-gray-900">{bidder.name}</p>
@@ -940,14 +1093,125 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                       </div>
                       <p className="text-sm text-gray-500">{bidder.email}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">Table {bidder.tableNumber}</p>
-                      <p className="text-sm text-gray-500">{bidder._count.bids} bids</p>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-medium">Table {bidder.tableNumber}</p>
+                        <p className="text-sm text-gray-500">{bidder._count.bids} bids</p>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-300" />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </Card>
+
+            {/* Bidder History Modal */}
+            {selectedBidder && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                  <div className="p-6 border-b flex items-start justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">{selectedBidder.name}</h3>
+                      <p className="text-sm text-gray-500">{selectedBidder.email}</p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedBidder(null)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                    {/* Bidder Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-500">Table Number</p>
+                        <p className="font-semibold">{selectedBidder.tableNumber}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-500">Verification</p>
+                        <p className="font-semibold flex items-center gap-1">
+                          {selectedBidder.emailVerified ? (
+                            <>
+                              <Check className="w-4 h-4 text-green-500" />
+                              Verified
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-4 h-4 text-red-500" />
+                              Not verified
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-500">Registered</p>
+                        <p className="font-semibold">
+                          {new Date(selectedBidder.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-500">Total Bid Amount</p>
+                        <p className="font-semibold text-[#c9a227]">
+                          {formatCurrency(selectedBidder.totalBidAmount || 0)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bid History */}
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-3">
+                        Bid History ({selectedBidder.bids?.length || 0})
+                      </h4>
+                      {selectedBidder.bids?.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedBidder.bids.map((bid) => (
+                            <div
+                              key={bid.id}
+                              className="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                              <div>
+                                <p className="font-medium text-gray-900">{bid.prize.title}</p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(bid.createdAt).toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-[#c9a227]">
+                                  {formatCurrency(bid.amount)}
+                                </p>
+                                <Badge
+                                  variant="navy"
+                                  size="sm"
+                                  className={
+                                    bid.status === 'WINNING' || bid.status === 'WON'
+                                      ? 'bg-green-100 text-green-700'
+                                      : bid.status === 'OUTBID' || bid.status === 'LOST'
+                                      ? 'bg-red-100 text-red-700'
+                                      : ''
+                                  }
+                                >
+                                  {bid.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">No bids yet</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 border-t">
+                    <Button variant="outline" onClick={() => setSelectedBidder(null)} className="w-full">
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -958,6 +1222,25 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                 {data.settings?.auctionState === 'CLOSED' ? 'Winner Selection' : 'Currently Winning'}
               </h2>
               <div className="flex gap-2">
+                {data.settings?.auctionState === 'CLOSED' && potentialWinners.filter(w => w.winningBid && !w.isConfirmed).length > 0 && (
+                  <Button
+                    variant="gold"
+                    onClick={handleConfirmAllWinners}
+                    disabled={confirmingAllWinners}
+                  >
+                    {confirmingAllWinners ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Confirming...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Confirm All ({potentialWinners.filter(w => w.winningBid && !w.isConfirmed).length})
+                      </>
+                    )}
+                  </Button>
+                )}
                 <a
                   href="/api/admin/export?type=winners"
                   className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
@@ -1144,9 +1427,12 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                       onChange={(e) => setNewHelperPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                       maxLength={4}
                       className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] text-center font-mono"
+                      disabled={savingHelper}
                     />
-                    <Button variant="gold" onClick={handleAddHelper}>Add</Button>
-                    <Button variant="outline" onClick={() => { setShowAddHelper(false); setNewHelperName(''); setNewHelperPin(''); }}>Cancel</Button>
+                    <Button variant="gold" onClick={handleAddHelper} disabled={savingHelper}>
+                      {savingHelper ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
+                    </Button>
+                    <Button variant="outline" onClick={() => { setShowAddHelper(false); setNewHelperName(''); setNewHelperPin(''); }} disabled={savingHelper}>Cancel</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1189,8 +1475,13 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                             size="sm"
                             onClick={() => handleDeleteHelper(helper.id)}
                             className="text-red-600 hover:bg-red-50"
+                            disabled={deletingHelper === helper.id}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {deletingHelper === helper.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </Button>
                         )}
                       </div>
@@ -1256,7 +1547,11 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                             : 'border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-900'
                         } disabled:opacity-50`}
                       >
-                        <StateIcon className={`w-5 h-5 mx-auto mb-1 ${isActive ? 'text-white' : ''}`} />
+                        {stateChangeLoading && !isActive ? (
+                          <Loader2 className="w-5 h-5 mx-auto mb-1 animate-spin" />
+                        ) : (
+                          <StateIcon className={`w-5 h-5 mx-auto mb-1 ${isActive ? 'text-white' : ''}`} />
+                        )}
                         <p className="text-xs font-medium">{config.label}</p>
                       </button>
                     )

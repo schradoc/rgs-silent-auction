@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
         orderBy: { displayOrder: 'asc' },
         include: {
           _count: { select: { bids: true } },
+          images: {
+            orderBy: { order: 'asc' },
+          },
         },
       }),
       prisma.bidder.findMany({

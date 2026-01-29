@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const { prisma } = await import('@/lib/prisma')
     const body = await request.json()
-    const { newState, force } = body
+    const { newState, force, autoConfirmWinners } = body
 
     if (!VALID_STATES.includes(newState)) {
       return NextResponse.json({ error: 'Invalid auction state' }, { status: 400 })
@@ -129,10 +129,68 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Auto-confirm winners if requested when closing
+    let winnersConfirmed = 0
+    if (newState === 'CLOSED' && autoConfirmWinners) {
+      // Get all prizes with winning bids that don't have confirmed winners
+      const prizes = await prisma.prize.findMany({
+        where: {
+          isActive: true,
+          parentPrizeId: null,
+        },
+        include: {
+          bids: {
+            where: { status: 'WINNING' },
+            include: {
+              bidder: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+            orderBy: { amount: 'desc' },
+            take: 1,
+          },
+          winners: true,
+        },
+      })
+
+      // Filter to prizes that have a winning bid but no confirmed winner
+      const pendingWinners = prizes.filter(
+        (prize) => prize.bids.length > 0 && prize.winners.length === 0
+      )
+
+      for (const prize of pendingWinners) {
+        const winningBid = prize.bids[0]
+        if (!winningBid) continue
+
+        try {
+          const winner = await prisma.winner.create({
+            data: {
+              bidId: winningBid.id,
+              prizeId: prize.id,
+              bidderId: winningBid.bidder.id,
+            },
+          })
+
+          winnersConfirmed++
+
+          // Send notification
+          try {
+            const { sendWinnerNotification } = await import('@/lib/notifications')
+            await sendWinnerNotification(winner.id)
+          } catch (notifyError) {
+            console.error(`Failed to send notification for prize ${prize.id}:`, notifyError)
+          }
+        } catch (error) {
+          console.error(`Failed to confirm winner for prize ${prize.id}:`, error)
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       previousState: currentState,
       settings: updatedSettings,
+      winnersConfirmed: winnersConfirmed > 0 ? winnersConfirmed : undefined,
     })
   } catch (error) {
     console.error('Update auction state error:', error)
