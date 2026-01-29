@@ -15,6 +15,7 @@ model Bidder {
   tableNumber  String
   emailVerified Boolean @default(false)
   verificationCode String?
+  isMockData   Boolean  @default(false) // Flag for generated test data
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -83,10 +84,11 @@ model Bid {
   id        String   @id @default(cuid())
   amount    Int      // In HKD
   status    BidStatus @default(ACTIVE)
+  isMockData Boolean  @default(false) // Flag for generated test data
   createdAt DateTime @default(now())
 
   bidderId  String
-  bidder    Bidder   @relation(fields: [bidderId], references: [id])
+  bidder    Bidder   @relation(fields: [bidderId], references: [id], onDelete: Cascade)
 
   prizeId   String
   prize     Prize    @relation(fields: [prizeId], references: [id])
@@ -128,18 +130,76 @@ model Winner {
   @@index([prizeId])
 }
 
+// ==========================================
+// Auction State Machine
+// ==========================================
+
+enum AuctionState {
+  DRAFT      // Building out prizes, mock data okay
+  TESTING    // Real data, testing flows
+  PRELAUNCH  // Public preview, no bidding yet
+  LIVE       // Bidding open
+  CLOSED     // Event over, winners being confirmed
+}
+
 model AuctionSettings {
-  id              String   @id @default("settings")
+  id              String       @id @default("settings")
+  auctionState    AuctionState @default(DRAFT)
   auctionEndTime  DateTime?
-  isAuctionOpen   Boolean  @default(true)
-  updatedAt       DateTime @updatedAt
+  auctionStartTime DateTime?
+  isAuctionOpen   Boolean      @default(false) // Derived from state, kept for backwards compat
+  updatedAt       DateTime     @updatedAt
+}
+
+// ==========================================
+// Admin User System
+// ==========================================
+
+enum AdminRole {
+  OWNER     // Full access, can change auction state
+  EMPLOYEE  // Limited access, can't change state or delete prizes
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(EMPLOYEE)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs    AuditLog[]
 }
 
 model AdminSession {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  token       String   @unique
+  adminUserId String?  // null for legacy password sessions
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}
+
+// ==========================================
+// Audit Log for Admin Actions
+// ==========================================
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  action      String    // e.g., "PRIZE_CREATED", "STATE_CHANGED", "WINNER_CONFIRMED"
+  entityType  String?   // e.g., "Prize", "Bid", "Settings"
+  entityId    String?
+  details     String?   @db.Text // JSON details
+  adminUserId String?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id])
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([adminUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 // ==========================================
