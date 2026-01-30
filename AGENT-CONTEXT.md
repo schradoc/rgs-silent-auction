@@ -1,7 +1,7 @@
 # RGS Silent Auction - Agent Context File
 
 > **Last Updated**: 2026-01-30
-> **Last Commit**: 7918e69 - Update Supabase config for new API key naming
+> **Last Commit**: 6409b9c - Add comprehensive agent context file for handoffs
 > **NOTE**: This file should be updated after every push/commit to keep agents in sync.
 
 ---

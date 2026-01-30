@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import { useQueryClient } from '@tanstack/react-query'
 import type { RealtimeBidPayload } from '@/lib/types'
 
@@ -9,6 +9,9 @@ export function useRealtimePrizes() {
   const queryClient = useQueryClient()
 
   useEffect(() => {
+    const supabase = getSupabase()
+    if (!supabase) return // Supabase not configured
+
     // Subscribe to prize updates (when currentHighestBid changes)
     const channel = supabase
       .channel('prize-updates')
@@ -37,6 +40,9 @@ export function useRealtimeBids(prizeId?: string) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
+    const supabase = getSupabase()
+    if (!supabase) return // Supabase not configured
+
     const filter = prizeId ? `prizeId=eq.${prizeId}` : undefined
 
     const channel = supabase
@@ -71,6 +77,9 @@ export function useBidNotifications(bidderId: string | undefined, onOutbid: (pay
 
   useEffect(() => {
     if (!bidderId) return
+
+    const supabase = getSupabase()
+    if (!supabase) return // Supabase not configured
 
     // Subscribe to a custom channel for outbid notifications
     const channel = supabase
