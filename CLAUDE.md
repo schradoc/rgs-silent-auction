@@ -338,6 +338,31 @@ npx prisma db push
 - [ ] Error boundaries
 - [ ] Confetti on successful bid
 
+## Known Issues / TODO
+
+### Pending Configuration
+- **Supabase Storage**: Image uploads require `SUPABASE_SERVICE_ROLE_KEY` env var and a `prize-images` bucket in Supabase Storage (public access). Currently shows helpful error when not configured.
+
+### Pending Schema Migration
+- **DisplaySettings model**: Added to `prisma/schema.prisma` but needs:
+  ```bash
+  npx prisma generate
+  npx prisma db push
+  ```
+  Until run, display settings toggles in admin won't persist.
+
+### Future Improvements
+- Error boundaries for graceful failure handling
+- Confetti animation on successful bid
+- Push notifications (web push API)
+- Offline support / PWA
+
+## Current Status
+
+**Ready for event**: Core functionality complete. Bidders can register, browse prizes, place bids. Admins can manage everything. Helpers can enter paper bids.
+
+**Event Date**: 28 February 2026
+
 ---
 
-**Last Updated**: 2026-01-29
+**Last Updated**: 2026-01-30
