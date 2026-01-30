@@ -1,7 +1,7 @@
 # RGS Silent Auction - Agent Context File
 
 > **Last Updated**: 2026-01-30
-> **Last Commit**: e1e3e58 - Fix Supabase client initialization crash
+> **Last Commit**: ff22c04 - Add password login support for admins
 > **NOTE**: This file should be updated after every push/commit to keep agents in sync.
 
 ---
@@ -311,10 +311,14 @@ TWILIO_PHONE_NUMBER=+1xxx
 - Auction state machine
 - Team management (invitations, roles)
 
-### Recently Fixed (2026-01-30)
+### Recently Added (2026-01-30)
+- **Password login support** - Admins can now use magic link OR password
+- Admin login page toggle between methods
+- Password management in Settings → Account
+- Users can set, change, or remove passwords
 - Supabase storage configuration (new key naming)
 - DisplaySettings Prisma migration
-- Analytics loading issue
+- Analytics improvements
 - Prize detail modal with bid history
 - Test email functionality
 

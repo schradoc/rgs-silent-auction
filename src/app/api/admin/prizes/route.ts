@@ -139,12 +139,41 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Prize ID required' }, { status: 400 })
     }
 
-    // Convert numeric fields
-    const data: Record<string, unknown> = { ...updates }
-    if (updates.minimumBid) data.minimumBid = parseInt(updates.minimumBid)
-    if (updates.multiWinnerSlots) data.multiWinnerSlots = parseInt(updates.multiWinnerSlots)
-    if (updates.displayOrder !== undefined) data.displayOrder = parseInt(updates.displayOrder)
-    if (updates.validUntil) data.validUntil = new Date(updates.validUntil)
+    // Clean up data - convert empty strings to null/undefined
+    const data: Record<string, unknown> = {}
+
+    // String fields - only include if non-empty
+    if (updates.title) data.title = updates.title
+    if (updates.shortDescription !== undefined) data.shortDescription = updates.shortDescription || ''
+    if (updates.fullDescription !== undefined) data.fullDescription = updates.fullDescription || ''
+    if (updates.donorName !== undefined) data.donorName = updates.donorName || ''
+    if (updates.category) data.category = updates.category
+    if (updates.imageUrl) data.imageUrl = updates.imageUrl
+    if (updates.terms !== undefined) data.terms = updates.terms || ''
+
+    // Numeric fields - convert to number or null
+    if (updates.minimumBid !== undefined && updates.minimumBid !== '') {
+      data.minimumBid = parseInt(updates.minimumBid)
+    }
+    if (updates.multiWinnerSlots !== undefined) {
+      data.multiWinnerSlots = updates.multiWinnerSlots ? parseInt(updates.multiWinnerSlots) : null
+    }
+    if (updates.displayOrder !== undefined && updates.displayOrder !== '') {
+      data.displayOrder = parseInt(updates.displayOrder)
+    }
+
+    // Date fields - convert to Date or null
+    if (updates.validUntil !== undefined) {
+      data.validUntil = updates.validUntil ? new Date(updates.validUntil) : null
+    }
+
+    // Boolean fields
+    if (updates.multiWinnerEligible !== undefined) {
+      data.multiWinnerEligible = Boolean(updates.multiWinnerEligible)
+    }
+    if (updates.isActive !== undefined) {
+      data.isActive = Boolean(updates.isActive)
+    }
 
     const prize = await prisma.prize.update({
       where: { id },

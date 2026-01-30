@@ -40,37 +40,57 @@ export function ImageUpload({
     }
   }, [])
 
-  const uploadFile = async (file: File): Promise<PrizeImage | null> => {
-    const formData = new FormData()
-    formData.append('file', file)
-    if (prizeId) {
-      formData.append('prizeId', prizeId)
-    }
+  const uploadFile = async (file: File, onProgress: (percent: number) => void): Promise<PrizeImage | null> => {
+    return new Promise((resolve) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (prizeId) {
+        formData.append('prizeId', prizeId)
+      }
 
-    try {
-      const res = await fetch('/api/admin/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
+      const xhr = new XMLHttpRequest()
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100)
+          onProgress(percent)
+        }
       })
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Upload failed')
-      }
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText)
+            resolve(data.image || {
+              id: `temp-${Date.now()}`,
+              url: data.url,
+              isPrimary: images.length === 0,
+              order: images.length,
+            })
+          } catch {
+            toast.error('Invalid response from server')
+            resolve(null)
+          }
+        } else {
+          try {
+            const data = JSON.parse(xhr.responseText)
+            toast.error(data.error || 'Upload failed')
+          } catch {
+            toast.error('Upload failed')
+          }
+          resolve(null)
+        }
+      })
 
-      const data = await res.json()
-      return data.image || {
-        id: `temp-${Date.now()}`,
-        url: data.url,
-        isPrimary: images.length === 0,
-        order: images.length,
-      }
-    } catch (error) {
-      console.error('Upload error:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to upload image')
-      return null
-    }
+      xhr.addEventListener('error', () => {
+        toast.error('Upload failed - network error')
+        resolve(null)
+      })
+
+      xhr.open('POST', '/api/admin/upload')
+      xhr.withCredentials = true
+      xhr.send(formData)
+    })
   }
 
   const handleFiles = async (files: FileList | null) => {
@@ -87,7 +107,9 @@ export function ImageUpload({
     setUploadProgress(0)
 
     const newImages: PrizeImage[] = []
-    for (let i = 0; i < filesToUpload.length; i++) {
+    const totalFiles = filesToUpload.length
+
+    for (let i = 0; i < totalFiles; i++) {
       const file = filesToUpload[i]
 
       // Validate file type
@@ -95,15 +117,24 @@ export function ImageUpload({
         continue
       }
 
-      const image = await uploadFile(file)
+      // Calculate progress: each file contributes (100 / totalFiles) percent
+      // Show progress within each file's upload
+      const baseProgress = (i / totalFiles) * 100
+      const fileWeight = 100 / totalFiles
+
+      const image = await uploadFile(file, (filePercent) => {
+        const totalProgress = Math.round(baseProgress + (filePercent * fileWeight / 100))
+        setUploadProgress(totalProgress)
+      })
+
       if (image) {
         newImages.push(image)
       }
-      setUploadProgress(Math.round(((i + 1) / filesToUpload.length) * 100))
     }
 
     if (newImages.length > 0) {
       onImagesChange([...images, ...newImages])
+      toast.success(`${newImages.length} image${newImages.length > 1 ? 's' : ''} uploaded`)
     }
 
     setUploading(false)
