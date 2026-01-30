@@ -11,14 +11,15 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 // Lazy initialization of Supabase client
 let supabase: SupabaseClient | null = null
 function getSupabase(): SupabaseClient | null {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  // Support both old (SERVICE_ROLE_KEY) and new (SECRET_KEY) naming
+  const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !secretKey) {
     return null
   }
   if (!supabase) {
-    supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
+    supabase = createClient(supabaseUrl, secretKey)
   }
   return supabase
 }
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     if (!storage) {
       return NextResponse.json(
-        { error: 'Storage not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.' },
+        { error: 'Storage not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY environment variables.' },
         { status: 503 }
       )
     }

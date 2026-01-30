@@ -135,8 +135,8 @@ src/
 ```env
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=    # Publishable key
+SUPABASE_SECRET_KEY=              # Secret key (for server-side storage)
 
 # Database (Prisma)
 DATABASE_URL=
@@ -341,7 +341,7 @@ npx prisma db push
 ## Known Issues / TODO
 
 ### Pending Configuration
-- **Supabase Storage**: Image uploads require `SUPABASE_SERVICE_ROLE_KEY` env var and a `prize-images` bucket in Supabase Storage (public access). Currently shows helpful error when not configured.
+- **Supabase Storage**: Image uploads require `SUPABASE_SECRET_KEY` env var and a `prize-images` bucket in Supabase Storage (public access). Currently shows helpful error when not configured.
 
 ### Pending Schema Migration
 - **DisplaySettings model**: Added to `prisma/schema.prisma` but needs:
