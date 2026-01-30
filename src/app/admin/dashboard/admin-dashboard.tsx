@@ -45,8 +45,11 @@ import {
   LifeBuoy,
   QrCode,
   RotateCw,
+  User,
+  Key,
 } from 'lucide-react'
 import { Button, Card, CardContent, Badge, toast, useConfirm, ConfirmProvider } from '@/components/ui'
+import { PasswordManagement } from '@/components/admin/password-management'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { OnboardingTutorial, useOnboarding } from '@/components/admin/onboarding-tutorial'
@@ -243,7 +246,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
   const [loadingPrizeId, setLoadingPrizeId] = useState<string | null>(null)
 
   // Settings page state
-  const [settingsSection, setSettingsSection] = useState<'auction' | 'display' | 'team' | 'email' | 'export' | 'support'>('auction')
+  const [settingsSection, setSettingsSection] = useState<'auction' | 'display' | 'account' | 'team' | 'email' | 'export' | 'support'>('auction')
   const [displaySettings, setDisplaySettings] = useState({
     showDonorNames: true,
     showBidderNames: false,
@@ -271,6 +274,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
     email: string
     name: string
     role: 'OWNER' | 'ADMIN' | 'EMPLOYEE'
+    hasPassword?: boolean
   } | null>(null)
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
@@ -2024,6 +2028,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                 {[
                   { id: 'auction', label: 'Auction', icon: Activity },
                   { id: 'display', label: 'Display', icon: Monitor },
+                  { id: 'account', label: 'Account', icon: User },
                   { id: 'team', label: 'Team', icon: Users },
                   { id: 'email', label: 'Email', icon: Mail },
                   { id: 'export', label: 'Data & Export', icon: Download },
@@ -2293,6 +2298,52 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                           </Button>
                         </a>
                       </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
+              {/* Account Section */}
+              {settingsSection === 'account' && (
+                <>
+                  <h2 className="text-xl font-bold text-gray-900">Your Account</h2>
+
+                  {/* Account Info */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-16 h-16 rounded-full bg-[#1e3a5f] flex items-center justify-center text-white text-xl font-bold">
+                          {currentUser?.name?.charAt(0) || 'A'}
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900">{currentUser?.name}</h3>
+                          <p className="text-sm text-gray-500">{currentUser?.email}</p>
+                          <Badge variant="navy" size="sm" className="mt-1">
+                            {currentUser?.role}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Password Management */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                        <Lock className="w-5 h-5" />
+                        Password
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        {currentUser?.hasPassword
+                          ? 'You have a password set. You can sign in with email + password or magic link.'
+                          : 'You currently use magic link to sign in. Set a password for faster login.'}
+                      </p>
+                      <PasswordManagement
+                        hasPassword={!!currentUser?.hasPassword}
+                        onSuccess={() => {
+                          fetchSettingsData()
+                        }}
+                      />
                     </CardContent>
                   </Card>
                 </>

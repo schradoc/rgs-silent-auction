@@ -6,6 +6,7 @@ type AdminUser = {
   name: string
   role: string
   isActive: boolean
+  hasPassword: boolean
 }
 
 type AuthResult =
@@ -39,7 +40,7 @@ export async function verifyAdminSession(): Promise<AuthResult> {
   }
 
   // Fetch the user
-  const user = await prisma.adminUser.findUnique({
+  const dbUser = await prisma.adminUser.findUnique({
     where: { id: session.adminUserId },
     select: {
       id: true,
@@ -47,11 +48,21 @@ export async function verifyAdminSession(): Promise<AuthResult> {
       name: true,
       role: true,
       isActive: true,
+      passwordHash: true,
     },
   })
 
-  if (!user || !user.isActive) {
+  if (!dbUser || !dbUser.isActive) {
     return { valid: false, error: 'User not found or inactive' }
+  }
+
+  const user: AdminUser = {
+    id: dbUser.id,
+    email: dbUser.email,
+    name: dbUser.name,
+    role: dbUser.role,
+    isActive: dbUser.isActive,
+    hasPassword: !!dbUser.passwordHash,
   }
 
   return { valid: true, user, session }

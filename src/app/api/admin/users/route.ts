@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ user: { role: 'OWNER', legacy: true } })
     }
 
-    const currentUser = await prisma.adminUser.findUnique({
+    const dbUser = await prisma.adminUser.findUnique({
       where: { id: session.adminUserId },
       select: {
         id: true,
@@ -53,11 +53,24 @@ export async function GET(request: NextRequest) {
         isActive: true,
         lastLoginAt: true,
         createdAt: true,
+        passwordHash: true,
       },
     })
 
-    if (!currentUser) {
+    if (!dbUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Transform to include hasPassword instead of passwordHash
+    const currentUser = {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
+      role: dbUser.role,
+      isActive: dbUser.isActive,
+      lastLoginAt: dbUser.lastLoginAt,
+      createdAt: dbUser.createdAt,
+      hasPassword: !!dbUser.passwordHash,
     }
 
     const { searchParams } = new URL(request.url)

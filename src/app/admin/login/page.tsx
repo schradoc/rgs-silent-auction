@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Gavel, Mail, User, AlertCircle, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react'
+import { Gavel, Mail, User, AlertCircle, CheckCircle, ArrowLeft, Loader2, Lock, Key } from 'lucide-react'
 import { Button } from '@/components/ui'
 
-type Mode = 'loading' | 'magic-link' | 'setup' | 'sent'
+type Mode = 'loading' | 'magic-link' | 'password' | 'setup' | 'sent'
 
 export default function AdminLoginPage() {
   const [mode, setMode] = useState<Mode>('loading')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,6 +59,40 @@ export default function AdminLoginPage() {
       setResendCountdown(60)
     } catch (err) {
       setError('Failed to send login link')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include',
+      })
+
+      const data = await res.json()
+
+      if (data.useMagicLink) {
+        setError('This account uses magic link login. Switch to magic link below.')
+        setLoading(false)
+        return
+      }
+
+      if (!res.ok) {
+        setError(data.error || 'Login failed')
+        return
+      }
+
+      router.push('/admin/dashboard')
+    } catch (err) {
+      setError('Login failed')
     } finally {
       setLoading(false)
     }
@@ -158,6 +193,7 @@ export default function AdminLoginPage() {
           <p className="text-white/50 text-sm mt-1">
             {mode === 'setup' ? 'Create Owner Account' :
              mode === 'sent' ? 'Check Your Email' :
+             mode === 'password' ? 'Sign in with Password' :
              'Silent Auction Dashboard'}
           </p>
         </div>
@@ -269,9 +305,99 @@ export default function AdminLoginPage() {
                 )}
               </Button>
 
-              <p className="text-center text-white/40 text-xs mt-4">
-                We&apos;ll send a secure login link to your email
-              </p>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-transparent text-white/40">or</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setMode('password'); setError(''); }}
+                className="w-full py-3 border border-white/20 rounded-xl text-white/70 hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+              >
+                <Lock className="w-4 h-4" />
+                Sign in with Password
+              </button>
+            </form>
+          )}
+
+          {/* Password Mode */}
+          {mode === 'password' && (
+            <form onSubmit={handlePasswordLogin}>
+              <div className="mb-4">
+                <label className="block text-white/70 text-sm mb-2">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@example.com"
+                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-white/70 text-sm mb-2">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227]"
+                    required
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2 text-red-300 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                variant="gold"
+                className="w-full py-3"
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <Key className="w-4 h-4 mr-2" />
+                    Sign In
+                  </>
+                )}
+              </Button>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-transparent text-white/40">or</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setMode('magic-link'); setError(''); setPassword(''); }}
+                className="w-full py-3 border border-white/20 rounded-xl text-white/70 hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                Use Magic Link Instead
+              </button>
             </form>
           )}
 
