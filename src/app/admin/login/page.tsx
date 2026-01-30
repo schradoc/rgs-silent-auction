@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Gavel, Mail, User, AlertCircle, CheckCircle, ArrowLeft, Loader2, Lock, Key } from 'lucide-react'
 import { Button } from '@/components/ui'
 
-type Mode = 'loading' | 'magic-link' | 'password' | 'setup' | 'sent'
+type Mode = 'loading' | 'magic-link' | 'password' | 'setup' | 'sent' | 'redirecting'
 
 export default function AdminLoginPage() {
   const [mode, setMode] = useState<Mode>('loading')
@@ -87,13 +87,15 @@ export default function AdminLoginPage() {
 
       if (!res.ok) {
         setError(data.error || 'Login failed')
+        setLoading(false)
         return
       }
 
+      // Show redirecting state before navigation
+      setMode('redirecting')
       router.push('/admin/dashboard')
     } catch (err) {
       setError('Login failed')
-    } finally {
       setLoading(false)
     }
   }
@@ -173,10 +175,15 @@ export default function AdminLoginPage() {
     }
   }
 
-  if (mode === 'loading') {
+  if (mode === 'loading' || mode === 'redirecting') {
     return (
       <main className="min-h-screen bg-[#1e3a5f] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-white animate-spin" />
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-white animate-spin mx-auto mb-3" />
+          {mode === 'redirecting' && (
+            <p className="text-white/70 text-sm">Redirecting to dashboard...</p>
+          )}
+        </div>
       </main>
     )
   }

@@ -741,18 +741,35 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
 
   const handleEditPrize = async (prize: Prize) => {
     setEditingPrize(prize)
+    const prizeData = prize as unknown as {
+      shortDescription?: string
+      fullDescription?: string
+      donorName?: string
+      imageUrl?: string
+      terms?: string
+      validUntil?: string | Date | null
+      multiWinnerSlots?: number | null
+    }
+    // Format date for input[type="date"] if it exists
+    let formattedDate = ''
+    if (prizeData.validUntil) {
+      const date = new Date(prizeData.validUntil)
+      if (!isNaN(date.getTime())) {
+        formattedDate = date.toISOString().split('T')[0]
+      }
+    }
     setPrizeForm({
       title: prize.title,
-      shortDescription: (prize as unknown as { shortDescription: string }).shortDescription || '',
-      fullDescription: (prize as unknown as { fullDescription: string }).fullDescription || '',
-      donorName: (prize as unknown as { donorName: string }).donorName || '',
+      shortDescription: prizeData.shortDescription || '',
+      fullDescription: prizeData.fullDescription || '',
+      donorName: prizeData.donorName || '',
       minimumBid: String(prize.minimumBid),
       category: prize.category,
-      validUntil: '',
-      imageUrl: (prize as unknown as { imageUrl: string }).imageUrl || '',
-      terms: (prize as unknown as { terms: string }).terms || '',
+      validUntil: formattedDate,
+      imageUrl: prizeData.imageUrl || '',
+      terms: prizeData.terms || '',
       multiWinnerEligible: prize.multiWinnerEligible,
-      multiWinnerSlots: '',
+      multiWinnerSlots: prizeData.multiWinnerSlots ? String(prizeData.multiWinnerSlots) : '',
     })
     // Load prize images if available
     setPrizeImages(prize.images || [])
