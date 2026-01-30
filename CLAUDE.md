@@ -366,3 +366,9 @@ npx prisma db push
 ---
 
 **Last Updated**: 2026-01-30
+
+---
+
+## Agent Handoff
+
+For sharing context with other AI agents, use **[AGENT-CONTEXT.md](./AGENT-CONTEXT.md)** - a comprehensive file designed for drag-and-drop into new agent contexts. Remember to update it after every commit.
