@@ -63,15 +63,19 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Real database mode - all validation inside transaction to prevent races
+    // Real database mode - all validation inside transaction with row-level locking
     const { prisma } = await import('@/lib/prisma')
 
     const result = await prisma.$transaction(async (tx) => {
-      // Re-fetch prize inside transaction for consistency
-      const prize = await tx.prize.findUnique({
-        where: { id: prizeId },
-      })
+      // Lock the prize row with SELECT FOR UPDATE to serialize concurrent bids
+      const prizeRows = await tx.$queryRaw<Array<{
+        id: string
+        isActive: boolean
+        currentHighestBid: number
+        minimumBid: number
+      }>>`SELECT id, "isActive", "currentHighestBid", "minimumBid" FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
 
+      const prize = prizeRows[0]
       if (!prize) {
         return { error: 'Prize not found', status: 404 }
       }
@@ -89,7 +93,7 @@ export async function POST(request: NextRequest) {
         return { error: 'The auction is currently closed', status: 400 }
       }
 
-      // Validate minimum bid with fresh data
+      // Validate minimum bid with locked fresh data
       const minimumBid = getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
       if (amount < minimumBid) {
         return { error: `Minimum bid is HK$${minimumBid.toLocaleString()}`, status: 400, code: 'BID_TOO_LOW', minimumBid }

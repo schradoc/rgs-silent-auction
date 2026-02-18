@@ -65,18 +65,22 @@ export async function POST(request: NextRequest) {
 
     const bidderId = bidder.id
 
-    // All bid validation and creation inside interactive transaction
+    // All bid validation and creation inside interactive transaction with row locking
     const result = await prisma.$transaction(async (tx) => {
-      // Re-fetch prize inside transaction for consistency
-      const prize = await tx.prize.findUnique({
-        where: { id: prizeId },
-      })
+      // Lock the prize row with SELECT FOR UPDATE to serialize concurrent bids
+      const prizeRows = await tx.$queryRaw<Array<{
+        id: string
+        title: string
+        currentHighestBid: number
+        minimumBid: number
+      }>>`SELECT id, title, "currentHighestBid", "minimumBid" FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
 
+      const prize = prizeRows[0]
       if (!prize) {
         return { error: 'Prize not found', status: 404 }
       }
 
-      // Validate bid amount with fresh data
+      // Validate bid amount with locked fresh data
       const minRequired = Math.max(prize.minimumBid, prize.currentHighestBid + 100)
       if (amount < minRequired) {
         return { error: `Bid must be at least HK$${minRequired.toLocaleString()}`, status: 400, minimumBid: minRequired }
