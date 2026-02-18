@@ -282,6 +282,11 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
   const [inviting, setInviting] = useState(false)
   const [savingDisplaySettings, setSavingDisplaySettings] = useState(false)
   const [testingEmail, setTestingEmail] = useState(false)
+  const [testingSms, setTestingSms] = useState(false)
+  const [testingWhatsApp, setTestingWhatsApp] = useState(false)
+  const [testPhone, setTestPhone] = useState('')
+  const [smsStatus, setSmsStatus] = useState<{ configured: boolean; phone: string | null } | null>(null)
+  const [whatsappStatus, setWhatsappStatus] = useState<{ configured: boolean; phone: string | null } | null>(null)
 
   // Page visibility tracking for polling optimization
   useEffect(() => {
@@ -616,6 +621,56 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       toast.error('Failed to send test email')
     } finally {
       setTestingEmail(false)
+    }
+  }
+
+  // Fetch SMS/WhatsApp status when email section is shown
+  useEffect(() => {
+    if (settingsSection === 'email') {
+      fetch('/api/admin/test-sms', { credentials: 'include' })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.status) {
+            setSmsStatus(data.status.sms)
+            setWhatsappStatus(data.status.whatsapp)
+          }
+        })
+        .catch(() => {
+          // Silently fail - will show as not configured
+        })
+    }
+  }, [settingsSection])
+
+  const handleSendTestSms = async (channel: 'sms' | 'whatsapp') => {
+    if (!testPhone) {
+      toast.error('Please enter a phone number')
+      return
+    }
+
+    if (channel === 'sms') {
+      setTestingSms(true)
+    } else {
+      setTestingWhatsApp(true)
+    }
+
+    try {
+      const res = await fetch('/api/admin/test-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: testPhone, channel }),
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message)
+      } else {
+        toast.error(data.error || `Failed to send test ${channel.toUpperCase()}`)
+      }
+    } catch (error) {
+      toast.error(`Failed to send test ${channel.toUpperCase()}`)
+    } finally {
+      setTestingSms(false)
+      setTestingWhatsApp(false)
     }
   }
 
@@ -2582,13 +2637,96 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                         <MessageSquare className="w-5 h-5" />
                         SMS & WhatsApp Status
                       </h3>
-                      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                        <div className="w-3 h-3 bg-yellow-500 rounded-full" />
-                        <span className="text-gray-700">Twilio not configured - SMS/WhatsApp notifications disabled</span>
+
+                      {/* SMS Status */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                          <div className={`w-3 h-3 rounded-full ${smsStatus?.configured ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                          <div className="flex-1">
+                            <span className={smsStatus?.configured ? 'text-green-700 font-medium' : 'text-gray-700'}>
+                              {smsStatus?.configured
+                                ? `SMS configured (${smsStatus.phone})`
+                                : 'SMS not configured'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                          <div className={`w-3 h-3 rounded-full ${whatsappStatus?.configured ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                          <div className="flex-1">
+                            <span className={whatsappStatus?.configured ? 'text-green-700 font-medium' : 'text-gray-700'}>
+                              {whatsappStatus?.configured
+                                ? `WhatsApp configured (${whatsappStatus.phone})`
+                                : 'WhatsApp not configured'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-500 mt-3">
-                        Contact your system administrator to enable SMS and WhatsApp notifications.
-                      </p>
+
+                      {/* Test SMS/WhatsApp */}
+                      {(smsStatus?.configured || whatsappStatus?.configured) && (
+                        <div className="mt-6 pt-6 border-t">
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Send Test Message</h4>
+                          <div className="space-y-3">
+                            <input
+                              type="tel"
+                              placeholder="Phone number (e.g., +852 9123 4567)"
+                              value={testPhone}
+                              onChange={(e) => setTestPhone(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#c9a227] focus:border-transparent"
+                            />
+                            <div className="flex gap-2">
+                              {smsStatus?.configured && (
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleSendTestSms('sms')}
+                                  disabled={testingSms || !testPhone}
+                                >
+                                  {testingSms ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Sending...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="w-4 h-4 mr-2" />
+                                      Test SMS
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                              {whatsappStatus?.configured && (
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleSendTestSms('whatsapp')}
+                                  disabled={testingWhatsApp || !testPhone}
+                                >
+                                  {testingWhatsApp ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Sending...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="w-4 h-4 mr-2" />
+                                      Test WhatsApp
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              For WhatsApp testing, the recipient must have first messaged the Twilio sandbox number.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {!smsStatus?.configured && !whatsappStatus?.configured && (
+                        <p className="text-sm text-gray-500 mt-4">
+                          Contact your system administrator to enable SMS and WhatsApp notifications via Twilio.
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 </>

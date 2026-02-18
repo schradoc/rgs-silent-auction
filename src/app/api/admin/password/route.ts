@@ -1,17 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminSession } from '@/lib/admin-auth'
-import { randomBytes, createHash } from 'crypto'
+import { createHash } from 'crypto'
+import bcrypt from 'bcryptjs'
 
-function hashPassword(password: string): string {
-  const salt = randomBytes(16).toString('hex')
-  const hash = createHash('sha256').update(password + salt).digest('hex')
-  return `${salt}:${hash}`
-}
+const BCRYPT_ROUNDS = 12
 
-function verifyPassword(password: string, stored: string): boolean {
+// Legacy SHA256 verification for migration
+function verifySha256Password(password: string, stored: string): boolean {
   const [salt, hash] = stored.split(':')
+  if (!salt || !hash) return false
   const testHash = createHash('sha256').update(password + salt).digest('hex')
   return hash === testHash
+}
+
+function isLegacySha256Hash(hash: string): boolean {
+  return /^[a-f0-9]{32}:[a-f0-9]{64}$/.test(hash)
+}
+
+async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  if (isLegacySha256Hash(stored)) {
+    return verifySha256Password(password, stored)
+  }
+  return bcrypt.compare(password, stored)
+}
+
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS)
 }
 
 export const dynamic = 'force-dynamic'
@@ -52,7 +66,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (!verifyPassword(currentPassword, user.passwordHash)) {
+      if (!(await verifyPassword(currentPassword, user.passwordHash))) {
         return NextResponse.json(
           { error: 'Current password is incorrect' },
           { status: 401 }
@@ -60,8 +74,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Hash and save new password
-    const passwordHash = hashPassword(newPassword)
+    // Hash and save new password with bcrypt
+    const passwordHash = await hashPassword(newPassword)
 
     await prisma.adminUser.update({
       where: { id: auth.user.id },

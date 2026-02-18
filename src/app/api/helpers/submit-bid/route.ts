@@ -36,25 +36,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get the prize
-    const prize = await prisma.prize.findUnique({
-      where: { id: prizeId },
-    })
-
-    if (!prize) {
-      return NextResponse.json({ error: 'Prize not found' }, { status: 404 })
-    }
-
-    // Validate bid amount
-    const minRequired = Math.max(prize.minimumBid, prize.currentHighestBid + 100)
-    if (amount < minRequired) {
-      return NextResponse.json(
-        { error: `Bid must be at least HK$${minRequired.toLocaleString()}` },
-        { status: 400 }
-      )
-    }
-
-    // Find or create bidder
+    // Find or create bidder (outside transaction - not part of the race-sensitive path)
     let bidder = await prisma.bidder.findFirst({
       where: {
         name: { equals: bidderName, mode: 'insensitive' },
@@ -63,7 +45,6 @@ export async function POST(request: NextRequest) {
     })
 
     if (!bidder) {
-      // Create new bidder with generated email if not provided
       const generatedEmail = email || `${bidderName.toLowerCase().replace(/\s+/g, '.')}.table${tableNumber}@guest.rgs-auction.hk`
 
       bidder = await prisma.bidder.create({
@@ -76,41 +57,71 @@ export async function POST(request: NextRequest) {
         },
       })
     } else if (phone && !bidder.phone) {
-      // Update phone if provided and not already set
       await prisma.bidder.update({
         where: { id: bidder.id },
         data: { phone },
       })
     }
 
-    // Create the bid
-    const [bid] = await prisma.$transaction([
-      // Create the bid
-      prisma.bid.create({
+    const bidderId = bidder.id
+
+    // All bid validation and creation inside interactive transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Re-fetch prize inside transaction for consistency
+      const prize = await tx.prize.findUnique({
+        where: { id: prizeId },
+      })
+
+      if (!prize) {
+        return { error: 'Prize not found', status: 404 }
+      }
+
+      // Validate bid amount with fresh data
+      const minRequired = Math.max(prize.minimumBid, prize.currentHighestBid + 100)
+      if (amount < minRequired) {
+        return { error: `Bid must be at least HK$${minRequired.toLocaleString()}`, status: 400, minimumBid: minRequired }
+      }
+
+      const hadPreviousBid = prize.currentHighestBid > 0
+
+      // Mark previous winning bids as outbid
+      await tx.bid.updateMany({
+        where: {
+          prizeId,
+          status: 'WINNING',
+          NOT: { bidderId },
+        },
+        data: { status: 'OUTBID' },
+      })
+
+      // Create the winning bid
+      const bid = await tx.bid.create({
         data: {
           amount,
-          bidderId: bidder.id,
+          bidderId,
           prizeId,
           helperId,
           isPaperBid: isPaperBid || false,
           status: 'WINNING',
         },
-      }),
+      })
+
       // Update prize highest bid
-      prisma.prize.update({
+      await tx.prize.update({
         where: { id: prizeId },
         data: { currentHighestBid: amount },
-      }),
-      // Mark previous winning bids as outbid
-      prisma.bid.updateMany({
-        where: {
-          prizeId,
-          status: 'WINNING',
-          NOT: { bidderId: bidder.id },
-        },
-        data: { status: 'OUTBID' },
-      }),
-    ])
+      })
+
+      return { success: true, bid, prize, hadPreviousBid }
+    })
+
+    // Handle transaction errors
+    if ('error' in result) {
+      return NextResponse.json(
+        { error: result.error, ...(result.minimumBid && { minimumBid: result.minimumBid }) },
+        { status: result.status }
+      )
+    }
 
     // If paper bid, create paper bid record
     if (isPaperBid) {
@@ -125,13 +136,13 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           notifyIfOutbid: !!phone || !!email,
           helperId,
-          bidId: bid.id,
+          bidId: result.bid.id,
         },
       })
     }
 
     // Send outbid notifications (async, don't await)
-    if (prize.currentHighestBid > 0) {
+    if (result.hadPreviousBid) {
       import('@/lib/notifications').then(({ notifyOutbidBidders }) => {
         notifyOutbidBidders(prizeId, amount).catch(console.error)
       })
@@ -140,11 +151,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       bid: {
-        id: bid.id,
-        amount: bid.amount,
+        id: result.bid.id,
+        amount: result.bid.amount,
         bidderName: bidder.name,
         tableNumber: bidder.tableNumber,
-        prizeTitle: prize.title,
+        prizeTitle: result.prize.title,
       },
     })
   } catch (error) {

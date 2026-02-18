@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@supabase/supabase-js'
 import { toast } from 'sonner'
@@ -24,6 +24,8 @@ function getRealtimeClient() {
   return realtimeClient
 }
 
+export type ConnectionState = 'connected' | 'connecting' | 'disconnected'
+
 interface BidUpdate {
   id: string
   amount: number
@@ -40,10 +42,16 @@ interface UseRealtimeBidsOptions {
   onOutbid?: (bid: BidUpdate, prizeTitle: string) => void
 }
 
+const RECONNECT_DELAY = 2000
+const FALLBACK_POLL_INTERVAL = 30000
+
 export function useRealtimeBids(options: UseRealtimeBidsOptions = {}) {
   const { prizeId, bidderId, onNewBid, onOutbid } = options
   const queryClient = useQueryClient()
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting')
 
   const handleBidInsert = useCallback(
     async (payload: { new: BidUpdate }) => {
@@ -62,7 +70,6 @@ export function useRealtimeBids(options: UseRealtimeBidsOptions = {}) {
 
       // Check if current user was outbid
       if (bidderId && newBid.bidderId !== bidderId) {
-        // Fetch prize title for the toast
         try {
           const res = await fetch(`/api/prizes?id=${newBid.prizeId}`)
           const data = await res.json()
@@ -79,14 +86,36 @@ export function useRealtimeBids(options: UseRealtimeBidsOptions = {}) {
     [queryClient, bidderId, onNewBid, onOutbid]
   )
 
-  useEffect(() => {
+  // Fallback polling when disconnected
+  const startFallbackPolling = useCallback(() => {
+    if (pollTimerRef.current) return
+    pollTimerRef.current = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['prizes'] })
+      if (prizeId) {
+        queryClient.invalidateQueries({ queryKey: ['prize', prizeId] })
+      }
+    }, FALLBACK_POLL_INTERVAL)
+  }, [queryClient, prizeId])
+
+  const stopFallbackPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current)
+      pollTimerRef.current = null
+    }
+  }, [])
+
+  const subscribe = useCallback(() => {
     const client = getRealtimeClient()
     if (!client) return
 
-    // Build channel name
+    // Clean up existing channel
+    if (channelRef.current) {
+      client.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+
     const channelName = prizeId ? `bids:prize:${prizeId}` : 'bids:all'
 
-    // Subscribe to bid inserts
     const channel = client
       .channel(channelName)
       .on(
@@ -99,26 +128,68 @@ export function useRealtimeBids(options: UseRealtimeBidsOptions = {}) {
         },
         handleBidInsert
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setConnectionState('connected')
+          stopFallbackPolling()
+          // Clear any pending reconnect
+          if (reconnectTimerRef.current) {
+            clearTimeout(reconnectTimerRef.current)
+            reconnectTimerRef.current = null
+          }
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setConnectionState('disconnected')
+          startFallbackPolling()
+          // Auto-reconnect after delay
+          if (!reconnectTimerRef.current) {
+            reconnectTimerRef.current = setTimeout(() => {
+              reconnectTimerRef.current = null
+              setConnectionState('connecting')
+              subscribe()
+            }, RECONNECT_DELAY)
+          }
+        } else if (status === 'TIMED_OUT') {
+          setConnectionState('disconnected')
+          startFallbackPolling()
+          if (!reconnectTimerRef.current) {
+            reconnectTimerRef.current = setTimeout(() => {
+              reconnectTimerRef.current = null
+              setConnectionState('connecting')
+              subscribe()
+            }, RECONNECT_DELAY)
+          }
+        }
+      })
 
     channelRef.current = channel
+  }, [prizeId, handleBidInsert, startFallbackPolling, stopFallbackPolling])
+
+  useEffect(() => {
+    subscribe()
 
     return () => {
-      if (channelRef.current) {
+      const client = getRealtimeClient()
+      if (channelRef.current && client) {
         client.removeChannel(channelRef.current)
         channelRef.current = null
       }
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current)
+        reconnectTimerRef.current = null
+      }
+      stopFallbackPolling()
     }
-  }, [prizeId, handleBidInsert])
+  }, [subscribe, stopFallbackPolling])
 
   return {
-    isConnected: !!channelRef.current,
+    connectionState,
+    isConnected: connectionState === 'connected',
   }
 }
 
 // Hook specifically for outbid toasts
 export function useOutbidToasts(bidderId: string | undefined) {
-  useRealtimeBids({
+  const { connectionState } = useRealtimeBids({
     bidderId,
     onOutbid: (bid, prizeTitle) => {
       toast.error(`You've been outbid!`, {
@@ -133,4 +204,6 @@ export function useOutbidToasts(bidderId: string | undefined) {
       })
     },
   })
+
+  return { connectionState }
 }

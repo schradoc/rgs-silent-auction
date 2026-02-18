@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRealtimeBids } from '@/hooks/useRealtimeBids'
+import { ConnectionStatus } from '@/components/connection-status'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils'
 
@@ -35,8 +36,8 @@ export function RealtimeNotifications() {
       .catch(() => {})
   }, [])
 
-  // Subscribe to all bids
-  useRealtimeBids({
+  // Subscribe to all bids with reconnection tracking
+  const { connectionState } = useRealtimeBids({
     bidderId: bidderId || undefined,
     onNewBid: async (bid) => {
       // Check if this bid outbids us
@@ -73,5 +74,5 @@ export function RealtimeNotifications() {
     },
   })
 
-  return null // This component just provides side effects
+  return <ConnectionStatus state={connectionState} />
 }

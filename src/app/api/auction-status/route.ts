@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,12 +37,14 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Auction status error:', error)
+    logger.error('Auction status check failed - failing closed', error)
+    // Fail CLOSED on error - never allow bidding when we can't verify state
     return NextResponse.json({
-      isAuctionOpen: true,
+      isAuctionOpen: false,
       auctionEndTime: null,
       auctionStartTime: null,
       stats: { totalPrizes: 0, totalBidders: 0, totalBids: 0, totalRaised: 0 },
-    })
+      _error: true,
+    }, { status: 503 })
   }
 }

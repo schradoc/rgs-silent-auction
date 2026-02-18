@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,6 +8,11 @@ const HELPER_COOKIE = 'helper_id'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP
+    const ip = getClientIP(request)
+    const rl = checkRateLimit(`helper-login:${ip}`, RATE_LIMITS.helperLogin)
+    if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds)
+
     const { pin } = await request.json()
 
     if (!pin || pin.length !== 4) {

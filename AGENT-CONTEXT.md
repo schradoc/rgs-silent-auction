@@ -1,6 +1,6 @@
 # RGS Silent Auction - Agent Context File
 
-> **Last Updated**: 2026-01-30
+> **Last Updated**: 2026-02-02
 > **Last Commit**: 9009de8 - Fix edit form values and add redirect loading state
 > **NOTE**: This file should be updated after every push/commit to keep agents in sync.
 
@@ -94,6 +94,13 @@ rgs-auction/
 
 ### API Routes
 - `src/app/api/admin/` - All admin APIs
+  - `prizes/` - Prize CRUD
+  - `users/` - Team management
+  - `invitations/` - Admin invitations
+  - `settings/` - Auction and display settings
+  - `upload/` - Image upload to Supabase Storage
+  - `test-email/` - Send test email
+  - `test-sms/` - Send test SMS/WhatsApp + status check
 - `src/app/api/auth/` - Bidder authentication
 - `src/app/api/helpers/` - Helper portal APIs
 - `src/app/api/prizes/route.ts` - Prize listing
@@ -311,11 +318,16 @@ TWILIO_PHONE_NUMBER=+1xxx
 - Auction state machine
 - Team management (invitations, roles)
 
-### Recently Added (2026-01-30)
+### Recently Added (2026-02-02)
+- **SMS/WhatsApp notification support** - Full Twilio integration ready
+- Test SMS/WhatsApp buttons in Settings → Email & Notifications
+- Dynamic status display for SMS and WhatsApp configuration
+- API endpoint `/api/admin/test-sms` for testing and status
+
+### Previously Added (2026-01-30)
 - **Password login support** - Admins can now use magic link OR password
 - Admin login page toggle between methods
 - Password management in Settings → Account
-- Users can set, change, or remove passwords
 - Supabase storage configuration (new key naming)
 - DisplaySettings Prisma migration
 - Analytics improvements
@@ -323,7 +335,7 @@ TWILIO_PHONE_NUMBER=+1xxx
 - Test email functionality
 
 ### Pending/Optional
-- Twilio SMS/WhatsApp (env vars not configured)
+- Twilio env vars need to be configured in Vercel (code is ready)
 - Error boundaries
 - Confetti on successful bid
 - PWA / offline support

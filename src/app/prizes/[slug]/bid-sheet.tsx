@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Check, AlertCircle } from 'lucide-react'
 import { Button, Input, Card } from '@/components/ui'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, getMinimumNextBid } from '@/lib/utils'
 import type { Prize } from '@prisma/client'
 
 interface BidSheetProps {
@@ -42,6 +42,21 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
     setError('')
 
     try {
+      // Pre-submit validation: re-fetch current prize state to catch outbids
+      const checkRes = await fetch(`/api/prizes?id=${prize.id}`)
+      if (checkRes.ok) {
+        const checkData = await checkRes.json()
+        const currentPrize = checkData.prizes?.[0] || checkData.prize
+        if (currentPrize) {
+          const freshMinimum = getMinimumNextBid(currentPrize.currentHighestBid, currentPrize.minimumBid)
+          if (selectedAmount < freshMinimum) {
+            setError(`Someone outbid you while you were deciding! New minimum is ${formatCurrency(freshMinimum)}.`)
+            setIsLoading(false)
+            return
+          }
+        }
+      }
+
       const response = await fetch('/api/bids', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,7 +69,13 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to place bid')
+        // Enhanced error for outbid scenario from server
+        if (data.code === 'BID_TOO_LOW' && data.minimumBid) {
+          setError(`Someone outbid you! New minimum is ${formatCurrency(data.minimumBid)}.`)
+        } else {
+          throw new Error(data.error || 'Failed to place bid')
+        }
+        return
       }
 
       setSuccess(true)

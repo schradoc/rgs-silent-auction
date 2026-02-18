@@ -71,6 +71,8 @@ model Prize {
   winners               Winner[]
   favorites             Favorite[]
   images                PrizeImage[]
+
+  @@index([isActive, parentPrizeId])
 }
 
 model PrizeImage {
@@ -117,8 +119,10 @@ model Bid {
   paperBid  PaperBid?
 
   @@index([prizeId, amount])
+  @@index([prizeId, status])
   @@index([bidderId])
   @@index([helperId])
+  @@index([status])
 }
 
 enum BidStatus {
@@ -214,6 +218,8 @@ model AdminSession {
   adminUserId String?  // null for setup sessions
   expiresAt   DateTime
   createdAt   DateTime @default(now())
+
+  @@index([expiresAt])
 }
 
 model AdminInvitation {
@@ -266,6 +272,8 @@ model Helper {
 
   bidsPrompted Bid[]      // Bids this helper facilitated
   paperBids    PaperBid[]
+
+  @@index([pin, isActive])
 }
 
 // ==========================================
