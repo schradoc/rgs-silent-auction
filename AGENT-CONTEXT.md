@@ -1,7 +1,7 @@
 # RGS Silent Auction - Agent Context File
 
-> **Last Updated**: 2026-02-02
-> **Last Commit**: 9009de8 - Fix edit form values and add redirect loading state
+> **Last Updated**: 2026-02-19
+> **Last Commit**: 158e248 - Fix bid race condition with SELECT FOR UPDATE row locking
 > **NOTE**: This file should be updated after every push/commit to keep agents in sync.
 
 ---
@@ -13,7 +13,7 @@ A **live silent auction platform** for the Royal Geographical Society Hong Kong'
 - **Event**: 28 February 2026 at Hong Kong Club
 - **Users**: 150-200 affluent guests bidding via mobile phones
 - **Prizes**: ~29 items ranging HKD $3,000 - $85,000
-- **Status**: Feature complete, in testing phase
+- **Status**: Production-hardened, security-audited, load-tested
 
 ---
 
@@ -30,6 +30,8 @@ A **live silent auction platform** for the Royal Geographical Society Hong Kong'
 | Storage | Supabase Storage (`prize-images` bucket) |
 | Email | Resend |
 | SMS/WhatsApp | Twilio (optional) |
+| Auth Hashing | bcryptjs (12 rounds) |
+| Testing | Vitest |
 | Deployment | Vercel |
 | Repo | github.com/schradoc/rgs-silent-auction |
 
@@ -48,23 +50,34 @@ rgs-auction/
 │   ├── PRD.md             # Product requirements
 │   ├── DECISIONS.md       # Architecture decisions
 │   └── PHASE2-PLAN.md     # Historical planning doc
+├── scripts/
+│   ├── load-test.ts       # Generic concurrent bid load tester
+│   └── load-test-live.ts  # Live load test with real bidder IDs
+├── vitest.config.ts       # Test configuration
 └── src/
     ├── app/               # Next.js App Router
     │   ├── page.tsx       # Landing page
     │   ├── layout.tsx     # Root layout with providers
+    │   ├── error.tsx      # Root error boundary
+    │   ├── global-error.tsx # Global error boundary (own HTML shell)
     │   ├── globals.css    # Tailwind + custom styles
-    │   ├── admin/         # Admin pages
-    │   ├── helper/        # Helper portal pages
-    │   ├── prizes/        # Prize listing & detail
+    │   ├── admin/         # Admin pages (+ error.tsx)
+    │   ├── helper/        # Helper portal pages (+ error.tsx)
+    │   ├── prizes/        # Prize listing & detail (+ error.tsx per level)
     │   ├── api/           # API routes
     │   └── ...
     ├── components/
     │   ├── ui/            # Base components (Button, Card, Input, etc.)
     │   ├── admin/         # Admin-specific components
-    │   └── prizes/        # Prize cards and grids
+    │   ├── prizes/        # Prize cards and grids
+    │   └── connection-status.tsx  # Realtime reconnection banner
     ├── hooks/             # React hooks
     ├── lib/               # Utilities and services
-    └── ...
+    │   ├── rate-limit.ts  # In-memory sliding-window rate limiter
+    │   ├── logger.ts      # Structured JSON logger
+    │   └── ...
+    └── __tests__/         # Vitest test suites
+        └── api/           # API integration tests
 ```
 
 ---
@@ -72,9 +85,10 @@ rgs-auction/
 ## Key Files Reference
 
 ### Database & Config
-- `prisma/schema.prisma` - All models, enums, relations
+- `prisma/schema.prisma` - All models, enums, relations, indexes
 - `.env` / `.env.example` - Environment variables
-- `next.config.ts` - Next.js configuration
+- `next.config.ts` - Next.js configuration + security headers
+- `vitest.config.ts` - Test configuration
 
 ### Core UI Components
 - `src/components/ui/index.ts` - Exports all UI components
@@ -82,6 +96,15 @@ rgs-auction/
 - `src/components/ui/card.tsx` - Card, CardHeader, CardContent
 - `src/components/ui/toast.tsx` - Custom toast system (wraps Sonner)
 - `src/components/ui/confirm-dialog.tsx` - Confirmation modals
+- `src/components/connection-status.tsx` - Realtime disconnection banner
+
+### Error Boundaries
+- `src/app/global-error.tsx` - Root-level (provides own HTML shell)
+- `src/app/error.tsx` - App-level fallback
+- `src/app/prizes/error.tsx` - Prize listing errors
+- `src/app/prizes/[slug]/error.tsx` - Prize detail errors
+- `src/app/admin/dashboard/error.tsx` - Admin dashboard errors
+- `src/app/helper/error.tsx` - Helper portal errors
 
 ### Main Pages
 - `src/app/page.tsx` - Landing page
@@ -101,10 +124,17 @@ rgs-auction/
   - `upload/` - Image upload to Supabase Storage
   - `test-email/` - Send test email
   - `test-sms/` - Send test SMS/WhatsApp + status check
+  - `login/` - Admin login (bcrypt + legacy SHA256 migration)
+  - `password/` - Password management (bcrypt)
 - `src/app/api/auth/` - Bidder authentication
+  - `verify/` - Email verification (rate-limited, 15-min expiry)
 - `src/app/api/helpers/` - Helper portal APIs
+  - `login/` - PIN login (rate-limited)
+  - `submit-bid/` - Helper bid submission (SELECT FOR UPDATE)
 - `src/app/api/prizes/route.ts` - Prize listing
-- `src/app/api/bids/route.ts` - Place bids
+- `src/app/api/bids/route.ts` - Place bids (SELECT FOR UPDATE, rate-limited)
+- `src/app/api/auction-status/route.ts` - Auction state (fails closed on error)
+- `src/app/api/health/route.ts` - Health check endpoint
 
 ### Services & Utilities
 - `src/lib/prisma.ts` - Prisma client singleton
@@ -113,6 +143,39 @@ rgs-auction/
 - `src/lib/notifications/index.ts` - Email/SMS sending
 - `src/lib/utils.ts` - formatCurrency, classNames, etc.
 - `src/lib/constants.ts` - Categories, colors, site config
+- `src/lib/rate-limit.ts` - Sliding-window rate limiter
+- `src/lib/logger.ts` - Structured JSON logger
+
+---
+
+## Security Hardening (2026-02-18)
+
+### Fixes Applied
+
+| Vulnerability | Fix |
+|--------------|-----|
+| **Email verification bypass** — any 6-digit code accepted | Strict code match only, null-check for pending code, 15-min expiry |
+| **Bid race condition** — concurrent bids create duplicate winners | `SELECT ... FOR UPDATE` row locking on Prize row inside transaction |
+| **Weak password hashing** — SHA256 + salt | bcrypt (12 rounds) with auto-migration from legacy hashes |
+| **Hardcoded default password** — `rgs-admin-2026` in source | Removed; `ADMIN_PASSWORD` env var required |
+| **No rate limiting** — helper PIN brute-forceable | Sliding-window limiter on auth, admin login, helper login, bids |
+| **No security headers** | CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
+| **Auction status fail-open** — returns `isAuctionOpen: true` on DB error | Returns `isAuctionOpen: false` with 503 on error |
+| **No error boundaries** — component crash white-screens app | Error boundaries on all major routes with recovery UI |
+| **No realtime reconnection** — stale data on WiFi drop | Auto-reconnect with 2s delay, connection banner, 30s fallback polling |
+| **Stale bid validation** — outbid between sheet open and submit | Pre-submit prize re-fetch with clear "someone outbid you" message |
+
+### Rate Limits
+| Endpoint | Limit |
+|----------|-------|
+| Helper login (`/api/helpers/login`) | 5 per 15 min per IP |
+| Auth verify (`/api/auth/verify`) | 5 per 15 min per email |
+| Admin login (`/api/admin/login`) | 5 per 30 min per IP |
+| Bid placement (`/api/bids`) | 10 per min per bidder |
+
+### Load Test Results
+- 20 concurrent bids on same prize → **exactly 1 WINNING bid** (verified on production)
+- `SELECT FOR UPDATE` serializes concurrent transactions at the row level
 
 ---
 
@@ -146,6 +209,15 @@ PaperBid        - Scanned paper bid records
 ```
 AuctionSettings  - State machine (DRAFT/TESTING/PRELAUNCH/LIVE/CLOSED)
 DisplaySettings  - Live page toggles (donor names, bidder names, etc.)
+```
+
+### Key Indexes
+```
+Bid:            (prizeId, status), (prizeId, amount), (bidderId), (status), (helperId)
+Prize:          (isActive, parentPrizeId)
+Helper:         (pin, isActive)
+AdminSession:   (expiresAt)
+PrizeImage:     (prizeId)
 ```
 
 ### Key Enums
@@ -192,6 +264,11 @@ NotificationType: OUTBID | WINNING | AUCTION_CLOSING | WON
 |-------|---------|
 | `/live` | Projector display for venue |
 
+### API (Monitoring)
+| Route | Purpose |
+|-------|---------|
+| `/api/health` | Health check (DB status + latency) |
+
 ---
 
 ## Admin Dashboard Tabs
@@ -219,6 +296,27 @@ export async function GET(request: NextRequest) {
   }
   // ... logic
 }
+```
+
+### Bid Placement (Race-Safe)
+```typescript
+// Use SELECT FOR UPDATE inside transaction for bid serialization
+const result = await prisma.$transaction(async (tx) => {
+  const prizeRows = await tx.$queryRaw<Array<{...}>>`
+    SELECT id, "currentHighestBid", "minimumBid"
+    FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
+  const prize = prizeRows[0]
+  // ... validate and create bid with locked row
+})
+```
+
+### Rate Limiting
+```typescript
+import { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
+
+const ip = getClientIP(request)
+const rl = checkRateLimit(`endpoint:${ip}`, RATE_LIMITS.helperLogin)
+if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds)
 ```
 
 ### Toast Notifications
@@ -258,7 +356,16 @@ const prizes = await prisma.prize.findMany({
 ### Real-time Subscriptions
 ```typescript
 import { useRealtimeBids } from '@/hooks'
-const { bids, isConnected } = useRealtimeBids(prizeId)
+const { connectionState, isConnected } = useRealtimeBids({ prizeId, bidderId })
+// connectionState: 'connected' | 'connecting' | 'disconnected'
+```
+
+### Structured Logging
+```typescript
+import { logger } from '@/lib/logger'
+
+logger.info('Bid placed', { prizeId, amount, bidderId })
+logger.error('Bid failed', error, { prizeId })
 ```
 
 ---
@@ -267,8 +374,8 @@ const { bids, isConnected } = useRealtimeBids(prizeId)
 
 ```env
 # Database
-DATABASE_URL=postgresql://...
-DIRECT_URL=postgresql://...
+DATABASE_URL=postgresql://...?pgbouncer=true&connection_limit=5  # Pooled connection
+DIRECT_URL=postgresql://...  # Direct connection for migrations
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
@@ -281,7 +388,7 @@ FROM_EMAIL=auction@example.com
 
 # App
 NEXT_PUBLIC_APP_URL=https://rgs-auction.vercel.app
-ADMIN_PASSWORD=xxx  # Legacy, being phased out
+ADMIN_PASSWORD=xxx  # Required for initial admin setup (no default)
 
 # Optional: Twilio
 TWILIO_ACCOUNT_SID=ACxxx
@@ -312,33 +419,67 @@ TWILIO_PHONE_NUMBER=+1xxx
 - Full bidder flow (register, browse, bid, notifications)
 - Admin dashboard with all tabs
 - Helper portal with paper bid OCR
-- Real-time bid updates
+- Real-time bid updates with reconnection handling
 - Email notifications (outbid, winner)
 - Image upload to Supabase Storage
 - Auction state machine
 - Team management (invitations, roles)
+- Error boundaries on all major routes
+- Rate limiting on sensitive endpoints
+- Security headers (CSP, HSTS, etc.)
+- Health check endpoint
+- Structured JSON logging
 
-### Recently Added (2026-02-02)
-- **SMS/WhatsApp notification support** - Full Twilio integration ready
-- Test SMS/WhatsApp buttons in Settings → Email & Notifications
-- Dynamic status display for SMS and WhatsApp configuration
-- API endpoint `/api/admin/test-sms` for testing and status
+### Recently Added (2026-02-18)
+- **Production security hardening** — full audit and fixes
+- `SELECT FOR UPDATE` row locking to prevent bid race conditions
+- bcrypt password hashing with SHA256 auto-migration
+- Email verification bypass fix (strict code match + 15-min expiry)
+- In-memory sliding-window rate limiter on auth/bid endpoints
+- Security headers via next.config.ts
+- Auction status fail-closed behavior
+- Error boundaries on all major routes
+- Realtime WebSocket reconnection with fallback polling
+- Connection status banner component
+- Pre-submit bid validation (re-fetch before submit)
+- Database indexes on critical query paths
+- Structured JSON logger
+- Health check endpoint (`GET /api/health`)
+- Vitest test suite (9 tests: auth, rate limiting, fail-closed)
+- Load test scripts for concurrent bid validation
 
-### Previously Added (2026-01-30)
-- **Password login support** - Admins can now use magic link OR password
-- Admin login page toggle between methods
-- Password management in Settings → Account
-- Supabase storage configuration (new key naming)
-- DisplaySettings Prisma migration
-- Analytics improvements
-- Prize detail modal with bid history
-- Test email functionality
+### Previously Added (2026-02-02)
+- SMS/WhatsApp notification support via Twilio
+- Test SMS/WhatsApp buttons in admin settings
 
 ### Pending/Optional
 - Twilio env vars need to be configured in Vercel (code is ready)
-- Error boundaries
 - Confetti on successful bid
 - PWA / offline support
+
+---
+
+## Testing
+
+### Run Tests
+```bash
+npm test          # Run all tests once
+npm run test:watch  # Watch mode
+```
+
+### Test Coverage
+- `src/__tests__/api/auth-verify.test.ts` — Verification code validation (4 tests)
+- `src/__tests__/api/rate-limit.test.ts` — Rate limiter behavior (4 tests)
+- `src/__tests__/api/auction-status.test.ts` — Fail-closed behavior (1 test)
+
+### Load Testing
+```bash
+# Generic load test
+npx tsx scripts/load-test.ts <BASE_URL> <PRIZE_ID> [NUM_BIDS]
+
+# Live load test with hardcoded real bidder IDs
+npx tsx scripts/load-test-live.ts
+```
 
 ---
 
@@ -347,7 +488,8 @@ TWILIO_PHONE_NUMBER=+1xxx
 ### Add a new API endpoint
 1. Create file in `src/app/api/[path]/route.ts`
 2. Use `verifyAdminSession()` for admin routes
-3. Return `NextResponse.json()`
+3. Add rate limiting for sensitive endpoints
+4. Return `NextResponse.json()`
 
 ### Add a new UI component
 1. Create in `src/components/ui/[name].tsx`
