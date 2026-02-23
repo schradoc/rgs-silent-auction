@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button, Input, Card, CardContent } from '@/components/ui'
+import { CountryCodeSelect } from '@/components/ui/country-code-select'
 import { ArrowLeft, MessageCircle } from 'lucide-react'
 
 function StepIndicator({ currentStep }: { currentStep: 1 | 2 }) {
@@ -132,6 +133,7 @@ export default function RegisterPage() {
   const [verificationChannel, setVerificationChannel] = useState<'email' | 'whatsapp' | 'console'>('email')
   const [mounted, setMounted] = useState(false)
 
+  const [countryCode, setCountryCode] = useState('+852')
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -165,8 +167,8 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
-          email: formData.email,
-          phone: formData.phone || undefined,
+          email: formData.email || undefined,
+          phone: formData.phone ? `${countryCode}${formData.phone.replace(/^0+/, '')}` : undefined,
           tableNumber: formData.tableNumber || undefined,
         }),
       })
@@ -203,8 +205,8 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
-          email: formData.email,
-          phone: formData.phone || undefined,
+          email: formData.email || undefined,
+          phone: formData.phone ? `${countryCode}${formData.phone.replace(/^0+/, '')}` : undefined,
           tableNumber: formData.tableNumber || undefined,
         }),
       })
@@ -311,17 +313,20 @@ export default function RegisterPage() {
                           <MessageCircle className="w-4 h-4 text-[#25D366]" />
                           WhatsApp Number
                         </label>
-                        <input
-                          id="phone-number"
-                          type="tel"
-                          placeholder="+852 9XXX XXXX"
-                          value={formData.phone}
-                          onChange={(e) =>
-                            setFormData({ ...formData, phone: e.target.value })
-                          }
-                          required
-                          className="w-full px-4 py-2.5 border rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent placeholder:text-gray-400 border-gray-300 hover:border-gray-400"
-                        />
+                        <div className="flex gap-2">
+                          <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
+                          <input
+                            id="phone-number"
+                            type="tel"
+                            placeholder="6875 0112"
+                            value={formData.phone}
+                            onChange={(e) =>
+                              setFormData({ ...formData, phone: e.target.value.replace(/[^\d\s]/g, '') })
+                            }
+                            required
+                            className="flex-1 px-4 py-2.5 border rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent placeholder:text-gray-400 border-gray-300 hover:border-gray-400"
+                          />
+                        </div>
                         <p className="mt-1 text-sm text-gray-500">We&apos;ll send a verification code to your WhatsApp</p>
                       </div>
                     </div>

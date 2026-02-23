@@ -12,6 +12,7 @@ import {
   Check,
   MessageCircle,
 } from 'lucide-react'
+import { CountryCodeSelect } from '@/components/ui/country-code-select'
 
 type LoginMethod = 'phone' | 'email'
 
@@ -33,6 +34,7 @@ function LoginPageLoading() {
 
 function LoginPageContent() {
   const [method, setMethod] = useState<LoginMethod>('phone')
+  const [countryCode, setCountryCode] = useState('+852')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
@@ -113,7 +115,7 @@ function LoginPageContent() {
       const res = await fetch('/api/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, channel: 'WHATSAPP' }),
+        body: JSON.stringify({ phone: `${countryCode}${phone.replace(/^0+/, '')}`, channel: 'WHATSAPP' }),
       })
 
       const data = await res.json()
@@ -173,7 +175,7 @@ function LoginPageContent() {
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, otp: code }),
+        body: JSON.stringify({ phone: `${countryCode}${phone.replace(/^0+/, '')}`, otp: code }),
       })
 
       const data = await res.json()
@@ -209,14 +211,17 @@ function LoginPageContent() {
         {/* Phone WhatsApp OTP — Default */}
         {method === 'phone' && step === 'input' && (
           <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
-            <label className="block text-white/70 text-sm mb-2">Phone Number</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => { setPhone(e.target.value); setError(''); }}
-              placeholder="+852 9XXX XXXX"
-              className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#b8941f] mb-4"
-            />
+            <label className="block text-white/70 text-sm mb-2">WhatsApp Number</label>
+            <div className="flex gap-2 mb-4">
+              <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value.replace(/[^\d\s]/g, '')); setError(''); }}
+                placeholder="6875 0112"
+                className="flex-1 px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#b8941f]"
+              />
+            </div>
 
             {error && (
               <div className="flex items-center gap-2 text-red-400 text-sm mb-4">
