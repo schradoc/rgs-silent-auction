@@ -8,10 +8,15 @@ import { toast } from 'sonner'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+// Supabase publishable keys (sb_publishable_) don't support Realtime WebSockets yet.
+// Detect this and skip realtime entirely, relying on fallback polling instead.
+const isPublishableKey = supabaseAnonKey?.startsWith('sb_publishable_')
+
 // Create a singleton Supabase client for realtime
 let realtimeClient: ReturnType<typeof createClient> | null = null
 
 function getRealtimeClient() {
+  if (isPublishableKey) return null // publishable keys don't support realtime
   if (!realtimeClient && supabaseUrl && supabaseAnonKey) {
     realtimeClient = createClient(supabaseUrl, supabaseAnonKey, {
       realtime: {
@@ -43,7 +48,7 @@ interface UseRealtimeBidsOptions {
 }
 
 const RECONNECT_DELAY = 2000
-const FALLBACK_POLL_INTERVAL = 30000
+const FALLBACK_POLL_INTERVAL = 10000 // 10s polling when realtime unavailable
 
 export function useRealtimeBids(options: UseRealtimeBidsOptions = {}) {
   const { prizeId, bidderId, onNewBid, onOutbid } = options
@@ -106,7 +111,12 @@ export function useRealtimeBids(options: UseRealtimeBidsOptions = {}) {
 
   const subscribe = useCallback(() => {
     const client = getRealtimeClient()
-    if (!client) return
+    if (!client) {
+      // No realtime available (e.g. publishable key), use polling
+      setConnectionState('connected') // don't show disconnected state
+      startFallbackPolling()
+      return
+    }
 
     // Clean up existing channel
     if (channelRef.current) {
