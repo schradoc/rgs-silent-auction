@@ -168,11 +168,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send outbid notification to previous winner (async, don't await) — skip for pledges
+    // Send outbid notification to previous winner — must await on serverless
     if (!result.isPledgeOrMultiWinner && result.hadPreviousBid && result.previousWinningBidderId && result.previousWinningBidderId !== bidderId) {
-      import('@/lib/notifications').then(({ notifyOutbidBidders }) => {
-        notifyOutbidBidders(prizeId, amount, result.previousWinningBidderId).catch(console.error)
-      })
+      try {
+        const { notifyOutbidBidders } = await import('@/lib/notifications')
+        await notifyOutbidBidders(prizeId, amount, result.previousWinningBidderId)
+      } catch (err) {
+        console.error('Failed to send outbid notification:', err)
+      }
     }
 
     return NextResponse.json({ success: true, bid: result.bid })
