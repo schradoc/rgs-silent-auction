@@ -97,12 +97,15 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
       <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
         <div className="bg-white w-full max-w-lg rounded-t-2xl p-6 animate-slide-up">
           <div className="text-center py-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-green-600" />
+            <div className="w-20 h-20 bg-gradient-to-br from-[#c9a227] to-[#b8941f] rounded-full flex items-center justify-center mx-auto mb-4 animate-scale-in shadow-lg shadow-[#c9a227]/30">
+              <Check className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Bid Placed!</h2>
-            <p className="text-gray-600">
-              Your bid of {formatCurrency(selectedAmount)} has been submitted.
+            <h2 className="text-2xl font-bold text-gray-900 mb-2 animate-fade-in-up" style={{ animationDelay: '150ms' }}>Bid Placed!</h2>
+            <p className="text-gray-600 animate-fade-in-up" style={{ animationDelay: '250ms' }}>
+              Your bid of <span className="font-semibold text-[#c9a227]">{formatCurrency(selectedAmount)}</span> has been submitted.
+            </p>
+            <p className="text-sm text-gray-400 mt-2 animate-fade-in" style={{ animationDelay: '400ms' }}>
+              We&apos;ll notify you if you&apos;re outbid
             </p>
           </div>
         </div>
@@ -137,10 +140,10 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
                   setAmount(amt.toString())
                   setUseCustom(false)
                 }}
-                className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
+                className={`py-3 px-4 rounded-lg border-2 font-medium transition-all duration-200 ${
                   !useCustom && parseInt(amount) === amt
-                    ? 'border-[#c9a227] bg-[#c9a227]/10 text-[#1e3a5f]'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#c9a227] bg-[#c9a227]/10 text-[#1e3a5f] shadow-sm shadow-[#c9a227]/20'
+                    : 'border-gray-200 hover:border-gray-300 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]'
                 }`}
               >
                 {formatCurrency(amt)}
@@ -172,7 +175,7 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
                     placeholder={minimumBid.toString()}
-                    className="w-full pl-14 pr-4 py-3 border-2 border-gray-200 rounded-lg text-xl font-medium focus:border-[#c9a227] focus:outline-none"
+                    className="w-full pl-14 pr-4 py-3 border-2 border-gray-200 rounded-lg text-xl font-medium focus:border-[#c9a227] focus:outline-none focus:shadow-sm focus:shadow-[#c9a227]/20 transition-all duration-200"
                     min={minimumBid}
                     step={500}
                   />

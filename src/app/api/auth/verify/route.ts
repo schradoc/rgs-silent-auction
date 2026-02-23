@@ -9,19 +9,20 @@ const isDatabaseConfigured = !!process.env.DATABASE_URL
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { phone: rawPhone, code } = body
+    const { phone: rawPhone, email, code } = body
 
     const phone = rawPhone ? normalizeHKPhone(rawPhone) : null
 
-    // Rate limit by phone to prevent brute-forcing verification codes
-    if (phone) {
-      const rl = checkRateLimit(`auth-verify:${phone}`, RATE_LIMITS.authVerify)
+    // Rate limit by email (primary) or phone (fallback)
+    const rateLimitKey = email || phone
+    if (rateLimitKey) {
+      const rl = checkRateLimit(`auth-verify:${rateLimitKey}`, RATE_LIMITS.authVerify)
       if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds)
     }
 
-    if (!phone || !code) {
+    if ((!email && !phone) || !code) {
       return NextResponse.json(
-        { error: 'Phone number and verification code are required' },
+        { error: 'Email (or phone) and verification code are required' },
         { status: 400 }
       )
     }
@@ -43,8 +44,10 @@ export async function POST(request: NextRequest) {
           success: true,
           bidder: {
             id: bidderId,
+            email,
             phone,
             phoneVerified: true,
+            emailVerified: true,
           },
           _demo: true,
         })
@@ -59,9 +62,18 @@ export async function POST(request: NextRequest) {
     // Real database mode
     const { prisma } = await import('@/lib/prisma')
 
-    const bidder = await prisma.bidder.findUnique({
-      where: { phone },
-    })
+    // Look up by email first, fall back to phone
+    let bidder = null
+    if (email) {
+      bidder = await prisma.bidder.findUnique({
+        where: { email },
+      })
+    }
+    if (!bidder && phone) {
+      bidder = await prisma.bidder.findUnique({
+        where: { phone },
+      })
+    }
 
     if (!bidder) {
       return NextResponse.json({ error: 'Bidder not found' }, { status: 404 })
@@ -124,6 +136,7 @@ export async function POST(request: NextRequest) {
         email: updatedBidder.email,
         tableNumber: updatedBidder.tableNumber,
         phoneVerified: updatedBidder.phoneVerified,
+        emailVerified: updatedBidder.emailVerified,
       },
     })
   } catch (error) {

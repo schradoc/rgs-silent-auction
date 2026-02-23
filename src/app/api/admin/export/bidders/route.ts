@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
       ...bidders.map((bidder) =>
         [
           `"${bidder.name}"`,
-          bidder.phone,
+          bidder.phone || '',
           bidder.email || '',
-          bidder.tableNumber,
+          bidder.tableNumber || '',
           bidder.phoneVerified || bidder.emailVerified ? 'Yes' : 'No',
           bidder._count.bids,
           new Date(bidder.createdAt).toISOString(),

@@ -79,9 +79,9 @@ interface Prize {
 interface Bidder {
   id: string
   name: string
-  phone: string
-  email: string | null
-  tableNumber: string
+  phone: string | null
+  email: string
+  tableNumber: string | null
   emailVerified: boolean
   phoneVerified: boolean
   createdAt: Date | string
@@ -107,7 +107,7 @@ interface Bid {
   id: string
   amount: number
   createdAt: Date | string
-  bidder: { name: string; tableNumber: string }
+  bidder: { name: string; tableNumber: string | null }
   prize: { title: string; slug: string }
 }
 
@@ -151,12 +151,12 @@ interface PotentialWinner {
   winningBid: {
     id: string
     amount: number
-    bidder: { id: string; name: string; phone: string; email: string | null; tableNumber: string }
+    bidder: { id: string; name: string; phone: string | null; email: string; tableNumber: string | null }
   } | null
   isConfirmed: boolean
   confirmedWinners: Array<{
     id: string
-    bidder: { id: string; name: string; tableNumber: string }
+    bidder: { id: string; name: string; tableNumber: string | null }
   }>
   multiWinnerEligible: boolean
   multiWinnerSlots: number | null
@@ -236,11 +236,11 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       amount: number
       createdAt: string
       status: string
-      bidder: { id: string; name: string; tableNumber: string; email: string }
+      bidder: { id: string; name: string; tableNumber: string | null; email: string }
     }>
     winners: Array<{
       id: string
-      bidder: { id: string; name: string; tableNumber: string }
+      bidder: { id: string; name: string; tableNumber: string | null }
       bid: { amount: number }
     }>
   } | null>(null)
@@ -1274,7 +1274,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-gray-900">
-                            {bid.bidder.name} (Table {bid.bidder.tableNumber})
+                            {bid.bidder.name}{bid.bidder.tableNumber ? ` (Table ${bid.bidder.tableNumber})` : ''}
                           </p>
                           <p className="text-sm text-gray-500">{bid.prize.title}</p>
                         </div>
@@ -1532,11 +1532,11 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                           <Badge variant="navy" size="sm">Verified</Badge>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500">{bidder.phone}</p>
+                      <p className="text-sm text-gray-500">{bidder.email}</p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="font-medium">Table {bidder.tableNumber}</p>
+                        <p className="font-medium">{bidder.tableNumber ? `Table ${bidder.tableNumber}` : 'No table'}</p>
                         <p className="text-sm text-gray-500">{bidder._count.bids} bids</p>
                       </div>
                       <ChevronRight className="w-5 h-5 text-gray-300" />
@@ -1553,7 +1553,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                   <div className="p-6 border-b flex items-start justify-between">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{selectedBidder.name}</h3>
-                      <p className="text-sm text-gray-500">{selectedBidder.phone}{selectedBidder.email ? ` • ${selectedBidder.email}` : ''}</p>
+                      <p className="text-sm text-gray-500">{selectedBidder.email}{selectedBidder.phone ? ` • ${selectedBidder.phone}` : ''}</p>
                     </div>
                     <button
                       onClick={() => setSelectedBidder(null)}
@@ -1568,7 +1568,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-3 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-500">Table Number</p>
-                        <p className="font-semibold">{selectedBidder.tableNumber}</p>
+                        <p className="font-semibold">{selectedBidder.tableNumber || 'Not assigned'}</p>
                       </div>
                       <div className="p-3 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-500">Verification</p>
@@ -1710,7 +1710,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                           <div key={winner.id} className="flex items-center justify-between">
                             <div>
                               <p className="font-medium text-gray-900">{winner.bidder.name}</p>
-                              <p className="text-sm text-gray-500">Table {winner.bidder.tableNumber}</p>
+                              <p className="text-sm text-gray-500">{winner.bidder.tableNumber ? `Table ${winner.bidder.tableNumber}` : 'No table'}</p>
                             </div>
                             <p className="text-xl font-bold text-green-600">{formatCurrency(winner.bid.amount)}</p>
                           </div>
@@ -1756,9 +1756,9 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                                   </td>
                                   <td className="px-4 py-3">
                                     <p className="font-medium text-gray-900">{bid.bidder.name}</p>
-                                    <p className="text-xs text-gray-500">Table {bid.bidder.tableNumber}</p>
+                                    <p className="text-xs text-gray-500">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : bid.bidder.email}</p>
                                   </td>
-                                  <td className="px-4 py-3 text-gray-600">Table {bid.bidder.tableNumber}</td>
+                                  <td className="px-4 py-3 text-gray-600">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : '—'}</td>
                                   <td className="px-4 py-3 text-right">
                                     <span className={`font-bold ${index === 0 ? 'text-[#c9a227]' : 'text-gray-900'}`}>
                                       {formatCurrency(bid.amount)}
@@ -1915,7 +1915,10 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                                     {pw.winningBid.bidder.name}
                                   </p>
                                   <p className="text-sm text-gray-500">
-                                    Table {pw.winningBid.bidder.tableNumber} • {pw.winningBid.bidder.phone}
+                                    {[
+                                      pw.winningBid.bidder.tableNumber ? `Table ${pw.winningBid.bidder.tableNumber}` : null,
+                                      pw.winningBid.bidder.email,
+                                    ].filter(Boolean).join(' • ')}
                                   </p>
                                 </div>
                                 <p className="text-xl font-bold text-[#c9a227]">

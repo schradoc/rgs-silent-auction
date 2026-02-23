@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
         [
           `"${bid.prize.title}"`,
           `"${bid.bidder.name}"`,
-          bid.bidder.phone,
+          bid.bidder.phone || '',
           bid.bidder.email || '',
-          bid.bidder.tableNumber,
+          bid.bidder.tableNumber || '',
           bid.amount,
           bid.status,
           new Date(bid.createdAt).toISOString(),

@@ -1,27 +1,146 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button, Input, Card, CardContent } from '@/components/ui'
 import { ArrowLeft } from 'lucide-react'
+
+function StepIndicator({ currentStep }: { currentStep: 1 | 2 }) {
+  return (
+    <div className="flex items-center justify-center gap-3 mb-8">
+      {/* Step 1 */}
+      <div className="flex items-center gap-2">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-500 ${
+          currentStep >= 1 ? 'bg-[#c9a227] text-white shadow-lg shadow-[#c9a227]/30' : 'bg-gray-200 text-gray-500'
+        }`}>
+          1
+        </div>
+        <span className={`text-sm font-medium transition-colors duration-300 ${
+          currentStep >= 1 ? 'text-gray-900' : 'text-gray-400'
+        }`}>Register</span>
+      </div>
+
+      {/* Connector */}
+      <div className="w-16 h-0.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className={`h-full bg-[#c9a227] rounded-full transition-all duration-700 ease-out ${
+          currentStep >= 2 ? 'w-full' : 'w-0'
+        }`} style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }} />
+      </div>
+
+      {/* Step 2 */}
+      <div className="flex items-center gap-2">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-500 ${
+          currentStep >= 2 ? 'bg-[#c9a227] text-white shadow-lg shadow-[#c9a227]/30' : 'bg-gray-200 text-gray-500'
+        }`}>
+          2
+        </div>
+        <span className={`text-sm font-medium transition-colors duration-300 ${
+          currentStep >= 2 ? 'text-gray-900' : 'text-gray-400'
+        }`}>Verify</span>
+      </div>
+    </div>
+  )
+}
+
+function OTPInput({ value, onChange, onComplete }: {
+  value: string
+  onChange: (val: string) => void
+  onComplete: (code: string) => void
+}) {
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const digits = value.padEnd(6, '').split('').slice(0, 6)
+
+  const handleInput = useCallback((index: number, char: string) => {
+    if (!/^\d$/.test(char)) return
+
+    const newDigits = [...digits]
+    newDigits[index] = char
+    const newValue = newDigits.join('').replace(/\s/g, '')
+    onChange(newValue)
+
+    if (index < 5) {
+      inputRefs.current[index + 1]?.focus()
+    }
+
+    if (newValue.length === 6) {
+      onComplete(newValue)
+    }
+  }, [digits, onChange, onComplete])
+
+  const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault()
+      const newDigits = [...digits]
+      if (newDigits[index] && newDigits[index] !== ' ') {
+        newDigits[index] = ' '
+        onChange(newDigits.join('').trim())
+      } else if (index > 0) {
+        newDigits[index - 1] = ' '
+        onChange(newDigits.join('').trim())
+        inputRefs.current[index - 1]?.focus()
+      }
+    }
+  }, [digits, onChange])
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (pastedData.length > 0) {
+      onChange(pastedData)
+      const focusIndex = Math.min(pastedData.length, 5)
+      inputRefs.current[focusIndex]?.focus()
+      if (pastedData.length === 6) {
+        onComplete(pastedData)
+      }
+    }
+  }, [onChange, onComplete])
+
+  return (
+    <div className="flex justify-center gap-2.5">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <input
+          key={i}
+          ref={(el) => { inputRefs.current[i] = el }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={digits[i]?.trim() || ''}
+          onChange={(e) => handleInput(i, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          onPaste={handlePaste}
+          autoFocus={i === 0}
+          className={`w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 outline-none transition-all duration-200 ${
+            digits[i]?.trim()
+              ? 'border-[#c9a227] bg-[#c9a227]/5 text-[#1e3a5f] shadow-sm shadow-[#c9a227]/20'
+              : 'border-gray-200 bg-white text-gray-900 focus:border-[#c9a227] focus:shadow-sm focus:shadow-[#c9a227]/20'
+          }`}
+        />
+      ))}
+    </div>
+  )
+}
 
 export default function RegisterPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'register' | 'verify'>('register')
-  const [phone, setPhone] = useState('')
   const [verificationChannel, setVerificationChannel] = useState<'email' | 'whatsapp' | 'console'>('email')
+  const [mounted, setMounted] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
     phone: '',
     tableNumber: '',
-    email: '',
   })
 
   const [verificationCode, setVerificationCode] = useState('')
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,9 +153,9 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
-          phone: formData.phone,
-          tableNumber: formData.tableNumber,
-          email: formData.email || undefined,
+          email: formData.email,
+          phone: formData.phone || undefined,
+          tableNumber: formData.tableNumber || undefined,
         }),
       })
 
@@ -46,7 +165,12 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Registration failed')
       }
 
-      setPhone(formData.phone)
+      if (!data.requiresVerification) {
+        // Already verified — redirect straight to prizes
+        router.push('/prizes')
+        return
+      }
+
       setVerificationChannel(data.verificationChannel || 'email')
       setStep('verify')
     } catch (err) {
@@ -56,8 +180,10 @@ export default function RegisterPage() {
     }
   }
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleVerify = async (code?: string) => {
+    const codeToVerify = code || verificationCode
+    if (codeToVerify.length !== 6) return
+
     setIsLoading(true)
     setError('')
 
@@ -65,7 +191,7 @@ export default function RegisterPage() {
       const response = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, code: verificationCode }),
+        body: JSON.stringify({ email: formData.email, code: codeToVerify }),
       })
 
       const data = await response.json()
@@ -74,7 +200,6 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Verification failed')
       }
 
-      // Redirect to prizes page
       router.push('/prizes')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -83,9 +208,9 @@ export default function RegisterPage() {
     }
   }
 
-  const handleSkipVerification = async () => {
-    // For demo purposes, allow skipping verification
-    router.push('/prizes')
+  const handleVerifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    handleVerify()
   }
 
   return (
@@ -100,10 +225,18 @@ export default function RegisterPage() {
           Back
         </Link>
 
-        <Card>
-          <CardContent className="p-6">
-            {step === 'register' ? (
-              <>
+        {/* Step Indicator */}
+        <StepIndicator currentStep={step === 'register' ? 1 : 2} />
+
+        <div className="relative overflow-hidden">
+          {/* Register Step */}
+          <div className={`transition-all duration-500 ${
+            step === 'register'
+              ? 'opacity-100 translate-x-0'
+              : 'opacity-0 -translate-x-full absolute inset-0 pointer-events-none'
+          }`} style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <Card>
+              <CardContent className="p-6">
                 <div className="text-center mb-6">
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">
                     Register to Bid
@@ -114,92 +247,107 @@ export default function RegisterPage() {
                 </div>
 
                 <form onSubmit={handleRegister} className="space-y-4">
-                  <Input
-                    label="Full Name"
-                    placeholder="John Smith"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    required
-                  />
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '50ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                    <Input
+                      label="Full Name"
+                      placeholder="John Smith"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
 
-                  <Input
-                    label="Phone Number"
-                    type="tel"
-                    placeholder="+852 9XXX XXXX"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    required
-                  />
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '100ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                    <Input
+                      label="Email"
+                      type="email"
+                      placeholder="john@example.com"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                      hint="We'll send your verification code here"
+                      required
+                    />
+                  </div>
 
-                  <Input
-                    label="Email"
-                    type="email"
-                    placeholder="john@example.com"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    hint="Recommended — for verification and bid notifications"
-                  />
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '150ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                    <Input
+                      label="Phone Number (Optional)"
+                      type="tel"
+                      placeholder="+852 9XXX XXXX"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      hint="For WhatsApp notifications — international numbers welcome"
+                    />
+                  </div>
 
-                  <Input
-                    label="Table Number"
-                    placeholder="e.g., 12"
-                    value={formData.tableNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, tableNumber: e.target.value })
-                    }
-                    hint="You can find this on your table"
-                    required
-                  />
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '200ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                    <Input
+                      label="Table Number (Optional)"
+                      placeholder="e.g., 12"
+                      value={formData.tableNumber}
+                      onChange={(e) =>
+                        setFormData({ ...formData, tableNumber: e.target.value })
+                      }
+                      hint="You can add this later once you're seated"
+                    />
+                  </div>
 
                   {error && (
                     <p className="text-red-600 text-sm text-center">{error}</p>
                   )}
 
-                  <Button
-                    type="submit"
-                    variant="gold"
-                    size="lg"
-                    className="w-full"
-                    isLoading={isLoading}
-                  >
-                    Continue
-                  </Button>
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '250ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                    <Button
+                      type="submit"
+                      variant="gold"
+                      size="lg"
+                      className="w-full"
+                      isLoading={isLoading}
+                    >
+                      Continue
+                    </Button>
+                  </div>
                 </form>
-              </>
-            ) : (
-              <>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Verify Step */}
+          <div className={`transition-all duration-500 ${
+            step === 'verify'
+              ? 'opacity-100 translate-x-0'
+              : 'opacity-0 translate-x-full absolute inset-0 pointer-events-none'
+          }`} style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <Card>
+              <CardContent className="p-6">
                 <div className="text-center mb-6">
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">
                     Enter Verification Code
                   </h1>
                   <p className="text-gray-600 text-sm">
                     {verificationChannel === 'email' ? (
-                      <>We&apos;ve sent a 6-digit code to your email at{' '}
+                      <>We&apos;ve sent a 6-digit code to{' '}
                       <span className="font-medium">{formData.email}</span></>
                     ) : verificationChannel === 'whatsapp' ? (
                       <>We&apos;ve sent a 6-digit code to your WhatsApp at{' '}
-                      <span className="font-medium">{phone}</span></>
+                      <span className="font-medium">{formData.phone}</span></>
                     ) : (
                       <>Check the console for your verification code</>
                     )}
                   </p>
                 </div>
 
-                <form onSubmit={handleVerify} className="space-y-4">
-                  <Input
-                    label="Verification Code"
-                    placeholder="123456"
+                <form onSubmit={handleVerifySubmit} className="space-y-6">
+                  <OTPInput
                     value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    maxLength={6}
-                    className="text-center text-2xl tracking-widest"
-                    required
+                    onChange={setVerificationCode}
+                    onComplete={(code) => handleVerify(code)}
                   />
 
                   {error && (
@@ -212,32 +360,27 @@ export default function RegisterPage() {
                     size="lg"
                     className="w-full"
                     isLoading={isLoading}
+                    disabled={verificationCode.length !== 6}
                   >
                     Verify & Continue
                   </Button>
 
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={handleSkipVerification}
-                      className="text-sm text-gray-500 hover:text-gray-700"
-                    >
-                      Skip for now (demo mode)
-                    </button>
-                  </div>
-
                   <button
                     type="button"
-                    onClick={() => setStep('register')}
+                    onClick={() => {
+                      setStep('register')
+                      setVerificationCode('')
+                      setError('')
+                    }}
                     className="w-full text-sm text-[#1e3a5f] hover:underline"
                   >
                     Go back and edit details
                   </button>
                 </form>
-              </>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         <p className="text-center text-gray-500 text-xs mt-6">
           By registering, you agree to the auction terms and conditions.

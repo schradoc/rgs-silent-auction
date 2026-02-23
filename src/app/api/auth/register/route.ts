@@ -69,19 +69,19 @@ async function sendVerificationWhatsApp(phone: string, name: string, code: strin
   return false
 }
 
-async function sendVerificationCode(phone: string, email: string | undefined, name: string, code: string): Promise<'email' | 'whatsapp' | 'console'> {
-  // Try email first (primary channel for staging)
-  if (email) {
-    const sent = await sendVerificationEmail(email, name, code)
-    if (sent) return 'email'
+async function sendVerificationCode(email: string, phone: string | undefined, name: string, code: string): Promise<'email' | 'whatsapp' | 'console'> {
+  // Try email first (primary channel)
+  const emailSent = await sendVerificationEmail(email, name, code)
+  if (emailSent) return 'email'
+
+  // Fall back to WhatsApp if phone provided
+  if (phone) {
+    const whatsappSent = await sendVerificationWhatsApp(phone, name, code)
+    if (whatsappSent) return 'whatsapp'
   }
 
-  // Fall back to WhatsApp
-  const sent = await sendVerificationWhatsApp(phone, name, code)
-  if (sent) return 'whatsapp'
-
   // Dev fallback
-  console.log(`[DEV] Verification code for ${phone}: ${code}`)
+  console.log(`[DEV] Verification code for ${email}: ${code}`)
   return 'console'
 }
 
@@ -90,16 +90,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, phone: rawPhone, tableNumber, email } = body
 
-    if (!name || !rawPhone || !tableNumber) {
+    // Name and email are required
+    if (!name || !email) {
       return NextResponse.json(
-        { error: 'Name, phone number, and table number are required' },
+        { error: 'Name and email are required' },
         { status: 400 }
       )
     }
 
-    const phone = normalizeHKPhone(rawPhone)
+    // Normalize and validate phone only if provided
+    const phone = rawPhone ? normalizeHKPhone(rawPhone) : null
 
-    if (!isValidPhone(phone)) {
+    if (phone && !isValidPhone(phone)) {
       return NextResponse.json(
         { error: 'Please enter a valid phone number' },
         { status: 400 }
@@ -119,16 +121,16 @@ export async function POST(request: NextRequest) {
         maxAge: 60 * 60 * 24,
       })
 
-      console.log(`[DEMO] Verification code for ${phone}: ${verificationCode}`)
+      console.log(`[DEMO] Verification code for ${email}: ${verificationCode}`)
 
       return NextResponse.json({
         success: true,
         bidder: {
           id: mockBidderId,
           name,
-          phone,
-          email: email || null,
-          tableNumber,
+          phone: phone || null,
+          email,
+          tableNumber: tableNumber || null,
           phoneVerified: false,
         },
         requiresVerification: true,
@@ -140,12 +142,13 @@ export async function POST(request: NextRequest) {
     // Real database mode
     const { prisma } = await import('@/lib/prisma')
 
+    // Look up by email (primary identifier)
     const existingBidder = await prisma.bidder.findUnique({
-      where: { phone },
+      where: { email },
     })
 
     if (existingBidder) {
-      if (existingBidder.phoneVerified) {
+      if (existingBidder.emailVerified) {
         const cookieStore = await cookies()
         cookieStore.set(COOKIE_NAMES.bidderId, existingBidder.id, {
           httpOnly: true,
@@ -164,10 +167,15 @@ export async function POST(request: NextRequest) {
       const verificationCode = generateVerificationCode()
       await prisma.bidder.update({
         where: { id: existingBidder.id },
-        data: { verificationCode, name, tableNumber, email: email || undefined },
+        data: {
+          verificationCode,
+          name,
+          phone: phone || existingBidder.phone,
+          tableNumber: tableNumber || existingBidder.tableNumber,
+        },
       })
 
-      const channel = await sendVerificationCode(phone, email, name, verificationCode)
+      const channel = await sendVerificationCode(email, phone || undefined, name, verificationCode)
 
       return NextResponse.json({
         success: true,
@@ -185,9 +193,9 @@ export async function POST(request: NextRequest) {
     const bidder = await prisma.bidder.create({
       data: {
         name,
-        phone,
-        email: email || null,
-        tableNumber,
+        phone: phone || null,
+        email,
+        tableNumber: tableNumber || null,
         verificationCode,
         phoneVerified: false,
       },
@@ -201,7 +209,7 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24,
     })
 
-    const channel = await sendVerificationCode(phone, email, name, verificationCode)
+    const channel = await sendVerificationCode(email, phone || undefined, name, verificationCode)
 
     return NextResponse.json({
       success: true,

@@ -11,9 +11,9 @@ datasource db {
 model Bidder {
   id           String   @id @default(cuid())
   name         String
-  phone        String   @unique
-  email        String?
-  tableNumber  String
+  phone        String?  @unique
+  email        String   @unique
+  tableNumber  String?
   emailVerified Boolean @default(false)
   phoneVerified Boolean @default(false)
   verificationCode String?

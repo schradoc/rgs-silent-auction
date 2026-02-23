@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
             [
               `"${w.prize.title.replace(/"/g, '""')}"`,
               `"${w.bidder.name.replace(/"/g, '""')}"`,
-              w.bidder.tableNumber,
-              w.bidder.phone,
+              w.bidder.tableNumber || '',
+              w.bidder.phone || '',
               w.bidder.email || '',
               w.bid.amount,
               new Date(w.acceptedAt).toISOString(),
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
             [
               `"${b.prize.title.replace(/"/g, '""')}"`,
               `"${b.bidder.name.replace(/"/g, '""')}"`,
-              b.bidder.tableNumber,
+              b.bidder.tableNumber || '',
               b.amount,
               b.status,
               new Date(b.createdAt).toISOString(),
@@ -99,9 +99,9 @@ export async function GET(request: NextRequest) {
           ...bidders.map((b) =>
             [
               `"${b.name.replace(/"/g, '""')}"`,
-              b.phone,
+              b.phone || '',
               b.email || '',
-              b.tableNumber,
+              b.tableNumber || '',
               b.bids.length,
               b.winners.length,
               new Date(b.createdAt).toISOString(),
@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
               p.currentHighestBid,
               p.bids.length,
               winningBid ? `"${winningBid.bidder.name.replace(/"/g, '""')}"` : 'No bids',
-              winningBid?.bidder.tableNumber || '',
+              winningBid?.bidder?.tableNumber || '',
               confirmedWinner ? 'Yes' : 'No',
             ].join(',')
           }),

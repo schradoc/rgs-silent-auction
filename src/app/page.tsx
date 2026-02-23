@@ -86,8 +86,8 @@ export default function HomePage() {
     <main className="min-h-screen bg-[#0f1d2d] relative overflow-hidden">
       {/* Animated background */}
       <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-[#b8941f]/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '4s' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#1a3a5c]/50 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '6s' }} />
+        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-[#b8941f]/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#1a3a5c]/50 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '12s' }} />
       </div>
 
       {/* Subtle grid pattern */}
@@ -168,21 +168,21 @@ export default function HomePage() {
               <div
                 className={`grid grid-cols-3 gap-4 mb-10 transition-all duration-700 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               >
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:border-[#b8941f]/30 hover:shadow-lg hover:shadow-[#b8941f]/10 cursor-default">
                   <div className="flex items-center justify-center gap-2 mb-1">
                     <Users className="w-4 h-4 text-[#b8941f]" />
                   </div>
                   <p className="text-2xl md:text-3xl font-light text-white">{stats.totalBidders || '—'}</p>
                   <p className="text-xs text-white/40 uppercase tracking-wider">Bidders</p>
                 </div>
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:border-[#b8941f]/30 hover:shadow-lg hover:shadow-[#b8941f]/10 cursor-default">
                   <div className="flex items-center justify-center gap-2 mb-1">
                     <TrendingUp className="w-4 h-4 text-[#b8941f]" />
                   </div>
                   <p className="text-2xl md:text-3xl font-light text-white">{stats.totalBids || '—'}</p>
                   <p className="text-xs text-white/40 uppercase tracking-wider">Bids Placed</p>
                 </div>
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:border-[#b8941f]/30 hover:shadow-lg hover:shadow-[#b8941f]/10 cursor-default">
                   <div className="flex items-center justify-center gap-2 mb-1">
                     <Sparkles className="w-4 h-4 text-[#b8941f]" />
                   </div>
@@ -258,7 +258,7 @@ export default function HomePage() {
                     <Button
                       variant="gold"
                       size="lg"
-                      className="w-full sm:w-auto min-w-[220px] text-base py-4 shadow-lg shadow-[#b8941f]/25 hover:shadow-xl hover:shadow-[#b8941f]/30 transition-all group"
+                      className="w-full sm:w-auto min-w-[220px] text-base py-4 shadow-lg shadow-[#b8941f]/25 hover:shadow-xl hover:shadow-[#b8941f]/30 transition-all group animate-shimmer"
                     >
                       <span>Start Bidding</span>
                       <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />

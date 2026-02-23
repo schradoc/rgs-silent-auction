@@ -250,10 +250,10 @@ export default async function PrintWinnersPage() {
                 <div className="winner-card-body">
                   <div className="winner-info">
                     <div className="checkbox" />
-                    <div className="table-badge">{winningBid.bidder.tableNumber}</div>
+                    <div className="table-badge">{winningBid.bidder.tableNumber || '—'}</div>
                     <div className="winner-details">
                       <h4>{winningBid.bidder.name}</h4>
-                      <p>{winningBid.bidder.phone}</p>
+                      <p>{winningBid.bidder.phone || winningBid.bidder.email || '—'}</p>
                     </div>
                   </div>
                   <span className={`status-badge ${isConfirmed ? 'status-confirmed' : 'status-pending'}`}>

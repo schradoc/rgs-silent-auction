@@ -29,7 +29,7 @@ import type { Prize, Bid } from '@prisma/client'
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop'
 
 type PrizeWithBids = Prize & {
-  bids: (Bid & { bidder: { tableNumber: string } })[]
+  bids: (Bid & { bidder: { tableNumber: string | null } })[]
   variants: Prize[]
 }
 
@@ -235,8 +235,8 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
 
                   {/* Urgency indicator */}
                   {hasActiveBid && (
-                    <div className="flex items-center gap-2 text-sm text-orange-600 mb-4">
-                      <AlertCircle className="w-4 h-4" />
+                    <div className={`flex items-center gap-2 text-sm text-orange-600 mb-4 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: '400ms' }}>
+                      <AlertCircle className="w-4 h-4 animate-pulse" />
                       <span>{prize.bids.length} bid{prize.bids.length !== 1 ? 's' : ''} placed - competition is heating up!</span>
                     </div>
                   )}
@@ -252,7 +252,7 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
                   </p>
                   {hasActiveBid && (
                     <p className="text-sm text-gray-500 mt-1">
-                      Table {prize.bids[0]?.bidder.tableNumber} is leading
+                      {prize.bids[0]?.bidder.tableNumber ? `Table ${prize.bids[0].bidder.tableNumber} is leading` : 'Current leader'}
                     </p>
                   )}
                 </div>
@@ -290,10 +290,10 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
                         <button
                           key={amount}
                           onClick={() => setShowBidSheet(true)}
-                          className={`py-3 px-4 rounded-xl font-medium transition-all ${
+                          className={`py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
                             i === 0
-                              ? 'bg-[#b8941f] text-white hover:bg-[#a3821b] shadow-lg shadow-[#b8941f]/20'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              ? 'bg-[#b8941f] text-white hover:bg-[#a3821b] shadow-lg shadow-[#b8941f]/20 hover:scale-[1.02] active:scale-[0.98]'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]'
                           }`}
                         >
                           {formatCurrency(amount)}
@@ -378,11 +378,11 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
                         index === 0 ? 'bg-[#b8941f] text-white' : 'bg-gray-200 text-gray-600'
                       }`}>
-                        {bid.bidder.tableNumber}
+                        {bid.bidder.tableNumber || '#'}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          Table {bid.bidder.tableNumber}
+                          {bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : 'Bidder'}
                           {index === 0 && (
                             <span className="ml-2 text-xs text-[#b8941f] font-semibold">LEADING</span>
                           )}

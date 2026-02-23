@@ -6,9 +6,9 @@ import { COOKIE_NAMES } from '@/lib/constants'
 interface Bidder {
   id: string
   name: string
-  phone: string
-  email: string | null
-  tableNumber: string
+  phone: string | null
+  email: string
+  tableNumber: string | null
   emailVerified: boolean
   phoneVerified: boolean
 }

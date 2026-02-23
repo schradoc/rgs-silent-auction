@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     const tableMap = new Map<string, number>()
     for (const stat of tableStats) {
       const bidder = bidders.find((b) => b.id === stat.bidderId)
-      if (bidder) {
+      if (bidder && bidder.tableNumber) {
         const current = tableMap.get(bidder.tableNumber) || 0
         tableMap.set(bidder.tableNumber, current + (stat._sum.amount || 0))
       }

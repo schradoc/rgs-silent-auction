@@ -39,13 +39,14 @@ export interface PlaceBidResponse {
 
 export interface RegisterBidderRequest {
   name: string
-  phone: string
-  tableNumber: string
-  email?: string
+  email: string
+  phone?: string
+  tableNumber?: string
 }
 
-export interface VerifyPhoneRequest {
-  phone: string
+export interface VerifyRequest {
+  email?: string
+  phone?: string
   code: string
 }
 

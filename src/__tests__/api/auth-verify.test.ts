@@ -47,6 +47,7 @@ describe('Auth Verify API', () => {
   it('should reject any 6-digit code that does not match stored code', async () => {
     mockPrisma.bidder.findUnique.mockResolvedValue({
       id: 'bidder-1',
+      email: 'test@example.com',
       phone: '+85291234567',
       verificationCode: '123456',
       updatedAt: new Date(), // fresh code
@@ -56,7 +57,7 @@ describe('Auth Verify API', () => {
     const { POST } = await import('@/app/api/auth/verify/route')
 
     const request = {
-      json: () => Promise.resolve({ phone: '+85291234567', code: '654321' }),
+      json: () => Promise.resolve({ email: 'test@example.com', code: '654321' }),
       headers: new Map(),
     } as unknown as Request
 
@@ -69,6 +70,7 @@ describe('Auth Verify API', () => {
   it('should reject if no verification code is pending', async () => {
     mockPrisma.bidder.findUnique.mockResolvedValue({
       id: 'bidder-1',
+      email: 'test@example.com',
       phone: '+85291234567',
       verificationCode: null, // already verified
       updatedAt: new Date(),
@@ -77,7 +79,7 @@ describe('Auth Verify API', () => {
     const { POST } = await import('@/app/api/auth/verify/route')
 
     const request = {
-      json: () => Promise.resolve({ phone: '+85291234567', code: '123456' }),
+      json: () => Promise.resolve({ email: 'test@example.com', code: '123456' }),
       headers: new Map(),
     } as unknown as Request
 
@@ -92,6 +94,7 @@ describe('Auth Verify API', () => {
 
     mockPrisma.bidder.findUnique.mockResolvedValue({
       id: 'bidder-1',
+      email: 'test@example.com',
       phone: '+85291234567',
       verificationCode: '123456',
       updatedAt: twentyMinutesAgo, // expired
@@ -102,7 +105,7 @@ describe('Auth Verify API', () => {
     const { POST } = await import('@/app/api/auth/verify/route')
 
     const request = {
-      json: () => Promise.resolve({ phone: '+85291234567', code: '123456' }),
+      json: () => Promise.resolve({ email: 'test@example.com', code: '123456' }),
       headers: new Map(),
     } as unknown as Request
 
@@ -115,6 +118,7 @@ describe('Auth Verify API', () => {
   it('should accept correct verification code', async () => {
     mockPrisma.bidder.findUnique.mockResolvedValue({
       id: 'bidder-1',
+      email: 'test@example.com',
       phone: '+85291234567',
       verificationCode: '123456',
       updatedAt: new Date(), // fresh
@@ -123,9 +127,43 @@ describe('Auth Verify API', () => {
     mockPrisma.bidder.update.mockResolvedValue({
       id: 'bidder-1',
       name: 'Test User',
+      email: 'test@example.com',
       phone: '+85291234567',
       tableNumber: 'A1',
       emailVerified: true,
+      phoneVerified: true,
+    })
+
+    const { POST } = await import('@/app/api/auth/verify/route')
+
+    const request = {
+      json: () => Promise.resolve({ email: 'test@example.com', code: '123456' }),
+      headers: new Map(),
+    } as unknown as Request
+
+    const response = await POST(request as any)
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.success).toBe(true)
+  })
+
+  it('should fall back to phone-based lookup when email not provided', async () => {
+    mockPrisma.bidder.findUnique.mockResolvedValue({
+      id: 'bidder-1',
+      email: 'test@example.com',
+      phone: '+85291234567',
+      verificationCode: '123456',
+      updatedAt: new Date(),
+    })
+
+    mockPrisma.bidder.update.mockResolvedValue({
+      id: 'bidder-1',
+      name: 'Test User',
+      email: 'test@example.com',
+      phone: '+85291234567',
+      tableNumber: null,
+      emailVerified: true,
+      phoneVerified: true,
     })
 
     const { POST } = await import('@/app/api/auth/verify/route')
