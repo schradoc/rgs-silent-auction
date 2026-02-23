@@ -47,8 +47,8 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState('')
   const [emailOptIn, setEmailOptIn] = useState(false)
   const [smsOptIn, setSmsOptIn] = useState(false)
-  const [whatsappOptIn, setWhatsappOptIn] = useState(true)
-  const [notificationPref, setNotificationPref] = useState<'EMAIL' | 'SMS' | 'WHATSAPP'>('WHATSAPP')
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false)
+  const [notificationPref, setNotificationPref] = useState<'EMAIL' | 'SMS' | 'WHATSAPP'>('SMS')
 
   const router = useRouter()
 
@@ -258,22 +258,22 @@ export default function ProfilePage() {
             </h2>
           </div>
           <div className="p-4 space-y-4">
-            {/* WhatsApp toggle — only show if user has a phone number */}
+            {/* SMS toggle — only show if user has a phone number */}
             {profile.phone && (
               <label className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm text-gray-700">WhatsApp notifications</span>
+                  <span className="text-sm text-gray-700">SMS notifications</span>
                   <p className="text-xs text-gray-400">Outbid alerts, winning notifications</p>
                 </div>
                 <button
-                  onClick={() => setWhatsappOptIn(!whatsappOptIn)}
+                  onClick={() => setSmsOptIn(!smsOptIn)}
                   className={`w-11 h-6 rounded-full transition-colors flex items-center px-0.5 ${
-                    whatsappOptIn ? 'bg-[#a08a1e]' : 'bg-gray-200'
+                    smsOptIn ? 'bg-[#a08a1e]' : 'bg-gray-200'
                   }`}
                 >
                   <div
                     className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                      whatsappOptIn ? 'translate-x-5' : 'translate-x-0'
+                      smsOptIn ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
@@ -283,7 +283,7 @@ export default function ProfilePage() {
             <label className="flex items-center justify-between">
               <div>
                 <span className="text-sm text-gray-700">Email notifications</span>
-                <p className="text-xs text-gray-400">Fallback when WhatsApp is unavailable</p>
+                <p className="text-xs text-gray-400">Fallback when SMS is unavailable</p>
               </div>
               <button
                 onClick={() => setEmailOptIn(!emailOptIn)}
@@ -305,14 +305,14 @@ export default function ProfilePage() {
               <div className="flex gap-2">
                 {profile.phone && (
                   <button
-                    onClick={() => setNotificationPref('WHATSAPP')}
+                    onClick={() => setNotificationPref('SMS')}
                     className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      notificationPref === 'WHATSAPP'
+                      notificationPref === 'SMS'
                         ? 'bg-[#a08a1e] text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
-                    WhatsApp
+                    SMS
                   </button>
                 )}
                 <button

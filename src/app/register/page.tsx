@@ -122,15 +122,15 @@ function OTPInput({ value, onChange, onComplete }: {
   )
 }
 
-type RegisterMode = 'whatsapp' | 'email'
+type RegisterMode = 'phone' | 'email'
 
 export default function RegisterPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'register' | 'verify'>('register')
-  const [mode, setMode] = useState<RegisterMode>('whatsapp')
-  const [verificationChannel, setVerificationChannel] = useState<'email' | 'whatsapp' | 'console'>('email')
+  const [mode, setMode] = useState<RegisterMode>('phone')
+  const [verificationChannel, setVerificationChannel] = useState<'email' | 'sms' | 'console'>('email')
   const [mounted, setMounted] = useState(false)
 
   const [countryCode, setCountryCode] = useState('+852')
@@ -306,12 +306,12 @@ export default function RegisterPage() {
                     />
                   </div>
 
-                  {mode === 'whatsapp' ? (
+                  {mode === 'phone' ? (
                     <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '100ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
                       <div className="w-full">
                         <label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
-                          <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                          WhatsApp Number
+                          <MessageCircle className="w-4 h-4 text-[#1e3a5f]" />
+                          Phone Number
                         </label>
                         <div className="flex gap-2">
                           <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
@@ -327,7 +327,7 @@ export default function RegisterPage() {
                             className="flex-1 px-4 py-2.5 border rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent placeholder:text-gray-400 border-gray-300 hover:border-gray-400"
                           />
                         </div>
-                        <p className="mt-1 text-sm text-gray-500">We&apos;ll send a verification code to your WhatsApp</p>
+                        <p className="mt-1 text-sm text-gray-500">We&apos;ll send a verification code via SMS</p>
                       </div>
                     </div>
                   ) : (
@@ -381,10 +381,10 @@ export default function RegisterPage() {
 
                   <button
                     type="button"
-                    onClick={() => { setMode(mode === 'whatsapp' ? 'email' : 'whatsapp'); setError('') }}
+                    onClick={() => { setMode(mode === 'phone' ? 'email' : 'phone'); setError('') }}
                     className="w-full text-sm text-[#1e3a5f] hover:underline"
                   >
-                    {mode === 'whatsapp' ? 'or register with email instead' : 'or register with WhatsApp instead'}
+                    {mode === 'phone' ? 'or register with email instead' : 'or register with phone number instead'}
                   </button>
                 </form>
               </CardContent>
@@ -405,9 +405,9 @@ export default function RegisterPage() {
                     {verificationChannel === 'email' ? (
                       <>We&apos;ve sent a 6-digit code to{' '}
                       <span className="font-medium">{formData.email}</span></>
-                    ) : verificationChannel === 'whatsapp' ? (
-                      <>We&apos;ve sent a 6-digit code to your WhatsApp at{' '}
-                      <span className="font-medium">{formData.phone}</span></>
+                    ) : verificationChannel === 'sms' ? (
+                      <>We&apos;ve sent a 6-digit code via SMS to{' '}
+                      <span className="font-medium">{countryCode} {formData.phone}</span></>
                     ) : (
                       <>Check the console for your verification code</>
                     )}

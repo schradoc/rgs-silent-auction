@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     // Name is always required; need at least phone or email
     if (!name || (!rawPhone && !email)) {
       return NextResponse.json(
-        { error: 'Name and either WhatsApp number or email are required' },
+        { error: 'Name and either phone number or email are required' },
         { status: 400 }
       )
     }

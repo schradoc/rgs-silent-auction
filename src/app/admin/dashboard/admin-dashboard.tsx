@@ -2640,7 +2640,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                     <CardContent className="p-6">
                       <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
                         <MessageSquare className="w-5 h-5" />
-                        SMS & WhatsApp Status
+                        SMS Status
                       </h3>
 
                       {/* SMS Status */}
@@ -2656,20 +2656,10 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                          <div className={`w-3 h-3 rounded-full ${whatsappStatus?.configured ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                          <div className="flex-1">
-                            <span className={whatsappStatus?.configured ? 'text-green-700 font-medium' : 'text-gray-700'}>
-                              {whatsappStatus?.configured
-                                ? `WhatsApp configured (${whatsappStatus.phone})`
-                                : 'WhatsApp not configured'}
-                            </span>
-                          </div>
-                        </div>
                       </div>
 
-                      {/* Test SMS/WhatsApp */}
-                      {(smsStatus?.configured || whatsappStatus?.configured) && (
+                      {/* Test SMS */}
+                      {smsStatus?.configured && (
                         <div className="mt-6 pt-6 border-t">
                           <h4 className="text-sm font-medium text-gray-900 mb-3">Send Test Message</h4>
                           <div className="space-y-3">
@@ -2700,36 +2690,14 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                                   )}
                                 </Button>
                               )}
-                              {whatsappStatus?.configured && (
-                                <Button
-                                  variant="outline"
-                                  onClick={() => handleSendTestSms('whatsapp')}
-                                  disabled={testingWhatsApp || !testPhone}
-                                >
-                                  {testingWhatsApp ? (
-                                    <>
-                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                      Sending...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Send className="w-4 h-4 mr-2" />
-                                      Test WhatsApp
-                                    </>
-                                  )}
-                                </Button>
-                              )}
                             </div>
-                            <p className="text-xs text-gray-500">
-                              For WhatsApp testing, the recipient must have first messaged the Twilio sandbox number.
-                            </p>
                           </div>
                         </div>
                       )}
 
-                      {!smsStatus?.configured && !whatsappStatus?.configured && (
+                      {!smsStatus?.configured && (
                         <p className="text-sm text-gray-500 mt-4">
-                          Contact your system administrator to enable SMS and WhatsApp notifications via Twilio.
+                          Contact your system administrator to enable SMS notifications via Twilio.
                         </p>
                       )}
                     </CardContent>

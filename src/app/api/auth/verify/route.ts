@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Bidder not found' }, { status: 404 })
     }
 
-    // If bidder has a phone, verify via Twilio Verify (WhatsApp OTP)
+    // If bidder has a phone, verify via Twilio Verify (SMS OTP)
     if (phone && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID) {
       try {
         const twilio = await import('twilio')

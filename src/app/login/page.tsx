@@ -115,7 +115,7 @@ function LoginPageContent() {
       const res = await fetch('/api/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: `${countryCode}${phone.replace(/^0+/, '')}`, channel: 'WHATSAPP' }),
+        body: JSON.stringify({ phone: `${countryCode}${phone.replace(/^0+/, '')}`, channel: 'SMS' }),
       })
 
       const data = await res.json()
@@ -208,10 +208,10 @@ function LoginPageContent() {
           <p className="text-white/50 text-sm">Sign in to continue bidding</p>
         </div>
 
-        {/* Phone WhatsApp OTP — Default */}
+        {/* Phone SMS OTP — Default */}
         {method === 'phone' && step === 'input' && (
           <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
-            <label className="block text-white/70 text-sm mb-2">WhatsApp Number</label>
+            <label className="block text-white/70 text-sm mb-2">Phone Number</label>
             <div className="flex gap-2 mb-4">
               <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
               <input
@@ -240,13 +240,13 @@ function LoginPageContent() {
               ) : (
                 <>
                   <MessageCircle className="w-5 h-5" />
-                  Send WhatsApp Code
+                  Send SMS Code
                 </>
               )}
             </button>
 
             <p className="text-white/40 text-xs text-center mt-4">
-              We&apos;ll send a 6-digit code to your WhatsApp
+              We&apos;ll send a 6-digit code via SMS
             </p>
           </div>
         )}
@@ -257,7 +257,7 @@ function LoginPageContent() {
             <div className="text-center mb-6">
               <h2 className="text-white text-lg font-medium mb-1">Enter Verification Code</h2>
               <p className="text-white/50 text-sm">
-                Sent to {phone} via WhatsApp
+                Sent to {phone} via SMS
               </p>
             </div>
 

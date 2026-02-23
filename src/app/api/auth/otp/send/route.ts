@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Use Twilio Verify API (handles WhatsApp templates automatically)
+    // Use Twilio Verify API for SMS OTP
     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID) {
       const twilio = await import('twilio')
       const client = twilio.default(
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         process.env.TWILIO_AUTH_TOKEN
       )
 
-      // Use SMS for OTP delivery (WhatsApp templates not yet approved)
+      // Use SMS for OTP delivery
       const verifyChannel = 'sms'
 
       await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
