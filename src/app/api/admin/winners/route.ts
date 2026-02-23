@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         include: {
           bid: true,
           bidder: {
-            select: { id: true, name: true, email: true, tableNumber: true },
+            select: { id: true, name: true, phone: true, email: true, tableNumber: true },
           },
           prize: {
             select: { id: true, title: true, slug: true, minimumBid: true },
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
           where: { status: 'WINNING' },
           include: {
             bidder: {
-              select: { id: true, name: true, email: true, tableNumber: true },
+              select: { id: true, name: true, phone: true, email: true, tableNumber: true },
             },
           },
           orderBy: { amount: 'desc' },

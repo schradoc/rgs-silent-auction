@@ -19,13 +19,14 @@ export async function GET(request: NextRequest) {
     })
 
     const csv = [
-      'Name,Email,Table Number,Email Verified,Total Bids,Registered At',
+      'Name,Phone,Email,Table Number,Verified,Total Bids,Registered At',
       ...bidders.map((bidder) =>
         [
           `"${bidder.name}"`,
-          bidder.email,
+          bidder.phone,
+          bidder.email || '',
           bidder.tableNumber,
-          bidder.emailVerified ? 'Yes' : 'No',
+          bidder.phoneVerified || bidder.emailVerified ? 'Yes' : 'No',
           bidder._count.bids,
           new Date(bidder.createdAt).toISOString(),
         ].join(',')

@@ -21,10 +21,11 @@ import { Button } from '@/components/ui'
 interface Profile {
   id: string
   name: string
-  email: string
-  phone: string | null
+  phone: string
+  email: string | null
   tableNumber: string
   emailVerified: boolean
+  phoneVerified: boolean
   emailOptIn: boolean
   smsOptIn: boolean
   whatsappOptIn: boolean
@@ -44,10 +45,10 @@ export default function ProfilePage() {
   const [name, setName] = useState('')
   const [tableNumber, setTableNumber] = useState('')
   const [phone, setPhone] = useState('')
-  const [emailOptIn, setEmailOptIn] = useState(true)
+  const [emailOptIn, setEmailOptIn] = useState(false)
   const [smsOptIn, setSmsOptIn] = useState(false)
-  const [whatsappOptIn, setWhatsappOptIn] = useState(false)
-  const [notificationPref, setNotificationPref] = useState<'EMAIL' | 'SMS' | 'WHATSAPP'>('EMAIL')
+  const [whatsappOptIn, setWhatsappOptIn] = useState(true)
+  const [notificationPref, setNotificationPref] = useState<'EMAIL' | 'SMS' | 'WHATSAPP'>('WHATSAPP')
 
   const router = useRouter()
 
@@ -207,15 +208,15 @@ export default function ProfilePage() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-500 mb-1">Email</label>
+              <label className="block text-sm text-gray-500 mb-1">Phone</label>
               <div className="flex items-center gap-2">
                 <input
-                  type="email"
-                  value={profile.email}
+                  type="tel"
+                  value={profile.phone}
                   disabled
                   className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
                 />
-                {profile.emailVerified && (
+                {profile.phoneVerified && (
                   <span className="text-green-600 text-xs flex items-center gap-1">
                     <Check className="w-3 h-3" />
                     Verified
@@ -233,13 +234,12 @@ export default function ProfilePage() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-500 mb-1">Phone (for notifications)</label>
+              <label className="block text-sm text-gray-500 mb-1">Email (optional)</label>
               <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+852 9123 4567"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8941f]"
+                type="email"
+                value={profile.email || ''}
+                disabled
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
               />
             </div>
           </div>

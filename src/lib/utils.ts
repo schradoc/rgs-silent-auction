@@ -51,3 +51,24 @@ export function slugify(text: string): string {
 export function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
+
+export function normalizeHKPhone(phone: string): string {
+  // Strip spaces, dashes, parentheses
+  const cleaned = phone.replace(/[\s\-()]/g, '')
+  // If it's 8 digits (HK local number), prepend +852
+  if (/^\d{8}$/.test(cleaned)) {
+    return `+852${cleaned}`
+  }
+  // If it starts with 852 but no +, add it
+  if (/^852\d{8}$/.test(cleaned)) {
+    return `+${cleaned}`
+  }
+  // Already has + or other international format
+  return cleaned
+}
+
+export function isValidPhone(phone: string): boolean {
+  const normalized = normalizeHKPhone(phone)
+  // Must start with + and have at least 8 digits after country code
+  return /^\+\d{10,15}$/.test(normalized)
+}

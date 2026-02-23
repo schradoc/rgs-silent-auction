@@ -28,13 +28,14 @@ export async function GET(request: NextRequest) {
         })
 
         const csv = [
-          ['Prize', 'Winner Name', 'Table', 'Email', 'Winning Bid', 'Confirmed At'].join(','),
+          ['Prize', 'Winner Name', 'Table', 'Phone', 'Email', 'Winning Bid', 'Confirmed At'].join(','),
           ...winners.map((w) =>
             [
               `"${w.prize.title.replace(/"/g, '""')}"`,
               `"${w.bidder.name.replace(/"/g, '""')}"`,
               w.bidder.tableNumber,
-              w.bidder.email,
+              w.bidder.phone,
+              w.bidder.email || '',
               w.bid.amount,
               new Date(w.acceptedAt).toISOString(),
             ].join(',')
@@ -94,13 +95,13 @@ export async function GET(request: NextRequest) {
         })
 
         const csv = [
-          ['Name', 'Email', 'Table', 'Phone', 'Total Bids', 'Wins', 'Registered At'].join(','),
+          ['Name', 'Phone', 'Email', 'Table', 'Total Bids', 'Wins', 'Registered At'].join(','),
           ...bidders.map((b) =>
             [
               `"${b.name.replace(/"/g, '""')}"`,
-              b.email,
+              b.phone,
+              b.email || '',
               b.tableNumber,
-              b.phone || '',
               b.bids.length,
               b.winners.length,
               new Date(b.createdAt).toISOString(),

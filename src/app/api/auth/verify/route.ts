@@ -1,24 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { COOKIE_NAMES } from '@/lib/constants'
-import { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
+import { normalizeHKPhone } from '@/lib/utils'
 
 const isDatabaseConfigured = !!process.env.DATABASE_URL
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, code } = body
+    const { phone: rawPhone, code } = body
 
-    // Rate limit by email to prevent brute-forcing verification codes
-    if (email) {
-      const rl = checkRateLimit(`auth-verify:${email}`, RATE_LIMITS.authVerify)
+    const phone = rawPhone ? normalizeHKPhone(rawPhone) : null
+
+    // Rate limit by phone to prevent brute-forcing verification codes
+    if (phone) {
+      const rl = checkRateLimit(`auth-verify:${phone}`, RATE_LIMITS.authVerify)
       if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds)
     }
 
-    if (!email || !code) {
+    if (!phone || !code) {
       return NextResponse.json(
-        { error: 'Email and verification code are required' },
+        { error: 'Phone number and verification code are required' },
         { status: 400 }
       )
     }
@@ -40,8 +43,8 @@ export async function POST(request: NextRequest) {
           success: true,
           bidder: {
             id: bidderId,
-            email,
-            emailVerified: true,
+            phone,
+            phoneVerified: true,
           },
           _demo: true,
         })
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
     const { prisma } = await import('@/lib/prisma')
 
     const bidder = await prisma.bidder.findUnique({
-      where: { email },
+      where: { phone },
     })
 
     if (!bidder) {
@@ -98,6 +101,7 @@ export async function POST(request: NextRequest) {
     const updatedBidder = await prisma.bidder.update({
       where: { id: bidder.id },
       data: {
+        phoneVerified: true,
         emailVerified: true,
         verificationCode: null,
       },
@@ -116,9 +120,10 @@ export async function POST(request: NextRequest) {
       bidder: {
         id: updatedBidder.id,
         name: updatedBidder.name,
+        phone: updatedBidder.phone,
         email: updatedBidder.email,
         tableNumber: updatedBidder.tableNumber,
-        emailVerified: updatedBidder.emailVerified,
+        phoneVerified: updatedBidder.phoneVerified,
       },
     })
   } catch (error) {

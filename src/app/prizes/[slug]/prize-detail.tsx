@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -48,9 +49,20 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
   const [favoriteLoading, setFavoriteLoading] = useState(false)
   const [auctionState, setAuctionState] = useState<AuctionState | null>(null)
   const [isAuctionOpen, setIsAuctionOpen] = useState(true)
+  const [deepLinkPending, setDeepLinkPending] = useState(false)
+
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     setMounted(true)
+
+    // Check for ?bid=true deep link
+    if (searchParams.get('bid') === 'true') {
+      setDeepLinkPending(true)
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
     // Check if this prize is favorited
     fetch('/api/favorites')
       .then(res => res.json())
@@ -68,9 +80,17 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
         setIsAuctionOpen(data.isOpen)
       })
       .catch(() => {})
-  }, [prize.id])
+  }, [prize.id, searchParams])
 
   const canBid = auctionState === 'LIVE' && isAuctionOpen
+
+  // Auto-open bid sheet when deep link is pending and bidding is allowed
+  useEffect(() => {
+    if (deepLinkPending && canBid) {
+      setShowBidSheet(true)
+      setDeepLinkPending(false)
+    }
+  }, [deepLinkPending, canBid])
 
   const getAuctionStateMessage = () => {
     switch (auctionState) {

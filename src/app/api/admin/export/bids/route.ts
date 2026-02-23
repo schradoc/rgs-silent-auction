@@ -14,18 +14,19 @@ export async function GET(request: NextRequest) {
     const bids = await prisma.bid.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        bidder: { select: { name: true, email: true, tableNumber: true } },
+        bidder: { select: { name: true, phone: true, email: true, tableNumber: true } },
         prize: { select: { title: true } },
       },
     })
 
     const csv = [
-      'Prize,Bidder Name,Bidder Email,Table,Amount,Status,Time',
+      'Prize,Bidder Name,Phone,Email,Table,Amount,Status,Time',
       ...bids.map((bid) =>
         [
           `"${bid.prize.title}"`,
           `"${bid.bidder.name}"`,
-          bid.bidder.email,
+          bid.bidder.phone,
+          bid.bidder.email || '',
           bid.bidder.tableNumber,
           bid.amount,
           bid.status,

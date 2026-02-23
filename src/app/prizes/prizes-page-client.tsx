@@ -275,6 +275,11 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
           )}
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="py-4 text-center text-xs text-gray-400">
+        <p>Powered by Axiomcasts Limited</p>
+      </footer>
     </main>
   )
 }

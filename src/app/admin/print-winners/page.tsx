@@ -14,7 +14,7 @@ async function getWinners() {
         where: { status: 'WINNING' },
         include: {
           bidder: {
-            select: { id: true, name: true, email: true, tableNumber: true },
+            select: { id: true, name: true, phone: true, email: true, tableNumber: true },
           },
         },
         orderBy: { amount: 'desc' },
@@ -253,7 +253,7 @@ export default async function PrintWinnersPage() {
                     <div className="table-badge">{winningBid.bidder.tableNumber}</div>
                     <div className="winner-details">
                       <h4>{winningBid.bidder.name}</h4>
-                      <p>{winningBid.bidder.email}</p>
+                      <p>{winningBid.bidder.phone}</p>
                     </div>
                   </div>
                   <span className={`status-badge ${isConfirmed ? 'status-confirmed' : 'status-pending'}`}>

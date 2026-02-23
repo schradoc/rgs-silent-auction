@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
 
     const { prisma } = await import('@/lib/prisma')
 
-    // Find bidder by email
-    const bidder = await prisma.bidder.findUnique({
+    // Find bidder by email (findFirst since email is no longer unique)
+    const bidder = await prisma.bidder.findFirst({
       where: { email: email.toLowerCase() },
     })
 

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateVerificationCode } from '@/lib/utils'
+import { generateVerificationCode, normalizeHKPhone, isValidPhone } from '@/lib/utils'
 import { cookies } from 'next/headers'
 import { COOKIE_NAMES } from '@/lib/constants'
 
 const isDatabaseConfigured = !!process.env.DATABASE_URL
 
-async function sendVerificationEmail(email: string, name: string, code: string) {
+async function sendVerificationEmail(email: string, name: string, code: string): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) {
     console.log(`[DEV] Verification code for ${email}: ${code}`)
     return false
@@ -14,37 +14,29 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
   try {
     const { Resend } = await import('resend')
     const resend = new Resend(process.env.RESEND_API_KEY)
+    const fromEmail = process.env.FROM_EMAIL || 'auction@rgsauction.com'
 
     await resend.emails.send({
-      from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
+      from: fromEmail,
       to: email,
       subject: 'Your RGS-HK Auction Verification Code',
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #1e3a5f; padding: 20px; text-align: center;">
-            <h1 style="color: #c9a227; margin: 0;">RGS-HK Auction</h1>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+          <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); padding: 24px 32px; border-radius: 12px 12px 0 0;">
+            <h1 style="margin: 0; color: #c9a227; font-size: 20px; font-weight: 700;">RGS-HK Silent Auction</h1>
+            <p style="margin: 4px 0 0; color: rgba(255,255,255,0.7); font-size: 12px;">30th Anniversary Gala Dinner</p>
           </div>
-          <div style="padding: 30px; background: #f9f9f9;">
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Hi ${name},
-            </p>
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Your verification code is:
-            </p>
-            <div style="margin: 30px 0; text-align: center;">
-              <span style="background: #1e3a5f; color: #c9a227; padding: 16px 32px; font-size: 32px; font-weight: bold; letter-spacing: 8px; border-radius: 8px; display: inline-block;">
-                ${code}
-              </span>
+          <div style="background: #fff; padding: 32px; border: 1px solid #e2e8f0; border-top: 0; border-radius: 0 0 12px 12px;">
+            <p style="margin: 0 0 16px; color: #374151; font-size: 16px;">Hi ${name},</p>
+            <p style="margin: 0 0 24px; color: #374151; font-size: 16px;">Your verification code is:</p>
+            <div style="text-align: center; margin: 0 0 24px;">
+              <span style="display: inline-block; background: #f8fafc; border: 2px solid #c9a227; border-radius: 8px; padding: 16px 32px; font-size: 32px; letter-spacing: 8px; font-weight: 700; color: #1e3a5f;">${code}</span>
             </div>
-            <p style="font-size: 14px; color: #666;">
-              Enter this code to complete your registration and start bidding.
-            </p>
-          </div>
-          <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
-            Royal Geographical Society - Hong Kong | 30th Anniversary Gala
+            <p style="margin: 0; color: #6b7280; font-size: 14px;">This code expires in 15 minutes.</p>
           </div>
         </div>
       `,
+      text: `Hi ${name}! Your RGS-HK Auction verification code is: ${code}. This code expires in 15 minutes.`,
     })
     return true
   } catch (error) {
@@ -53,14 +45,63 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
   }
 }
 
+async function sendVerificationWhatsApp(phone: string, name: string, code: string): Promise<boolean> {
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER) {
+    try {
+      const twilio = await import('twilio')
+      const client = twilio.default(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      )
+
+      await client.messages.create({
+        body: `Hi ${name}! Your RGS-HK Auction verification code is: ${code}\n\nEnter this code to complete your registration and start bidding.\n\nThis code expires in 15 minutes.`,
+        from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
+        to: `whatsapp:${phone}`,
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to send WhatsApp verification:', error)
+      return false
+    }
+  }
+
+  return false
+}
+
+async function sendVerificationCode(phone: string, email: string | undefined, name: string, code: string): Promise<'email' | 'whatsapp' | 'console'> {
+  // Try email first (primary channel for staging)
+  if (email) {
+    const sent = await sendVerificationEmail(email, name, code)
+    if (sent) return 'email'
+  }
+
+  // Fall back to WhatsApp
+  const sent = await sendVerificationWhatsApp(phone, name, code)
+  if (sent) return 'whatsapp'
+
+  // Dev fallback
+  console.log(`[DEV] Verification code for ${phone}: ${code}`)
+  return 'console'
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, email, tableNumber } = body
+    const { name, phone: rawPhone, tableNumber, email } = body
 
-    if (!name || !email || !tableNumber) {
+    if (!name || !rawPhone || !tableNumber) {
       return NextResponse.json(
-        { error: 'Name, email, and table number are required' },
+        { error: 'Name, phone number, and table number are required' },
+        { status: 400 }
+      )
+    }
+
+    const phone = normalizeHKPhone(rawPhone)
+
+    if (!isValidPhone(phone)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid phone number' },
         { status: 400 }
       )
     }
@@ -78,16 +119,17 @@ export async function POST(request: NextRequest) {
         maxAge: 60 * 60 * 24,
       })
 
-      console.log(`[DEMO] Verification code for ${email}: ${verificationCode}`)
+      console.log(`[DEMO] Verification code for ${phone}: ${verificationCode}`)
 
       return NextResponse.json({
         success: true,
         bidder: {
           id: mockBidderId,
           name,
-          email,
+          phone,
+          email: email || null,
           tableNumber,
-          emailVerified: false,
+          phoneVerified: false,
         },
         requiresVerification: true,
         _demoCode: verificationCode,
@@ -99,11 +141,11 @@ export async function POST(request: NextRequest) {
     const { prisma } = await import('@/lib/prisma')
 
     const existingBidder = await prisma.bidder.findUnique({
-      where: { email },
+      where: { phone },
     })
 
     if (existingBidder) {
-      if (existingBidder.emailVerified) {
+      if (existingBidder.phoneVerified) {
         const cookieStore = await cookies()
         cookieStore.set(COOKIE_NAMES.bidderId, existingBidder.id, {
           httpOnly: true,
@@ -122,15 +164,20 @@ export async function POST(request: NextRequest) {
       const verificationCode = generateVerificationCode()
       await prisma.bidder.update({
         where: { id: existingBidder.id },
-        data: { verificationCode, name, tableNumber },
+        data: { verificationCode, name, tableNumber, email: email || undefined },
       })
 
-      await sendVerificationEmail(email, name, verificationCode)
+      const channel = await sendVerificationCode(phone, email, name, verificationCode)
 
       return NextResponse.json({
         success: true,
         requiresVerification: true,
-        message: 'Verification code sent to your email',
+        verificationChannel: channel,
+        message: channel === 'email'
+          ? 'Verification code sent to your email'
+          : channel === 'whatsapp'
+            ? 'Verification code sent to your WhatsApp'
+            : 'Verification code generated (check console)',
       })
     }
 
@@ -138,10 +185,11 @@ export async function POST(request: NextRequest) {
     const bidder = await prisma.bidder.create({
       data: {
         name,
-        email,
+        phone,
+        email: email || null,
         tableNumber,
         verificationCode,
-        emailVerified: false,
+        phoneVerified: false,
       },
     })
 
@@ -153,19 +201,25 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24,
     })
 
-    await sendVerificationEmail(email, name, verificationCode)
+    const channel = await sendVerificationCode(phone, email, name, verificationCode)
 
     return NextResponse.json({
       success: true,
       bidder: {
         id: bidder.id,
         name: bidder.name,
+        phone: bidder.phone,
         email: bidder.email,
         tableNumber: bidder.tableNumber,
-        emailVerified: bidder.emailVerified,
+        phoneVerified: bidder.phoneVerified,
       },
       requiresVerification: true,
-      message: 'Verification code sent to your email',
+      verificationChannel: channel,
+      message: channel === 'email'
+        ? 'Verification code sent to your email'
+        : channel === 'whatsapp'
+          ? 'Verification code sent to your WhatsApp'
+          : 'Verification code generated (check console)',
     })
   } catch (error) {
     console.error('Registration error:', error)

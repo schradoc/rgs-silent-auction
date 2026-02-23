@@ -20,9 +20,11 @@ export async function GET(request: NextRequest) {
           bidder: {
             id: bidderId,
             name: 'Demo User',
+            phone: '+85291234567',
             email: 'demo@example.com',
             tableNumber: '1',
             emailVerified: true,
+            phoneVerified: true,
           },
           _demo: true,
         })
@@ -38,9 +40,11 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         name: true,
+        phone: true,
         email: true,
         tableNumber: true,
         emailVerified: true,
+        phoneVerified: true,
       },
     })
 

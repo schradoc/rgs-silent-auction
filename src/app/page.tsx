@@ -287,9 +287,12 @@ export default function HomePage() {
         </div>
 
         {/* Footer */}
-        <footer className="p-6 flex items-center justify-between text-white/20 text-xs">
-          <span>Royal Geographical Society Hong Kong</span>
-          <span>Est. 1994</span>
+        <footer className="p-6 text-center text-white/20 text-xs space-y-1">
+          <div className="flex items-center justify-between">
+            <span>Royal Geographical Society Hong Kong</span>
+            <span>Est. 1994</span>
+          </div>
+          <p className="text-white/15">Powered by Axiomcasts Limited</p>
         </footer>
       </div>
     </main>

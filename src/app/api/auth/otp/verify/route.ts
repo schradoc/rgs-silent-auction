@@ -27,12 +27,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 401 })
     }
 
-    // Clear the OTP
+    // Clear the OTP and mark phone as verified
     await prisma.bidder.update({
       where: { id: bidder.id },
       data: {
         otpCode: null,
         otpExpires: null,
+        phoneVerified: true,
       },
     })
 
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
       bidder: {
         id: bidder.id,
         name: bidder.name,
+        phone: bidder.phone,
         email: bidder.email,
         tableNumber: bidder.tableNumber,
       },

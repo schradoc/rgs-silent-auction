@@ -11,12 +11,14 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'register' | 'verify'>('register')
-  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [verificationChannel, setVerificationChannel] = useState<'email' | 'whatsapp' | 'console'>('email')
 
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
+    phone: '',
     tableNumber: '',
+    email: '',
   })
 
   const [verificationCode, setVerificationCode] = useState('')
@@ -30,7 +32,12 @@ export default function RegisterPage() {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          tableNumber: formData.tableNumber,
+          email: formData.email || undefined,
+        }),
       })
 
       const data = await response.json()
@@ -39,7 +46,8 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Registration failed')
       }
 
-      setEmail(formData.email)
+      setPhone(formData.phone)
+      setVerificationChannel(data.verificationChannel || 'email')
       setStep('verify')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -57,7 +65,7 @@ export default function RegisterPage() {
       const response = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: verificationCode }),
+        body: JSON.stringify({ phone, code: verificationCode }),
       })
 
       const data = await response.json()
@@ -117,6 +125,17 @@ export default function RegisterPage() {
                   />
 
                   <Input
+                    label="Phone Number"
+                    type="tel"
+                    placeholder="+852 9XXX XXXX"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                    required
+                  />
+
+                  <Input
                     label="Email"
                     type="email"
                     placeholder="john@example.com"
@@ -124,7 +143,7 @@ export default function RegisterPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
-                    required
+                    hint="Recommended — for verification and bid notifications"
                   />
 
                   <Input
@@ -157,11 +176,18 @@ export default function RegisterPage() {
               <>
                 <div className="text-center mb-6">
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                    Verify Your Email
+                    Enter Verification Code
                   </h1>
                   <p className="text-gray-600 text-sm">
-                    We&apos;ve sent a 6-digit code to{' '}
-                    <span className="font-medium">{email}</span>
+                    {verificationChannel === 'email' ? (
+                      <>We&apos;ve sent a 6-digit code to your email at{' '}
+                      <span className="font-medium">{formData.email}</span></>
+                    ) : verificationChannel === 'whatsapp' ? (
+                      <>We&apos;ve sent a 6-digit code to your WhatsApp at{' '}
+                      <span className="font-medium">{phone}</span></>
+                    ) : (
+                      <>Check the console for your verification code</>
+                    )}
                   </p>
                 </div>
 
@@ -205,7 +231,7 @@ export default function RegisterPage() {
                     onClick={() => setStep('register')}
                     className="w-full text-sm text-[#1e3a5f] hover:underline"
                   >
-                    Use a different email
+                    Go back and edit details
                   </button>
                 </form>
               </>

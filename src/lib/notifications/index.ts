@@ -9,9 +9,10 @@ const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_T
   ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
   : null
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@rgs-auction.hk'
+const FROM_EMAIL = process.env.FROM_EMAIL || 'auction@rgsauction.com'
 const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER
 const TWILIO_WHATSAPP = process.env.TWILIO_WHATSAPP_NUMBER
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
 
 export type NotificationType = 'OUTBID' | 'WINNING' | 'AUCTION_CLOSING' | 'WON'
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'WHATSAPP'
@@ -21,6 +22,7 @@ interface NotificationPayload {
   type: NotificationType
   prizeId?: string
   prizeTitle?: string
+  prizeSlug?: string
   amount?: number
   currentHighestBid?: number
   minutesRemaining?: number
@@ -38,89 +40,126 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
       return false
     }
 
-    // Determine channel based on preference
-    const channel = bidder.notificationPref
-
-    // Check opt-in
-    if (channel === 'EMAIL' && !bidder.emailOptIn) return false
-    if (channel === 'SMS' && !bidder.smsOptIn) return false
-    if (channel === 'WHATSAPP' && !bidder.whatsappOptIn) return false
-
     // Build message
     const message = buildMessage(payload, bidder.name)
 
-    // Send via appropriate channel
-    let success = false
-    let error: string | undefined
+    // Build fallback chain: preferred channel first, then EMAIL, WHATSAPP, SMS
+    const allChannels: NotificationChannel[] = [bidder.notificationPref, 'EMAIL', 'WHATSAPP', 'SMS']
+    const channels = allChannels.filter((ch, i) => allChannels.indexOf(ch) === i) // deduplicate
 
-    switch (channel) {
-      case 'EMAIL':
-        if (resend && bidder.email) {
-          const result = await sendNotificationEmail(bidder.email, message.subject, message.body)
-          success = result.success
-          error = result.error
-        }
-        break
-      case 'SMS':
-        if (twilioClient && bidder.phone && TWILIO_PHONE) {
-          const result = await sendSMS(bidder.phone, message.body)
-          success = result.success
-          error = result.error
-        }
-        break
-      case 'WHATSAPP':
-        if (twilioClient && bidder.phone && TWILIO_WHATSAPP) {
-          const result = await sendWhatsApp(bidder.phone, message.body)
-          success = result.success
-          error = result.error
-        }
-        break
+    for (const channel of channels) {
+      // Check opt-in for the channel
+      if (channel === 'EMAIL' && !bidder.emailOptIn && channel !== bidder.notificationPref) continue
+      if (channel === 'SMS' && !bidder.smsOptIn && channel !== bidder.notificationPref) continue
+      if (channel === 'WHATSAPP' && !bidder.whatsappOptIn && channel !== bidder.notificationPref) continue
+
+      let result: { success: boolean; error?: string } = { success: false }
+
+      switch (channel) {
+        case 'EMAIL':
+          if (resend && bidder.email) {
+            result = await sendNotificationEmail(bidder.email, message.subject, message.htmlBody || message.body)
+          }
+          break
+        case 'SMS':
+          if (twilioClient && bidder.phone && TWILIO_PHONE) {
+            result = await sendSMS(bidder.phone, message.body)
+          }
+          break
+        case 'WHATSAPP':
+          if (twilioClient && bidder.phone && TWILIO_WHATSAPP) {
+            result = await sendWhatsApp(bidder.phone, message.body)
+          }
+          break
+      }
+
+      // Log notification attempt
+      await prisma.notification.create({
+        data: {
+          type: payload.type,
+          channel,
+          bidderId: payload.bidderId,
+          prizeId: payload.prizeId,
+          message: message.body,
+          delivered: result.success,
+          error: result.error,
+        },
+      })
+
+      if (result.success) return true
     }
 
-    // Log notification
-    await prisma.notification.create({
-      data: {
-        type: payload.type,
-        channel,
-        bidderId: payload.bidderId,
-        prizeId: payload.prizeId,
-        message: message.body,
-        delivered: success,
-        error,
-      },
-    })
-
-    return success
+    console.warn(`All notification channels failed for bidder ${payload.bidderId}`)
+    return false
   } catch (err) {
     console.error('Notification error:', err)
     return false
   }
 }
 
-function buildMessage(payload: NotificationPayload, bidderName: string): { subject: string; body: string } {
-  const { type, prizeTitle, amount, currentHighestBid, minutesRemaining } = payload
+function buildMessage(payload: NotificationPayload, bidderName: string): { subject: string; body: string; htmlBody?: string } {
+  const { type, prizeTitle, prizeSlug, amount, currentHighestBid, minutesRemaining } = payload
+  const prizeUrl = prizeSlug ? `${APP_URL}/prizes/${prizeSlug}` : `${APP_URL}/prizes`
+  const bidUrl = prizeSlug ? `${APP_URL}/prizes/${prizeSlug}?bid=true` : `${APP_URL}/prizes`
 
   switch (type) {
-    case 'OUTBID':
+    case 'OUTBID': {
+      const subject = `You've been outbid on ${prizeTitle}!`
+      const body = `Hi ${bidderName}, someone has outbid you on "${prizeTitle}".\n\nNew highest bid: ${formatCurrency(currentHighestBid || 0)}\n\nPlace a higher bid now: ${bidUrl}`
+      const htmlContent = `
+        <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">Hi ${bidderName},</p>
+        <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">Someone has outbid you on <strong>"${prizeTitle}"</strong>!</p>
+        <div style="background: #fef3c7; border-left: 4px solid #c9a227; padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 0 0 24px;">
+          <p style="margin: 0; color: #92400e; font-size: 14px;">New highest bid</p>
+          <p style="margin: 4px 0 0; color: #1e3a5f; font-size: 28px; font-weight: 700;">${formatCurrency(currentHighestBid || 0)}</p>
+        </div>
+        <p style="margin: 0 0 8px; color: #6b7280; font-size: 14px;">Don't let this one get away — place a higher bid now!</p>
+      `
       return {
-        subject: `You've been outbid on ${prizeTitle}!`,
-        body: `Hi ${bidderName}, someone has outbid you on "${prizeTitle}". The current highest bid is ${formatCurrency(currentHighestBid || 0)}. Visit rgs-auction.vercel.app to raise your bid!`,
+        subject,
+        body,
+        htmlBody: wrapEmailContent(htmlContent, bidUrl, 'Place a Higher Bid'),
       }
+    }
     case 'WINNING':
       return {
         subject: `You're winning ${prizeTitle}!`,
-        body: `Great news ${bidderName}! You're currently winning "${prizeTitle}" with a bid of ${formatCurrency(amount || 0)}. Keep an eye on your bid!`,
+        body: `Great news ${bidderName}! You're currently winning "${prizeTitle}" with a bid of ${formatCurrency(amount || 0)}.\n\nKeep an eye on your bid: ${prizeUrl}`,
+        htmlBody: wrapEmailContent(`
+          <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">Great news ${bidderName}!</p>
+          <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">You're currently winning <strong>"${prizeTitle}"</strong> with a bid of <strong>${formatCurrency(amount || 0)}</strong>.</p>
+          <p style="margin: 0; color: #6b7280; font-size: 14px;">Keep an eye on your bid — someone might outbid you!</p>
+        `, prizeUrl, 'View Your Bid'),
       }
     case 'AUCTION_CLOSING':
       return {
         subject: `Auction closing in ${minutesRemaining} minutes!`,
-        body: `${bidderName}, the RGS-HK auction is closing in ${minutesRemaining} minutes! Make sure you've placed your final bids at rgs-auction.vercel.app`,
+        body: `${bidderName}, the RGS-HK auction is closing in ${minutesRemaining} minutes!\n\nMake sure you've placed your final bids: ${APP_URL}/prizes`,
+        htmlBody: wrapEmailContent(`
+          <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">${bidderName},</p>
+          <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">The RGS-HK auction is closing in <strong>${minutesRemaining} minutes</strong>!</p>
+          <p style="margin: 0; color: #6b7280; font-size: 14px;">Make sure you've placed your final bids.</p>
+        `, `${APP_URL}/prizes`, 'View All Prizes'),
       }
-    case 'WON':
+    case 'WON': {
+      const subject = `Congratulations! You won ${prizeTitle}!`
+      const body = `Congratulations ${bidderName}! You've won "${prizeTitle}" with a winning bid of ${formatCurrency(amount || 0)}.\n\nA member of our team will be in touch shortly. Thank you for supporting RGS-HK!\n\nView your wins: ${APP_URL}/my-bids`
+      const htmlContent = `
+        <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">Congratulations ${bidderName}!</p>
+        <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 0 0 24px;">
+          <p style="margin: 0; color: #065f46; font-size: 14px;">You won</p>
+          <p style="margin: 4px 0 0; color: #1e3a5f; font-size: 20px; font-weight: 700;">${prizeTitle}</p>
+          <p style="margin: 4px 0 0; color: #065f46; font-size: 16px;">Winning bid: <strong>${formatCurrency(amount || 0)}</strong></p>
+        </div>
+        <p style="margin: 0 0 8px; color: #374151; font-size: 16px; line-height: 1.6;">A member of our team will be in touch shortly regarding collection.</p>
+        <p style="margin: 0; color: #6b7280; font-size: 14px;">Thank you for supporting the Royal Geographical Society Hong Kong!</p>
+      `
       return {
-        subject: `Congratulations! You won ${prizeTitle}!`,
-        body: `Congratulations ${bidderName}! You've won "${prizeTitle}" with a winning bid of ${formatCurrency(amount || 0)}. Thank you for supporting RGS-HK!`,
+        subject,
+        body,
+        htmlBody: wrapEmailContent(htmlContent, `${APP_URL}/my-bids`, 'View Your Wins'),
       }
+    }
     default:
       return { subject: 'RGS-HK Auction Update', body: 'You have a new update from the RGS-HK auction.' }
   }
@@ -128,7 +167,6 @@ function buildMessage(payload: NotificationPayload, bidderName: string): { subje
 
 // Reusable email wrapper for consistent styling
 function wrapEmailContent(content: string, buttonUrl?: string, buttonText?: string): string {
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
   const finalButtonUrl = buttonUrl || `${APP_URL}/prizes`
   const finalButtonText = buttonText || 'View Auction'
 
@@ -272,66 +310,15 @@ export async function notifyOutbidBidders(prizeId: string, newBidAmount: number,
 
     if (!bidderToNotify) return
 
-    const bidder = await prisma.bidder.findUnique({
-      where: { id: bidderToNotify },
+    // Use sendNotification which routes by bidder preference (WhatsApp by default)
+    await sendNotification({
+      bidderId: bidderToNotify,
+      type: 'OUTBID',
+      prizeId,
+      prizeTitle: prize.title,
+      prizeSlug: prize.slug,
+      currentHighestBid: newBidAmount,
     })
-
-    if (!bidder) return
-
-    // Send via email (primary channel for outbid alerts)
-    if (bidder.emailOptIn && bidder.email && resend) {
-      const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
-      const prizeUrl = `${APP_URL}/prizes/${prize.slug}`
-
-      const content = `
-        <div style="text-align: center; margin-bottom: 24px;">
-          <span style="font-size: 48px;">⚡</span>
-        </div>
-
-        <h2 style="margin: 0 0 16px; color: #1e3a5f; font-size: 22px; font-weight: 600; text-align: center;">
-          You've Been Outbid!
-        </h2>
-
-        <p style="margin: 0 0 8px; color: #374151; font-size: 16px; line-height: 1.6; text-align: center;">
-          Hi ${bidder.name},
-        </p>
-        <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.6; text-align: center;">
-          Someone just placed a higher bid on <strong style="color: #1e3a5f;">"${prize.title}"</strong>
-        </p>
-
-        <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center;">
-          <p style="margin: 0 0 8px; color: #92400e; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
-            New Highest Bid
-          </p>
-          <p style="margin: 0; color: #1e3a5f; font-size: 36px; font-weight: 700; letter-spacing: -1px;">
-            ${formatCurrency(newBidAmount)}
-          </p>
-        </div>
-
-        <p style="margin: 24px 0 0; color: #6b7280; font-size: 14px; text-align: center;">
-          Act fast — don't let this prize slip away!
-        </p>
-      `
-
-      await resend.emails.send({
-        from: FROM_EMAIL,
-        to: bidder.email,
-        subject: `⚡ You've been outbid on ${prize.title}!`,
-        html: wrapEmailContent(content, prizeUrl, 'Place a Higher Bid'),
-      })
-
-      // Log the notification
-      await prisma.notification.create({
-        data: {
-          type: 'OUTBID',
-          channel: 'EMAIL',
-          bidderId: bidderToNotify,
-          prizeId,
-          message: `Outbid on ${prize.title} - new high bid ${formatCurrency(newBidAmount)}`,
-          delivered: true,
-        },
-      })
-    }
   } catch (err) {
     console.error('Error notifying outbid bidder:', err)
   }
@@ -381,74 +368,16 @@ export async function sendWinnerNotification(winnerId: string): Promise<boolean>
     if (!winner) return false
 
     const { bidder, prize, bid } = winner
-    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
 
-    // Send email notification
-    if (resend && bidder.email) {
-      const content = `
-        <div style="text-align: center; margin-bottom: 24px;">
-          <span style="font-size: 56px;">🎉</span>
-        </div>
-
-        <h2 style="margin: 0 0 16px; color: #1e3a5f; font-size: 26px; font-weight: 700; text-align: center;">
-          Congratulations, ${bidder.name}!
-        </h2>
-
-        <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.6; text-align: center;">
-          You've won the auction!
-        </p>
-
-        <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); border-radius: 12px; padding: 28px; margin: 24px 0; text-align: center;">
-          <p style="margin: 0 0 8px; color: rgba(255,255,255,0.7); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">
-            Your Prize
-          </p>
-          <h3 style="margin: 0 0 16px; color: #ffffff; font-size: 20px; font-weight: 600;">
-            ${prize.title}
-          </h3>
-          <div style="background: rgba(201, 162, 39, 0.2); border-radius: 8px; padding: 16px; display: inline-block;">
-            <p style="margin: 0 0 4px; color: #c9a227; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
-              Winning Bid
-            </p>
-            <p style="margin: 0; color: #c9a227; font-size: 32px; font-weight: 700; letter-spacing: -1px;">
-              ${formatCurrency(bid.amount)}
-            </p>
-          </div>
-        </div>
-
-        <div style="background-color: #f0fdf4; border-radius: 8px; padding: 20px; margin: 24px 0;">
-          <p style="margin: 0 0 8px; color: #166534; font-size: 14px; font-weight: 600;">
-            What happens next?
-          </p>
-          <p style="margin: 0; color: #15803d; font-size: 14px; line-height: 1.6;">
-            A member of our team will be in touch shortly to arrange collection and payment.
-            Thank you for supporting the Royal Geographical Society Hong Kong!
-          </p>
-        </div>
-      `
-
-      await resend.emails.send({
-        from: FROM_EMAIL,
-        to: bidder.email,
-        subject: `🎉 Congratulations! You won "${prize.title}"!`,
-        html: wrapEmailContent(content, undefined, 'View My Wins'),
-      })
-
-      // Log the notification
-      await prisma.notification.create({
-        data: {
-          type: 'WON',
-          channel: 'EMAIL',
-          bidderId: bidder.id,
-          prizeId: prize.id,
-          message: `Won ${prize.title} with bid of ${formatCurrency(bid.amount)}`,
-          delivered: true,
-        },
-      })
-
-      return true
-    }
-
-    return false
+    // Use sendNotification which routes by bidder preference (WhatsApp by default)
+    return await sendNotification({
+      bidderId: bidder.id,
+      type: 'WON',
+      prizeId: prize.id,
+      prizeTitle: prize.title,
+      prizeSlug: prize.slug,
+      amount: bid.amount,
+    })
   } catch (err) {
     console.error('Error sending winner notification:', err)
     return false

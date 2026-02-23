@@ -8,7 +8,7 @@ function generateOTP(): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { phone, channel = 'SMS' } = await request.json()
+    const { phone, channel = 'WHATSAPP' } = await request.json()
 
     if (!phone) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 })

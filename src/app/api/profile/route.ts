@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         phone: true,
         tableNumber: true,
         emailVerified: true,
+        phoneVerified: true,
         emailOptIn: true,
         smsOptIn: true,
         whatsappOptIn: true,

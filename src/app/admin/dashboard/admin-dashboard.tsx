@@ -79,9 +79,11 @@ interface Prize {
 interface Bidder {
   id: string
   name: string
-  email: string
+  phone: string
+  email: string | null
   tableNumber: string
   emailVerified: boolean
+  phoneVerified: boolean
   createdAt: Date | string
   _count: { bids: number }
 }
@@ -149,7 +151,7 @@ interface PotentialWinner {
   winningBid: {
     id: string
     amount: number
-    bidder: { id: string; name: string; email: string; tableNumber: string }
+    bidder: { id: string; name: string; phone: string; email: string | null; tableNumber: string }
   } | null
   isConfirmed: boolean
   confirmedWinners: Array<{
@@ -1526,11 +1528,11 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-gray-900">{bidder.name}</p>
-                        {bidder.emailVerified && (
+                        {(bidder.phoneVerified || bidder.emailVerified) && (
                           <Badge variant="navy" size="sm">Verified</Badge>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500">{bidder.email}</p>
+                      <p className="text-sm text-gray-500">{bidder.phone}</p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
@@ -1551,7 +1553,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                   <div className="p-6 border-b flex items-start justify-between">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{selectedBidder.name}</h3>
-                      <p className="text-sm text-gray-500">{selectedBidder.email}</p>
+                      <p className="text-sm text-gray-500">{selectedBidder.phone}{selectedBidder.email ? ` • ${selectedBidder.email}` : ''}</p>
                     </div>
                     <button
                       onClick={() => setSelectedBidder(null)}
@@ -1571,7 +1573,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       <div className="p-3 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-500">Verification</p>
                         <p className="font-semibold flex items-center gap-1">
-                          {selectedBidder.emailVerified ? (
+                          {(selectedBidder.phoneVerified || selectedBidder.emailVerified) ? (
                             <>
                               <Check className="w-4 h-4 text-green-500" />
                               Verified
@@ -1754,7 +1756,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                                   </td>
                                   <td className="px-4 py-3">
                                     <p className="font-medium text-gray-900">{bid.bidder.name}</p>
-                                    <p className="text-xs text-gray-500">{bid.bidder.email}</p>
+                                    <p className="text-xs text-gray-500">Table {bid.bidder.tableNumber}</p>
                                   </td>
                                   <td className="px-4 py-3 text-gray-600">Table {bid.bidder.tableNumber}</td>
                                   <td className="px-4 py-3 text-right">
@@ -1913,7 +1915,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                                     {pw.winningBid.bidder.name}
                                   </p>
                                   <p className="text-sm text-gray-500">
-                                    Table {pw.winningBid.bidder.tableNumber} • {pw.winningBid.bidder.email}
+                                    Table {pw.winningBid.bidder.tableNumber} • {pw.winningBid.bidder.phone}
                                   </p>
                                 </div>
                                 <p className="text-xl font-bold text-[#c9a227]">

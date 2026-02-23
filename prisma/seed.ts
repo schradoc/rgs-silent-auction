@@ -536,9 +536,9 @@ async function main() {
 
   // Create some demo bidders
   const demoBidders = [
-    { name: 'John Smith', email: 'john@example.com', tableNumber: '5', emailVerified: true },
-    { name: 'Sarah Chen', email: 'sarah@example.com', tableNumber: '12', emailVerified: true },
-    { name: 'Michael Wong', email: 'michael@example.com', tableNumber: '3', emailVerified: true },
+    { name: 'John Smith', phone: '+85291234567', email: 'john@example.com', tableNumber: '5', emailVerified: true, phoneVerified: true },
+    { name: 'Sarah Chen', phone: '+85292345678', email: 'sarah@example.com', tableNumber: '12', emailVerified: true, phoneVerified: true },
+    { name: 'Michael Wong', phone: '+85293456789', email: 'michael@example.com', tableNumber: '3', emailVerified: true, phoneVerified: true },
   ]
 
   for (const bidder of demoBidders) {

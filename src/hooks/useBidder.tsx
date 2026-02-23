@@ -6,9 +6,11 @@ import { COOKIE_NAMES } from '@/lib/constants'
 interface Bidder {
   id: string
   name: string
-  email: string
+  phone: string
+  email: string | null
   tableNumber: string
   emailVerified: boolean
+  phoneVerified: boolean
 }
 
 interface BidderContextType {

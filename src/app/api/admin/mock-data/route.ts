@@ -47,14 +47,17 @@ export async function POST(request: NextRequest) {
       const firstName = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)]
       const lastName = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]
       const name = `${firstName} ${lastName}`
+      const phone = `+8529${String(1000000 + i).slice(-7)}`
       const email = `mock.${firstName.toLowerCase()}.${lastName.toLowerCase()}.${i}@example.com`
       const tableNumber = tableNumbers[Math.floor(Math.random() * tableNumbers.length)]
 
       mockBidders.push({
         name,
+        phone,
         email,
         tableNumber,
         emailVerified: true,
+        phoneVerified: true,
         isMockData: true,
       })
     }
