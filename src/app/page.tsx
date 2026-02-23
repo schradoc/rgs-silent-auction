@@ -60,11 +60,19 @@ function useCountdown(targetDate: string | null): TimeRemaining | null {
 export default function HomePage() {
   const [mounted, setMounted] = useState(false)
   const [status, setStatus] = useState<AuctionStatus | null>(null)
+  const [user, setUser] = useState<{ name: string } | null>(null)
   const countdown = useCountdown(status?.auctionStartTime || null)
 
   useEffect(() => {
     setMounted(true)
     fetchStatus()
+    // Check if user is signed in
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.bidder) setUser({ name: data.bidder.name })
+      })
+      .catch(() => {})
   }, [])
 
   const fetchStatus = async () => {
@@ -264,22 +272,43 @@ export default function HomePage() {
                       <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
                     </Button>
                   </Link>
-                  <Link href="/register">
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="w-full sm:w-auto min-w-[220px] text-base py-4 border-white/20 text-white hover:bg-white/10 hover:border-white/40 transition-all"
-                    >
-                      Register Now
-                    </Button>
-                  </Link>
+                  {user ? (
+                    <Link href="/my-bids">
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full sm:w-auto min-w-[220px] text-base py-4 border-white/20 text-white hover:bg-white/10 hover:border-white/40 transition-all"
+                      >
+                        My Bids
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link href="/register">
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full sm:w-auto min-w-[220px] text-base py-4 border-white/20 text-white hover:bg-white/10 hover:border-white/40 transition-all"
+                      >
+                        Register Now
+                      </Button>
+                    </Link>
+                  )}
                 </>
               )}
             </div>
 
+            {/* Welcome back message */}
+            {user && (
+              <p
+                className={`mt-6 text-white/50 text-sm transition-all duration-700 delay-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}
+              >
+                Welcome back, {user.name}
+              </p>
+            )}
+
             {/* Trust signals */}
             <p
-              className={`mt-10 text-white/30 text-sm transition-all duration-700 delay-600 ${mounted ? 'opacity-100' : 'opacity-0'}`}
+              className={`mt-${user ? '4' : '10'} text-white/30 text-sm transition-all duration-700 delay-600 ${mounted ? 'opacity-100' : 'opacity-0'}`}
             >
               All proceeds support the RGS-HK Schools Outreach Programme
             </p>

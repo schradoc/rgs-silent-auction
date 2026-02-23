@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { User, Search, Filter, Flame, Clock, ArrowUpRight, X, Lock, Eye, Rocket } from 'lucide-react'
+import { User, Search, Filter, Flame, Clock, ArrowUpRight, X, Lock, Eye, Rocket, Heart, Settings } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { AuctionCountdown } from '@/components/auction-countdown'
@@ -170,6 +170,22 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
                 </span>
                 <span className="text-white/70 text-xs">Live</span>
               </div>
+
+              <Link
+                href="/favorites"
+                className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                title="Favorites"
+              >
+                <Heart className="w-5 h-5 text-white/70 hover:text-white" />
+              </Link>
+
+              <Link
+                href="/profile"
+                className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                title="Profile"
+              >
+                <Settings className="w-5 h-5 text-white/70 hover:text-white" />
+              </Link>
 
               <Link
                 href="/my-bids"

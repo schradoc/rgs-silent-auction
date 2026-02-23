@@ -68,12 +68,15 @@ export async function POST(request: NextRequest) {
 
     const result = await prisma.$transaction(async (tx) => {
       // Lock the prize row with SELECT FOR UPDATE to serialize concurrent bids
+      // Include category and multiWinnerEligible for pledge logic
       const prizeRows = await tx.$queryRaw<Array<{
         id: string
         isActive: boolean
         currentHighestBid: number
         minimumBid: number
-      }>>`SELECT id, "isActive", "currentHighestBid", "minimumBid" FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
+        category: string
+        multiWinnerEligible: boolean
+      }>>`SELECT id, "isActive", "currentHighestBid", "minimumBid", "category", "multiWinnerEligible" FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
 
       const prize = prizeRows[0]
       if (!prize) {
@@ -93,10 +96,19 @@ export async function POST(request: NextRequest) {
         return { error: 'The auction is currently closed', status: 400 }
       }
 
-      // Validate minimum bid with locked fresh data
-      const minimumBid = getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
-      if (amount < minimumBid) {
-        return { error: `Minimum bid is HK$${minimumBid.toLocaleString()}`, status: 400, code: 'BID_TOO_LOW', minimumBid }
+      const isPledgeOrMultiWinner = prize.category === 'PLEDGES' || prize.multiWinnerEligible
+
+      if (isPledgeOrMultiWinner) {
+        // Pledge / multi-winner: validate only against minimumBid, no outbid logic
+        if (amount < prize.minimumBid) {
+          return { error: `Minimum pledge is HK$${prize.minimumBid.toLocaleString()}`, status: 400, code: 'BID_TOO_LOW', minimumBid: prize.minimumBid }
+        }
+      } else {
+        // Competitive: validate minimum bid with locked fresh data
+        const minimumBid = getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
+        if (amount < minimumBid) {
+          return { error: `Minimum bid is HK$${minimumBid.toLocaleString()}`, status: 400, code: 'BID_TOO_LOW', minimumBid }
+        }
       }
 
       // Verify bidder exists
@@ -108,24 +120,23 @@ export async function POST(request: NextRequest) {
         return { error: 'Bidder not found. Please register again.', status: 404 }
       }
 
+      let previousWinningBidderId: string | undefined
       const hadPreviousBid = prize.currentHighestBid > 0
 
-      // Find previous winner INSIDE transaction
-      let previousWinningBidderId: string | undefined
-      if (hadPreviousBid) {
-        const previousWinningBid = await tx.bid.findFirst({
-          where: { prizeId, status: 'WINNING' },
-          select: { bidderId: true },
-        })
-        previousWinningBidderId = previousWinningBid?.bidderId
-      }
+      if (!isPledgeOrMultiWinner) {
+        // Competitive: find previous winner and mark as outbid
+        if (hadPreviousBid) {
+          const previousWinningBid = await tx.bid.findFirst({
+            where: { prizeId, status: 'WINNING' },
+            select: { bidderId: true },
+          })
+          previousWinningBidderId = previousWinningBid?.bidderId
 
-      // Mark previous winning bids as outbid
-      if (hadPreviousBid) {
-        await tx.bid.updateMany({
-          where: { prizeId, status: 'WINNING' },
-          data: { status: 'OUTBID' },
-        })
+          await tx.bid.updateMany({
+            where: { prizeId, status: 'WINNING' },
+            data: { status: 'OUTBID' },
+          })
+        }
       }
 
       // Create the new winning bid
@@ -138,13 +149,15 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Update prize highest bid
-      await tx.prize.update({
-        where: { id: prizeId },
-        data: { currentHighestBid: amount },
-      })
+      // Update prize highest bid if this bid is higher (for display)
+      if (amount > prize.currentHighestBid) {
+        await tx.prize.update({
+          where: { id: prizeId },
+          data: { currentHighestBid: amount },
+        })
+      }
 
-      return { success: true, bid, previousWinningBidderId, hadPreviousBid }
+      return { success: true, bid, previousWinningBidderId, hadPreviousBid, isPledgeOrMultiWinner }
     })
 
     // Handle transaction errors returned as objects
@@ -155,8 +168,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send outbid notification to previous winner (async, don't await)
-    if (result.hadPreviousBid && result.previousWinningBidderId && result.previousWinningBidderId !== bidderId) {
+    // Send outbid notification to previous winner (async, don't await) — skip for pledges
+    if (!result.isPledgeOrMultiWinner && result.hadPreviousBid && result.previousWinningBidderId && result.previousWinningBidderId !== bidderId) {
       import('@/lib/notifications').then(({ notifyOutbidBidders }) => {
         notifyOutbidBidders(prizeId, amount, result.previousWinningBidderId).catch(console.error)
       })

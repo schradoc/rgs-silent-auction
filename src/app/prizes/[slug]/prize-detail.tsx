@@ -20,7 +20,7 @@ import {
   Eye,
   Ban,
 } from 'lucide-react'
-import { Button, Card, CardContent, Badge } from '@/components/ui'
+import { Button, Card, CardContent, Badge, toast } from '@/components/ui'
 import { formatCurrency, formatDate, getMinimumNextBid, getMinimumBidIncrement } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { BidSheet } from './bid-sheet'
@@ -41,10 +41,10 @@ type AuctionState = 'DRAFT' | 'TESTING' | 'PRELAUNCH' | 'LIVE' | 'CLOSED'
 
 export function PrizeDetail({ prize }: PrizeDetailProps) {
   const [showBidSheet, setShowBidSheet] = useState(false)
+  const [quickBidAmount, setQuickBidAmount] = useState<number | null>(null)
   const [showTerms, setShowTerms] = useState(false)
   const [imgSrc, setImgSrc] = useState(prize.imageUrl || FALLBACK_IMAGE)
   const [mounted, setMounted] = useState(false)
-  const [viewerCount] = useState(() => Math.floor(Math.random() * 8) + 3)
   const [isFavorite, setIsFavorite] = useState(false)
   const [favoriteLoading, setFavoriteLoading] = useState(false)
   const [auctionState, setAuctionState] = useState<AuctionState | null>(null)
@@ -52,6 +52,8 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
   const [deepLinkPending, setDeepLinkPending] = useState(false)
 
   const searchParams = useSearchParams()
+
+  const isPledge = prize.category === 'PLEDGES'
 
   useEffect(() => {
     setMounted(true)
@@ -107,39 +109,90 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
   }
 
   const toggleFavorite = async () => {
+    // Optimistic update
+    const previousState = isFavorite
+    setIsFavorite(!isFavorite)
     setFavoriteLoading(true)
+
     try {
-      if (isFavorite) {
-        await fetch(`/api/favorites?prizeId=${prize.id}`, { method: 'DELETE' })
-        setIsFavorite(false)
+      if (previousState) {
+        const res = await fetch(`/api/favorites?prizeId=${prize.id}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('Failed to remove favorite')
       } else {
         const res = await fetch('/api/favorites', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prizeId: prize.id }),
         })
-        if (res.ok) {
-          setIsFavorite(true)
-        }
+        if (!res.ok) throw new Error('Failed to add favorite')
       }
     } catch (err) {
-      console.error('Favorite toggle error:', err)
+      // Revert on error
+      setIsFavorite(previousState)
+      toast.error('Failed to update favorite')
     } finally {
       setFavoriteLoading(false)
     }
   }
 
-  const hasActiveBid = prize.currentHighestBid > 0
+  const handleShare = async () => {
+    const shareData = {
+      title: prize.title,
+      text: `Check out "${prize.title}" at the RGS Silent Auction!`,
+      url: window.location.href,
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+      } else {
+        await navigator.clipboard.writeText(window.location.href)
+        toast.success('Link copied!')
+      }
+    } catch (err) {
+      // User cancelled share or fallback
+      if ((err as Error).name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(window.location.href)
+          toast.success('Link copied!')
+        } catch {
+          toast.error('Failed to share')
+        }
+      }
+    }
+  }
+
+  const handleQuickBid = (amount: number) => {
+    setQuickBidAmount(amount)
+    setShowBidSheet(true)
+  }
+
+  const handleOpenBidSheet = () => {
+    setQuickBidAmount(null)
+    setShowBidSheet(true)
+  }
+
+  const hasActiveBid = prize.bids.length > 0
   const minimumNextBid = getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
   const bidIncrement = getMinimumBidIncrement(prize.currentHighestBid || prize.minimumBid)
   const isHot = prize.bids.length >= 3 || prize.currentHighestBid > prize.minimumBid * 1.5
 
   // Quick bid amounts
-  const quickBidAmounts = [
-    minimumNextBid,
-    minimumNextBid + bidIncrement,
-    minimumNextBid + bidIncrement * 2,
-  ]
+  const quickBidAmounts = isPledge
+    ? [prize.minimumBid, prize.minimumBid * 2, prize.minimumBid * 5]
+    : [minimumNextBid, minimumNextBid + bidIncrement, minimumNextBid + bidIncrement * 2]
+
+  // Urgency message
+  const getUrgencyMessage = () => {
+    if (isPledge) {
+      if (prize.bids.length === 0) return 'Be the first to pledge!'
+      if (prize.bids.length === 1) return '1 supporter has pledged'
+      return `${prize.bids.length} supporters have pledged`
+    }
+    if (prize.bids.length === 0) return 'Be the first to bid!'
+    if (prize.bids.length === 1) return '1 bid placed'
+    return `${prize.bids.length} bids placed — competition is heating up!`
+  }
 
   return (
     <main className="min-h-screen bg-[#fafaf8]">
@@ -155,15 +208,6 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
           </Link>
 
           <div className="flex items-center gap-3">
-            {/* Live viewers */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 text-xs">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
-              </span>
-              <span className="text-white/70">{viewerCount} viewing</span>
-            </div>
-
             <button
               onClick={toggleFavorite}
               disabled={favoriteLoading}
@@ -173,7 +217,10 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
             >
               <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
-            <button className="p-2 rounded-full hover:bg-white/10 transition-colors">
+            <button
+              onClick={handleShare}
+              className="p-2 rounded-full hover:bg-white/10 transition-colors"
+            >
               <Share2 className="w-5 h-5" />
             </button>
           </div>
@@ -234,23 +281,23 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
                   <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-4">{prize.title}</h1>
 
                   {/* Urgency indicator */}
-                  {hasActiveBid && (
-                    <div className={`flex items-center gap-2 text-sm text-orange-600 mb-4 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: '400ms' }}>
-                      <AlertCircle className="w-4 h-4 animate-pulse" />
-                      <span>{prize.bids.length} bid{prize.bids.length !== 1 ? 's' : ''} placed - competition is heating up!</span>
-                    </div>
-                  )}
+                  <div className={`flex items-center gap-2 text-sm ${prize.bids.length > 0 ? 'text-orange-600' : 'text-gray-500'} mb-4 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: '400ms' }}>
+                    {prize.bids.length > 0 && <AlertCircle className="w-4 h-4 animate-pulse" />}
+                    <span>{getUrgencyMessage()}</span>
+                  </div>
                 </div>
 
                 {/* Current Bid Display */}
                 <div className="sm:text-right">
                   <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">
-                    {hasActiveBid ? 'Current Highest Bid' : 'Starting Bid'}
+                    {isPledge
+                      ? 'Pledge Amount'
+                      : hasActiveBid ? 'Current Highest Bid' : 'Starting Bid'}
                   </p>
                   <p className={`text-4xl sm:text-5xl font-light tracking-tight ${hasActiveBid ? 'text-[#b8941f]' : 'text-gray-900'}`}>
                     {formatCurrency(hasActiveBid ? prize.currentHighestBid : prize.minimumBid)}
                   </p>
-                  {hasActiveBid && (
+                  {hasActiveBid && !isPledge && (
                     <p className="text-sm text-gray-500 mt-1">
                       {prize.bids[0]?.bidder.tableNumber ? `Table ${prize.bids[0].bidder.tableNumber} is leading` : 'Current leader'}
                     </p>
@@ -284,12 +331,14 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
 
                 {canBid ? (
                   <>
-                    <p className="text-sm text-gray-500 mb-3">Quick bid options:</p>
+                    <p className="text-sm text-gray-500 mb-3">
+                      {isPledge ? 'Suggested pledge amounts:' : 'Quick bid options:'}
+                    </p>
                     <div className="grid grid-cols-3 gap-3 mb-4">
                       {quickBidAmounts.map((amount, i) => (
                         <button
                           key={amount}
-                          onClick={() => setShowBidSheet(true)}
+                          onClick={() => handleQuickBid(amount)}
                           className={`py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
                             i === 0
                               ? 'bg-[#b8941f] text-white hover:bg-[#a3821b] shadow-lg shadow-[#b8941f]/20 hover:scale-[1.02] active:scale-[0.98]'
@@ -305,14 +354,16 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
                       variant="gold"
                       size="lg"
                       className="w-full py-4 text-lg font-medium shadow-lg shadow-[#b8941f]/25"
-                      onClick={() => setShowBidSheet(true)}
+                      onClick={handleOpenBidSheet}
                     >
-                      Place Custom Bid
+                      {isPledge ? 'Make a Pledge' : 'Place Bid'}
                     </Button>
 
-                    <p className="text-center text-xs text-gray-400 mt-3">
-                      Next minimum: {formatCurrency(minimumNextBid)} • Increment: +{formatCurrency(bidIncrement)}
-                    </p>
+                    {!isPledge && (
+                      <p className="text-center text-xs text-gray-400 mt-3">
+                        Next minimum: {formatCurrency(minimumNextBid)} • Increment: +{formatCurrency(bidIncrement)}
+                      </p>
+                    )}
                   </>
                 ) : (
                   <Button
@@ -361,29 +412,33 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
               className={`mt-6 bg-white rounded-2xl p-6 sm:p-8 shadow-sm transition-all duration-500 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Bid Activity</h2>
-                <span className="text-sm text-gray-500">{prize.bids.length} bid{prize.bids.length !== 1 ? 's' : ''}</span>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {isPledge ? 'Pledge Activity' : 'Bid Activity'}
+                </h2>
+                <span className="text-sm text-gray-500">
+                  {prize.bids.length} {isPledge ? 'pledge' : 'bid'}{prize.bids.length !== 1 ? 's' : ''}
+                </span>
               </div>
               <div className="space-y-3">
                 {prize.bids.slice(0, 5).map((bid, index) => (
                   <div
                     key={bid.id}
                     className={`flex items-center justify-between py-3 px-4 rounded-xl ${
-                      index === 0
+                      index === 0 && !isPledge
                         ? 'bg-gradient-to-r from-[#b8941f]/10 to-[#b8941f]/5 border border-[#b8941f]/20'
                         : 'bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                        index === 0 ? 'bg-[#b8941f] text-white' : 'bg-gray-200 text-gray-600'
+                        index === 0 && !isPledge ? 'bg-[#b8941f] text-white' : 'bg-gray-200 text-gray-600'
                       }`}>
                         {bid.bidder.tableNumber || '#'}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          {bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : 'Bidder'}
-                          {index === 0 && (
+                          {bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : isPledge ? 'Supporter' : 'Bidder'}
+                          {index === 0 && !isPledge && (
                             <span className="ml-2 text-xs text-[#b8941f] font-semibold">LEADING</span>
                           )}
                         </p>
@@ -392,7 +447,7 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
                         </p>
                       </div>
                     </div>
-                    <p className={`font-semibold ${index === 0 ? 'text-[#b8941f]' : 'text-gray-700'}`}>
+                    <p className={`font-semibold ${index === 0 && !isPledge ? 'text-[#b8941f]' : 'text-gray-700'}`}>
                       {formatCurrency(bid.amount)}
                     </p>
                   </div>
@@ -434,7 +489,9 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 sm:hidden z-40">
         <div className="flex items-center gap-4">
           <div className="flex-1">
-            <p className="text-xs text-gray-500">{hasActiveBid ? 'Current Bid' : 'Starting at'}</p>
+            <p className="text-xs text-gray-500">
+              {isPledge ? 'Pledge from' : hasActiveBid ? 'Current Bid' : 'Starting at'}
+            </p>
             <p className={`text-xl font-semibold ${hasActiveBid ? 'text-[#b8941f]' : 'text-gray-900'}`}>
               {formatCurrency(hasActiveBid ? prize.currentHighestBid : prize.minimumBid)}
             </p>
@@ -444,9 +501,9 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
               variant="gold"
               size="lg"
               className="px-8 shadow-lg shadow-[#b8941f]/25"
-              onClick={() => setShowBidSheet(true)}
+              onClick={handleOpenBidSheet}
             >
-              Place Bid
+              {isPledge ? 'Pledge' : 'Place Bid'}
             </Button>
           ) : (
             <Button
@@ -466,9 +523,14 @@ export function PrizeDetail({ prize }: PrizeDetailProps) {
       {showBidSheet && (
         <BidSheet
           prize={prize}
-          minimumBid={minimumNextBid}
+          minimumBid={isPledge ? prize.minimumBid : minimumNextBid}
           bidIncrement={bidIncrement}
-          onClose={() => setShowBidSheet(false)}
+          onClose={() => {
+            setShowBidSheet(false)
+            setQuickBidAmount(null)
+          }}
+          initialAmount={quickBidAmount ?? undefined}
+          isPledge={isPledge}
         />
       )}
     </main>

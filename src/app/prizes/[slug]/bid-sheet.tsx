@@ -12,29 +12,29 @@ interface BidSheetProps {
   minimumBid: number
   bidIncrement: number
   onClose: () => void
+  initialAmount?: number
+  isPledge?: boolean
 }
 
-export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetProps) {
+export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmount, isPledge }: BidSheetProps) {
   const router = useRouter()
-  const [amount, setAmount] = useState(minimumBid.toString())
+  const [amount, setAmount] = useState((initialAmount ?? minimumBid).toString())
   const [customAmount, setCustomAmount] = useState('')
   const [useCustom, setUseCustom] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  const quickAmounts = [
-    minimumBid,
-    minimumBid + bidIncrement,
-    minimumBid + bidIncrement * 2,
-  ]
+  const quickAmounts = isPledge
+    ? [minimumBid, minimumBid * 2, minimumBid * 5]
+    : [minimumBid, minimumBid + bidIncrement, minimumBid + bidIncrement * 2]
 
   const selectedAmount = useCustom ? parseInt(customAmount) || 0 : parseInt(amount)
   const isValidBid = selectedAmount >= minimumBid
 
   const handleSubmit = async () => {
     if (!isValidBid) {
-      setError(`Minimum bid is ${formatCurrency(minimumBid)}`)
+      setError(`Minimum ${isPledge ? 'pledge' : 'bid'} is ${formatCurrency(minimumBid)}`)
       return
     }
 
@@ -42,17 +42,19 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
     setError('')
 
     try {
-      // Pre-submit validation: re-fetch current prize state to catch outbids
-      const checkRes = await fetch(`/api/prizes?id=${prize.id}`)
-      if (checkRes.ok) {
-        const checkData = await checkRes.json()
-        const currentPrize = checkData.prizes?.[0] || checkData.prize
-        if (currentPrize) {
-          const freshMinimum = getMinimumNextBid(currentPrize.currentHighestBid, currentPrize.minimumBid)
-          if (selectedAmount < freshMinimum) {
-            setError(`Someone outbid you while you were deciding! New minimum is ${formatCurrency(freshMinimum)}.`)
-            setIsLoading(false)
-            return
+      // Pre-submit validation: re-fetch current prize state to catch outbids (skip for pledges)
+      if (!isPledge) {
+        const checkRes = await fetch(`/api/prizes?id=${prize.id}`)
+        if (checkRes.ok) {
+          const checkData = await checkRes.json()
+          const currentPrize = checkData.prizes?.[0] || checkData.prize
+          if (currentPrize) {
+            const freshMinimum = getMinimumNextBid(currentPrize.currentHighestBid, currentPrize.minimumBid)
+            if (selectedAmount < freshMinimum) {
+              setError(`Someone outbid you while you were deciding! New minimum is ${formatCurrency(freshMinimum)}.`)
+              setIsLoading(false)
+              return
+            }
           }
         }
       }
@@ -73,7 +75,7 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
         if (data.code === 'BID_TOO_LOW' && data.minimumBid) {
           setError(`Someone outbid you! New minimum is ${formatCurrency(data.minimumBid)}.`)
         } else {
-          throw new Error(data.error || 'Failed to place bid')
+          throw new Error(data.error || `Failed to place ${isPledge ? 'pledge' : 'bid'}`)
         }
         return
       }
@@ -100,12 +102,14 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
             <div className="w-20 h-20 bg-gradient-to-br from-[#c9a227] to-[#b8941f] rounded-full flex items-center justify-center mx-auto mb-4 animate-scale-in shadow-lg shadow-[#c9a227]/30">
               <Check className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2 animate-fade-in-up" style={{ animationDelay: '150ms' }}>Bid Placed!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+              {isPledge ? 'Pledge Confirmed!' : 'Bid Placed!'}
+            </h2>
             <p className="text-gray-600 animate-fade-in-up" style={{ animationDelay: '250ms' }}>
-              Your bid of <span className="font-semibold text-[#c9a227]">{formatCurrency(selectedAmount)}</span> has been submitted.
+              Your {isPledge ? 'pledge' : 'bid'} of <span className="font-semibold text-[#c9a227]">{formatCurrency(selectedAmount)}</span> has been submitted.
             </p>
             <p className="text-sm text-gray-400 mt-2 animate-fade-in" style={{ animationDelay: '400ms' }}>
-              We&apos;ll notify you if you&apos;re outbid
+              {isPledge ? 'Thank you for your generous support!' : "We'll notify you if you're outbid"}
             </p>
           </div>
         </div>
@@ -118,7 +122,9 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
       <div className="bg-white w-full max-w-lg rounded-t-2xl animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">Place Your Bid</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            {isPledge ? 'Make Your Pledge' : 'Place Your Bid'}
+          </h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full"
@@ -199,7 +205,7 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
           <Card className="bg-gray-50 mb-4">
             <div className="p-4">
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Your bid</span>
+                <span className="text-gray-600">Your {isPledge ? 'pledge' : 'bid'}</span>
                 <span className="text-2xl font-bold text-[#1e3a5f]">
                   {formatCurrency(selectedAmount)}
                 </span>
@@ -216,11 +222,13 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose }: BidSheetP
             isLoading={isLoading}
             disabled={!isValidBid}
           >
-            Confirm Bid
+            {isPledge ? 'Confirm Pledge' : 'Confirm Bid'}
           </Button>
 
           <p className="text-xs text-gray-500 text-center mt-3">
-            By placing a bid, you agree to pay this amount if you win.
+            {isPledge
+              ? 'By pledging, you agree to donate this amount.'
+              : 'By placing a bid, you agree to pay this amount if you win.'}
           </p>
         </div>
       </div>

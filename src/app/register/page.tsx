@@ -309,6 +309,11 @@ export default function RegisterPage() {
                     >
                       Continue
                     </Button>
+                    {isLoading && (
+                      <p className="text-sm text-gray-500 text-center mt-3 animate-pulse">
+                        Sending verification code...
+                      </p>
+                    )}
                   </div>
                 </form>
               </CardContent>
@@ -344,6 +349,10 @@ export default function RegisterPage() {
                     onChange={setVerificationCode}
                     onComplete={(code) => handleVerify(code)}
                   />
+
+                  <p className="text-xs text-gray-400 text-center">
+                    Codes typically arrive within 30 seconds. Check spam if needed.
+                  </p>
 
                   {error && (
                     <p className="text-red-600 text-sm text-center">{error}</p>
