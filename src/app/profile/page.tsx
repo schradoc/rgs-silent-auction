@@ -96,9 +96,9 @@ export default function ProfilePage() {
           tableNumber,
           phone: phone || null,
           emailOptIn,
-          smsOptIn,
-          whatsappOptIn,
-          notificationPref,
+          smsOptIn: false,
+          whatsappOptIn: false,
+          notificationPref: 'EMAIL',
         }),
       })
 
@@ -124,15 +124,15 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#fafaf8] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#b8941f]/30 border-t-[#b8941f] rounded-full animate-spin" />
+      <main className="min-h-screen bg-[#f8f8f6] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#a08a1e]/30 border-t-[#a08a1e] rounded-full animate-spin" />
       </main>
     )
   }
 
   if (!profile) {
     return (
-      <main className="min-h-screen bg-[#fafaf8] flex items-center justify-center">
+      <main className="min-h-screen bg-[#f8f8f6] flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500 mb-4">Please sign in to view your profile</p>
           <Link href="/login">
@@ -144,7 +144,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#fafaf8]">
+    <main className="min-h-screen bg-[#f8f8f6]">
       {/* Header */}
       <header className="bg-[#0f1d2d] text-white sticky top-0 z-50">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
@@ -204,7 +204,7 @@ export default function ProfilePage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8941f]"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a08a1e]"
               />
             </div>
             <div>
@@ -216,7 +216,7 @@ export default function ProfilePage() {
                   disabled
                   className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
                 />
-                {profile.phoneVerified && (
+                {profile.phoneVerified && profile.phone && (
                   <span className="text-green-600 text-xs flex items-center gap-1">
                     <Check className="w-3 h-3" />
                     Verified
@@ -230,7 +230,7 @@ export default function ProfilePage() {
                 type="text"
                 value={tableNumber}
                 onChange={(e) => setTableNumber(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8941f]"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a08a1e]"
               />
             </div>
             <div>
@@ -258,32 +258,13 @@ export default function ProfilePage() {
             </h2>
           </div>
           <div className="p-4 space-y-4">
-            <div>
-              <label className="block text-sm text-gray-500 mb-2">Notify me via</label>
-              <div className="flex gap-2">
-                {(['EMAIL', 'SMS', 'WHATSAPP'] as const).map((pref) => (
-                  <button
-                    key={pref}
-                    onClick={() => setNotificationPref(pref)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                      notificationPref === pref
-                        ? 'bg-[#b8941f] text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {pref === 'EMAIL' ? 'Email' : pref === 'SMS' ? 'SMS' : 'WhatsApp'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-2">
+            <div className="space-y-3">
               <label className="flex items-center justify-between">
                 <span className="text-sm text-gray-700">Email notifications</span>
                 <button
                   onClick={() => setEmailOptIn(!emailOptIn)}
                   className={`w-11 h-6 rounded-full transition-colors flex items-center px-0.5 ${
-                    emailOptIn ? 'bg-[#b8941f]' : 'bg-gray-200'
+                    emailOptIn ? 'bg-[#a08a1e]' : 'bg-gray-200'
                   }`}
                 >
                   <div
@@ -293,37 +274,11 @@ export default function ProfilePage() {
                   />
                 </button>
               </label>
-              <label className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">SMS notifications</span>
-                <button
-                  onClick={() => setSmsOptIn(!smsOptIn)}
-                  className={`w-11 h-6 rounded-full transition-colors flex items-center px-0.5 ${
-                    smsOptIn ? 'bg-[#b8941f]' : 'bg-gray-200'
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                      smsOptIn ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </label>
-              <label className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">WhatsApp notifications</span>
-                <button
-                  onClick={() => setWhatsappOptIn(!whatsappOptIn)}
-                  className={`w-11 h-6 rounded-full transition-colors flex items-center px-0.5 ${
-                    whatsappOptIn ? 'bg-[#b8941f]' : 'bg-gray-200'
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                      whatsappOptIn ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </label>
             </div>
+
+            <p className="text-xs text-[#6b6b6b] pt-1">
+              More notification channels coming soon
+            </p>
           </div>
         </section>
 

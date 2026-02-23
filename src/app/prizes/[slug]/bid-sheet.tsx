@@ -14,9 +14,10 @@ interface BidSheetProps {
   onClose: () => void
   initialAmount?: number
   isPledge?: boolean
+  pledgeTierName?: string
 }
 
-export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmount, isPledge }: BidSheetProps) {
+export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmount, isPledge, pledgeTierName }: BidSheetProps) {
   const router = useRouter()
   const [amount, setAmount] = useState((initialAmount ?? minimumBid).toString())
   const [customAmount, setCustomAmount] = useState('')
@@ -26,10 +27,10 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmou
   const [success, setSuccess] = useState(false)
 
   const quickAmounts = isPledge
-    ? [minimumBid, minimumBid * 2, minimumBid * 5]
+    ? [minimumBid]
     : [minimumBid, minimumBid + bidIncrement, minimumBid + bidIncrement * 2]
 
-  const selectedAmount = useCustom ? parseInt(customAmount) || 0 : parseInt(amount)
+  const selectedAmount = isPledge ? minimumBid : (useCustom ? parseInt(customAmount) || 0 : parseInt(amount))
   const isValidBid = selectedAmount >= minimumBid
 
   const handleSubmit = async () => {
@@ -96,19 +97,19 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmou
 
   if (success) {
     return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+      <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center">
         <div className="bg-white w-full max-w-lg rounded-t-2xl p-6 animate-slide-up">
           <div className="text-center py-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-[#c9a227] to-[#b8941f] rounded-full flex items-center justify-center mx-auto mb-4 animate-scale-in shadow-lg shadow-[#c9a227]/30">
+            <div className="w-20 h-20 bg-gradient-to-br from-[#a08a1e] to-[#8a7618] rounded-full flex items-center justify-center mx-auto mb-4 animate-scale-in">
               <Check className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+            <h2 className="text-2xl font-medium text-[#1a1a1a] mb-2 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
               {isPledge ? 'Pledge Confirmed!' : 'Bid Placed!'}
             </h2>
-            <p className="text-gray-600 animate-fade-in-up" style={{ animationDelay: '250ms' }}>
-              Your {isPledge ? 'pledge' : 'bid'} of <span className="font-semibold text-[#c9a227]">{formatCurrency(selectedAmount)}</span> has been submitted.
+            <p className="text-[#6b6b6b] animate-fade-in-up" style={{ animationDelay: '250ms' }}>
+              Your {isPledge ? 'pledge' : 'bid'} of <span className="font-medium text-[#a08a1e]">{formatCurrency(selectedAmount)}</span> has been submitted.
             </p>
-            <p className="text-sm text-gray-400 mt-2 animate-fade-in" style={{ animationDelay: '400ms' }}>
+            <p className="text-sm text-[#6b6b6b]/70 mt-2 animate-fade-in" style={{ animationDelay: '400ms' }}>
               {isPledge ? 'Thank you for your generous support!' : "We'll notify you if you're outbid"}
             </p>
           </div>
@@ -117,25 +118,84 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmou
     )
   }
 
+  // Simplified pledge confirmation
+  if (isPledge) {
+    return (
+      <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center">
+        <div className="bg-white w-full max-w-lg rounded-t-2xl animate-slide-up">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <h2 className="text-lg font-medium text-[#1a1a1a]">
+              Confirm Your Pledge
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-50 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5 text-[#6b6b6b]" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-5">
+            <div className="bg-[#f8f8f6] rounded-xl p-6 mb-5 text-center">
+              {pledgeTierName && (
+                <p className="text-sm text-[#6b6b6b] mb-1">{pledgeTierName}</p>
+              )}
+              <p className="text-3xl font-light text-[#1a1a1a] tracking-tight">
+                {formatCurrency(minimumBid)}
+              </p>
+              <p className="text-sm text-[#6b6b6b] mt-2 line-clamp-1">{prize.title}</p>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2 text-red-600 mb-4">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <Button
+              variant="gold"
+              size="lg"
+              className="w-full py-4 text-base font-medium"
+              onClick={handleSubmit}
+              isLoading={isLoading}
+            >
+              Confirm Pledge
+            </Button>
+
+            <p className="text-xs text-[#6b6b6b] text-center mt-3">
+              By pledging, you agree to donate this amount.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Standard bid sheet
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center">
       <div className="bg-white w-full max-w-lg rounded-t-2xl animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {isPledge ? 'Make Your Pledge' : 'Place Your Bid'}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h2 className="text-lg font-medium text-[#1a1a1a]">
+            Place Your Bid
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full"
+            className="p-2 hover:bg-gray-50 rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-[#6b6b6b]" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4">
-          <p className="text-gray-600 mb-4 line-clamp-1">{prize.title}</p>
+        <div className="p-5">
+          <p className="text-[#6b6b6b] mb-4 line-clamp-1">{prize.title}</p>
 
           {/* Quick Amount Buttons */}
           <div className="grid grid-cols-3 gap-2 mb-4">
@@ -146,10 +206,10 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmou
                   setAmount(amt.toString())
                   setUseCustom(false)
                 }}
-                className={`py-3 px-4 rounded-lg border-2 font-medium transition-all duration-200 ${
+                className={`py-3 px-4 rounded-xl border font-medium transition-all duration-200 ${
                   !useCustom && parseInt(amount) === amt
-                    ? 'border-[#c9a227] bg-[#c9a227]/10 text-[#1e3a5f] shadow-sm shadow-[#c9a227]/20'
-                    : 'border-gray-200 hover:border-gray-300 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]'
+                    ? 'border-[#a08a1e] bg-[#a08a1e]/5 text-[#1a1a1a]'
+                    : 'border-gray-100 hover:border-gray-200 hover:scale-[1.01] active:scale-[0.99]'
                 }`}
               >
                 {formatCurrency(amt)}
@@ -161,10 +221,10 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmou
           <div className="mb-4">
             <button
               onClick={() => setUseCustom(!useCustom)}
-              className={`w-full py-3 px-4 rounded-lg border-2 font-medium transition-colors text-left ${
+              className={`w-full py-3 px-4 rounded-xl border font-medium transition-colors text-left ${
                 useCustom
-                  ? 'border-[#c9a227] bg-[#c9a227]/10'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-[#a08a1e] bg-[#a08a1e]/5'
+                  : 'border-gray-100 hover:border-gray-200'
               }`}
             >
               Enter custom amount
@@ -173,7 +233,7 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmou
             {useCustom && (
               <div className="mt-3">
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6b6b6b]">
                     HK$
                   </span>
                   <input
@@ -181,12 +241,12 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmou
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
                     placeholder={minimumBid.toString()}
-                    className="w-full pl-14 pr-4 py-3 border-2 border-gray-200 rounded-lg text-xl font-medium focus:border-[#c9a227] focus:outline-none focus:shadow-sm focus:shadow-[#c9a227]/20 transition-all duration-200"
+                    className="w-full pl-14 pr-4 py-3 border border-gray-100 rounded-xl text-xl font-medium focus:border-[#a08a1e] focus:outline-none transition-all duration-200"
                     min={minimumBid}
                     step={500}
                   />
                 </div>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-[#6b6b6b] mt-1">
                   Minimum: {formatCurrency(minimumBid)}
                 </p>
               </div>
@@ -202,33 +262,29 @@ export function BidSheet({ prize, minimumBid, bidIncrement, onClose, initialAmou
           )}
 
           {/* Summary */}
-          <Card className="bg-gray-50 mb-4">
-            <div className="p-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Your {isPledge ? 'pledge' : 'bid'}</span>
-                <span className="text-2xl font-bold text-[#1e3a5f]">
-                  {formatCurrency(selectedAmount)}
-                </span>
-              </div>
+          <div className="bg-[#f8f8f6] rounded-xl p-4 mb-4">
+            <div className="flex justify-between items-center">
+              <span className="text-[#6b6b6b]">Your bid</span>
+              <span className="text-2xl font-light text-[#1a1a1a]">
+                {formatCurrency(selectedAmount)}
+              </span>
             </div>
-          </Card>
+          </div>
 
           {/* Submit Button */}
           <Button
             variant="gold"
             size="lg"
-            className="w-full"
+            className="w-full py-4 text-base font-medium"
             onClick={handleSubmit}
             isLoading={isLoading}
             disabled={!isValidBid}
           >
-            {isPledge ? 'Confirm Pledge' : 'Confirm Bid'}
+            Confirm Bid
           </Button>
 
-          <p className="text-xs text-gray-500 text-center mt-3">
-            {isPledge
-              ? 'By pledging, you agree to donate this amount.'
-              : 'By placing a bid, you agree to pay this amount if you win.'}
+          <p className="text-xs text-[#6b6b6b] text-center mt-3">
+            By placing a bid, you agree to pay this amount if you win.
           </p>
         </div>
       </div>

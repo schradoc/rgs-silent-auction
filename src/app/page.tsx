@@ -94,7 +94,7 @@ export default function HomePage() {
     <main className="min-h-screen bg-[#0f1d2d] relative overflow-hidden">
       {/* Animated background */}
       <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-[#b8941f]/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-[#a08a1e]/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#1a3a5c]/50 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '12s' }} />
       </div>
 
@@ -108,7 +108,7 @@ export default function HomePage() {
         {/* Header */}
         <header className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#b8941f] to-[#8a6f17] flex items-center justify-center shadow-lg shadow-[#b8941f]/20">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#a08a1e] to-[#7a6a16] flex items-center justify-center shadow-lg shadow-[#a08a1e]/10">
               <span className="text-white text-xs font-bold tracking-wide">RGS</span>
             </div>
           </div>
@@ -117,7 +117,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
             {isPreEvent ? (
               <>
-                <Clock className="w-3.5 h-3.5 text-[#b8941f]" />
+                <Clock className="w-3.5 h-3.5 text-[#a08a1e]" />
                 <span className="text-white/70 text-xs font-medium">Coming Soon</span>
               </>
             ) : (
@@ -137,10 +137,10 @@ export default function HomePage() {
           <div className="max-w-2xl w-full text-center">
             {/* Anniversary badge */}
             <div
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#b8941f]/20 to-[#b8941f]/10 border border-[#b8941f]/30 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#a08a1e]/20 to-[#a08a1e]/10 border border-[#a08a1e]/30 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             >
-              <Sparkles className="w-4 h-4 text-[#b8941f]" />
-              <span className="text-[#b8941f] text-sm font-medium">30th Anniversary Gala</span>
+              <Sparkles className="w-4 h-4 text-[#a08a1e]" />
+              <span className="text-[#a08a1e] text-sm font-medium">30th Anniversary Gala</span>
             </div>
 
             {/* Main headline */}
@@ -176,23 +176,23 @@ export default function HomePage() {
               <div
                 className={`grid grid-cols-3 gap-4 mb-10 transition-all duration-700 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               >
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:border-[#b8941f]/30 hover:shadow-lg hover:shadow-[#b8941f]/10 cursor-default">
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:border-[#a08a1e]/30 hover:shadow-lg hover:shadow-[#a08a1e]/10 cursor-default">
                   <div className="flex items-center justify-center gap-2 mb-1">
-                    <Users className="w-4 h-4 text-[#b8941f]" />
+                    <Users className="w-4 h-4 text-[#a08a1e]" />
                   </div>
                   <p className="text-2xl md:text-3xl font-light text-white">{stats.totalBidders || '—'}</p>
                   <p className="text-xs text-white/40 uppercase tracking-wider">Bidders</p>
                 </div>
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:border-[#b8941f]/30 hover:shadow-lg hover:shadow-[#b8941f]/10 cursor-default">
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:border-[#a08a1e]/30 hover:shadow-lg hover:shadow-[#a08a1e]/10 cursor-default">
                   <div className="flex items-center justify-center gap-2 mb-1">
-                    <TrendingUp className="w-4 h-4 text-[#b8941f]" />
+                    <TrendingUp className="w-4 h-4 text-[#a08a1e]" />
                   </div>
                   <p className="text-2xl md:text-3xl font-light text-white">{stats.totalBids || '—'}</p>
                   <p className="text-xs text-white/40 uppercase tracking-wider">Bids Placed</p>
                 </div>
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:border-[#b8941f]/30 hover:shadow-lg hover:shadow-[#b8941f]/10 cursor-default">
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:border-[#a08a1e]/30 hover:shadow-lg hover:shadow-[#a08a1e]/10 cursor-default">
                   <div className="flex items-center justify-center gap-2 mb-1">
-                    <Sparkles className="w-4 h-4 text-[#b8941f]" />
+                    <Sparkles className="w-4 h-4 text-[#a08a1e]" />
                   </div>
                   <p className="text-2xl md:text-3xl font-light text-white">
                     {stats.totalRaised > 0 ? `HK$${Math.floor(stats.totalRaised / 1000)}k` : '—'}
@@ -223,12 +223,12 @@ export default function HomePage() {
               className={`flex flex-col sm:flex-row items-center justify-center gap-6 mb-10 text-white/60 transition-all duration-700 delay-400 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             >
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#b8941f]" />
+                <Calendar className="w-4 h-4 text-[#a08a1e]" />
                 <span className="text-sm">28 February 2026</span>
               </div>
               <div className="hidden sm:block w-1 h-1 rounded-full bg-white/30" />
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#b8941f]" />
+                <MapPin className="w-4 h-4 text-[#a08a1e]" />
                 <span className="text-sm">Hong Kong Club</span>
               </div>
             </div>
@@ -243,7 +243,7 @@ export default function HomePage() {
                     <Button
                       variant="gold"
                       size="lg"
-                      className="w-full sm:w-auto min-w-[220px] text-base py-4 shadow-lg shadow-[#b8941f]/25 hover:shadow-xl hover:shadow-[#b8941f]/30 transition-all group"
+                      className="w-full sm:w-auto min-w-[220px] text-base py-4 transition-all group"
                     >
                       <Heart className="w-5 h-5 mr-2" />
                       <span>Preview Prizes</span>
@@ -266,7 +266,7 @@ export default function HomePage() {
                     <Button
                       variant="gold"
                       size="lg"
-                      className="w-full sm:w-auto min-w-[220px] text-base py-4 shadow-lg shadow-[#b8941f]/25 hover:shadow-xl hover:shadow-[#b8941f]/30 transition-all group animate-pulse-gold"
+                      className="w-full sm:w-auto min-w-[220px] text-base py-4 transition-all group animate-pulse-gold"
                     >
                       <span>Start Bidding</span>
                       <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />

@@ -48,6 +48,9 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
     const channels = allChannels.filter((ch, i) => allChannels.indexOf(ch) === i) // deduplicate
 
     for (const channel of channels) {
+      // Skip SMS/WhatsApp if Twilio isn't configured
+      if ((channel === 'SMS' || channel === 'WHATSAPP') && !twilioClient) continue
+
       // Check opt-in for the channel
       if (channel === 'EMAIL' && !bidder.emailOptIn && channel !== bidder.notificationPref) continue
       if (channel === 'SMS' && !bidder.smsOptIn && channel !== bidder.notificationPref) continue
@@ -86,6 +89,25 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
         },
       })
 
+      if (result.success) return true
+    }
+
+    // Final fallback: for transactional notifications (OUTBID, WON), always try email
+    // regardless of opt-in, as long as bidder has an email address
+    const isTransactional = payload.type === 'OUTBID' || payload.type === 'WON'
+    if (isTransactional && resend && bidder.email) {
+      const result = await sendNotificationEmail(bidder.email, message.subject, message.htmlBody || message.body)
+      await prisma.notification.create({
+        data: {
+          type: payload.type,
+          channel: 'EMAIL',
+          bidderId: payload.bidderId,
+          prizeId: payload.prizeId,
+          message: message.body,
+          delivered: result.success,
+          error: result.error ? `[fallback] ${result.error}` : undefined,
+        },
+      })
       if (result.success) return true
     }
 
