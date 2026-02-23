@@ -14,20 +14,45 @@ export async function POST(request: NextRequest) {
 
     const { prisma } = await import('@/lib/prisma')
 
-    // Find bidder with this phone and OTP
-    const bidder = await prisma.bidder.findFirst({
-      where: {
-        phone,
-        otpCode: otp,
-        otpExpires: { gt: new Date() },
-      },
-    })
+    // Verify via Twilio Verify API
+    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID) {
+      const twilio = await import('twilio')
+      const client = twilio.default(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      )
 
-    if (!bidder) {
-      return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 401 })
+      const check = await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verificationChecks.create({
+          to: phone,
+          code: otp,
+        })
+
+      if (check.status !== 'approved') {
+        return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 401 })
+      }
+    } else {
+      // Dev fallback: check OTP stored in database
+      const bidderCheck = await prisma.bidder.findFirst({
+        where: {
+          phone,
+          otpCode: otp,
+          otpExpires: { gt: new Date() },
+        },
+      })
+
+      if (!bidderCheck) {
+        return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 401 })
+      }
     }
 
-    // Clear the OTP and mark phone as verified
+    // Find bidder and mark as verified
+    const bidder = await prisma.bidder.findFirst({ where: { phone } })
+
+    if (!bidder) {
+      return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    }
+
     await prisma.bidder.update({
       where: { id: bidder.id },
       data: {

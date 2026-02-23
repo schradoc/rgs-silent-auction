@@ -79,35 +79,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Bidder not found' }, { status: 404 })
     }
 
-    // Reject if no verification code is set (already verified or never requested)
-    if (!bidder.verificationCode) {
-      return NextResponse.json(
-        { error: 'No verification pending. Please request a new code.' },
-        { status: 400 }
-      )
-    }
+    // If bidder has a phone, verify via Twilio Verify (WhatsApp OTP)
+    if (phone && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID) {
+      try {
+        const twilio = await import('twilio')
+        const client = twilio.default(
+          process.env.TWILIO_ACCOUNT_SID,
+          process.env.TWILIO_AUTH_TOKEN
+        )
 
-    // Check 15-minute expiration based on when code was issued
-    const codeAge = Date.now() - new Date(bidder.updatedAt).getTime()
-    const FIFTEEN_MINUTES = 15 * 60 * 1000
-    if (codeAge > FIFTEEN_MINUTES) {
-      // Clear expired code
-      await prisma.bidder.update({
-        where: { id: bidder.id },
-        data: { verificationCode: null },
-      })
-      return NextResponse.json(
-        { error: 'Verification code has expired. Please request a new one.' },
-        { status: 400 }
-      )
-    }
+        const check = await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
+          .verificationChecks.create({
+            to: phone,
+            code,
+          })
 
-    // Strict code comparison only - no fallback
-    if (code !== bidder.verificationCode) {
-      return NextResponse.json(
-        { error: 'Invalid verification code' },
-        { status: 400 }
-      )
+        if (check.status !== 'approved') {
+          return NextResponse.json(
+            { error: 'Invalid verification code' },
+            { status: 400 }
+          )
+        }
+      } catch (verifyError) {
+        console.error('Twilio Verify check error:', verifyError)
+        return NextResponse.json(
+          { error: 'Invalid or expired verification code' },
+          { status: 400 }
+        )
+      }
+    } else {
+      // Email-only flow: check code stored in database
+      if (!bidder.verificationCode) {
+        return NextResponse.json(
+          { error: 'No verification pending. Please request a new code.' },
+          { status: 400 }
+        )
+      }
+
+      const codeAge = Date.now() - new Date(bidder.updatedAt).getTime()
+      const FIFTEEN_MINUTES = 15 * 60 * 1000
+      if (codeAge > FIFTEEN_MINUTES) {
+        await prisma.bidder.update({
+          where: { id: bidder.id },
+          data: { verificationCode: null },
+        })
+        return NextResponse.json(
+          { error: 'Verification code has expired. Please request a new one.' },
+          { status: 400 }
+        )
+      }
+
+      if (code !== bidder.verificationCode) {
+        return NextResponse.json(
+          { error: 'Invalid verification code' },
+          { status: 400 }
+        )
+      }
     }
 
     const updatedBidder = await prisma.bidder.update({

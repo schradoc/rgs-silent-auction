@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
-}
-
 export async function POST(request: NextRequest) {
   try {
     const { phone, channel = 'WHATSAPP' } = await request.json()
@@ -29,52 +25,43 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Generate OTP
-    const otp = generateOTP()
-    const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-
-    // Save OTP to bidder
-    await prisma.bidder.update({
-      where: { id: bidder.id },
-      data: {
-        otpCode: otp,
-        otpExpires: expires,
-      },
-    })
-
-    // Send OTP via Twilio
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    // Use Twilio Verify API (handles WhatsApp templates automatically)
+    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID) {
       const twilio = await import('twilio')
       const client = twilio.default(
         process.env.TWILIO_ACCOUNT_SID,
         process.env.TWILIO_AUTH_TOKEN
       )
 
-      const message = `Your RGS-HK Auction verification code is: ${otp}. This code expires in 10 minutes.`
+      const verifyChannel = channel === 'WHATSAPP' ? 'whatsapp' : 'sms'
 
-      if (channel === 'WHATSAPP' && process.env.TWILIO_WHATSAPP_NUMBER) {
-        await client.messages.create({
-          body: message,
-          from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
-          to: `whatsapp:${phone}`,
-        })
-      } else if (process.env.TWILIO_PHONE_NUMBER) {
-        await client.messages.create({
-          body: message,
-          from: process.env.TWILIO_PHONE_NUMBER,
+      await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verifications.create({
           to: phone,
+          channel: verifyChannel,
         })
-      }
     } else {
-      // Log OTP for testing when Twilio not configured
+      // Dev fallback: generate and store OTP manually
+      const otp = Math.floor(100000 + Math.random() * 900000).toString()
+      const expires = new Date(Date.now() + 10 * 60 * 1000)
+
+      await prisma.bidder.update({
+        where: { id: bidder.id },
+        data: { otpCode: otp, otpExpires: expires },
+      })
+
       console.log('OTP (Twilio not configured):', otp, 'for phone:', phone)
+
+      return NextResponse.json({
+        success: true,
+        message: 'If an account exists with this phone number, an OTP has been sent.',
+        ...(process.env.NODE_ENV === 'development' && { _devOtp: otp }),
+      })
     }
 
     return NextResponse.json({
       success: true,
       message: 'If an account exists with this phone number, an OTP has been sent.',
-      // Include OTP in dev mode for testing
-      ...(process.env.NODE_ENV === 'development' && { _devOtp: otp }),
     })
   } catch (error) {
     console.error('OTP send error:', error)

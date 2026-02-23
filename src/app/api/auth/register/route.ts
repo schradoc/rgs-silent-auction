@@ -45,8 +45,9 @@ async function sendVerificationEmail(email: string, name: string, code: string):
   }
 }
 
-async function sendVerificationWhatsApp(phone: string, name: string, code: string): Promise<boolean> {
-  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER) {
+async function sendVerificationWhatsApp(phone: string): Promise<boolean> {
+  // Use Twilio Verify API — handles WhatsApp templates automatically
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID) {
     try {
       const twilio = await import('twilio')
       const client = twilio.default(
@@ -54,11 +55,11 @@ async function sendVerificationWhatsApp(phone: string, name: string, code: strin
         process.env.TWILIO_AUTH_TOKEN
       )
 
-      await client.messages.create({
-        body: `Hi ${name}! Your RGS-HK Auction verification code is: ${code}\n\nEnter this code to complete your registration and start bidding.\n\nThis code expires in 15 minutes.`,
-        from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
-        to: `whatsapp:${phone}`,
-      })
+      await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verifications.create({
+          to: phone,
+          channel: 'whatsapp',
+        })
       return true
     } catch (error) {
       console.error('Failed to send WhatsApp verification:', error)
@@ -70,13 +71,13 @@ async function sendVerificationWhatsApp(phone: string, name: string, code: strin
 }
 
 async function sendVerificationCode(email: string | null, phone: string | null, name: string, code: string): Promise<'email' | 'whatsapp' | 'console'> {
-  // Try WhatsApp first if phone provided (primary channel)
+  // Try WhatsApp first if phone provided (primary channel) — uses Twilio Verify
   if (phone) {
-    const whatsappSent = await sendVerificationWhatsApp(phone, name, code)
+    const whatsappSent = await sendVerificationWhatsApp(phone)
     if (whatsappSent) return 'whatsapp'
   }
 
-  // Fall back to email if provided
+  // Fall back to email if provided — uses Resend with our own code
   if (email) {
     const emailSent = await sendVerificationEmail(email, name, code)
     if (emailSent) return 'email'

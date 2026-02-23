@@ -292,15 +292,22 @@ async function sendWhatsApp(to: string, body: string): Promise<{ success: boolea
   if (!twilioClient || !TWILIO_WHATSAPP) return { success: false, error: 'Twilio WhatsApp not configured' }
 
   try {
+    // For notifications, use freeform body — this works within 24h of user-initiated contact
+    // Outside 24h window, the fallback chain will route to email
     await twilioClient.messages.create({
       body,
       from: `whatsapp:${TWILIO_WHATSAPP}`,
       to: `whatsapp:${to}`,
     })
     return { success: true }
-  } catch (err) {
+  } catch (err: unknown) {
+    const errStr = String(err)
     console.error('WhatsApp send error:', err)
-    return { success: false, error: String(err) }
+    // Error 63016 = outside 24h session window, let fallback chain handle it
+    if (errStr.includes('63016')) {
+      return { success: false, error: 'Outside WhatsApp session window — falling back to email' }
+    }
+    return { success: false, error: errStr }
   }
 }
 
