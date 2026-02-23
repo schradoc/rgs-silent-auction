@@ -228,13 +228,10 @@ export default function RegisterPage() {
         {/* Step Indicator */}
         <StepIndicator currentStep={step === 'register' ? 1 : 2} />
 
-        <div className="relative overflow-hidden">
+        <div>
           {/* Register Step */}
-          <div className={`transition-all duration-500 ${
-            step === 'register'
-              ? 'opacity-100 translate-x-0'
-              : 'opacity-0 -translate-x-full absolute inset-0 pointer-events-none'
-          }`} style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+          {step === 'register' && (
+          <div className="animate-fade-in">
             <Card>
               <CardContent className="p-6">
                 <div className="text-center mb-6">
@@ -317,13 +314,11 @@ export default function RegisterPage() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Verify Step */}
-          <div className={`transition-all duration-500 ${
-            step === 'verify'
-              ? 'opacity-100 translate-x-0'
-              : 'opacity-0 translate-x-full absolute inset-0 pointer-events-none'
-          }`} style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+          {step === 'verify' && (
+          <div className="animate-fade-in">
             <Card>
               <CardContent className="p-6">
                 <div className="text-center mb-6">
@@ -380,6 +375,7 @@ export default function RegisterPage() {
               </CardContent>
             </Card>
           </div>
+          )}
         </div>
 
         <p className="text-center text-gray-500 text-xs mt-6">

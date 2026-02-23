@@ -258,7 +258,7 @@ export default function HomePage() {
                     <Button
                       variant="gold"
                       size="lg"
-                      className="w-full sm:w-auto min-w-[220px] text-base py-4 shadow-lg shadow-[#b8941f]/25 hover:shadow-xl hover:shadow-[#b8941f]/30 transition-all group animate-shimmer"
+                      className="w-full sm:w-auto min-w-[220px] text-base py-4 shadow-lg shadow-[#b8941f]/25 hover:shadow-xl hover:shadow-[#b8941f]/30 transition-all group animate-pulse-gold"
                     >
                       <span>Start Bidding</span>
                       <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
