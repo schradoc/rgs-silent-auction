@@ -320,7 +320,7 @@ export default function RegisterPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, phone: e.target.value })
                       }
-                      hint="For WhatsApp notifications — international numbers welcome"
+                      hint="We'll send your verification code via WhatsApp"
                     />
                   </div>
 

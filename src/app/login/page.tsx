@@ -32,7 +32,7 @@ function LoginPageLoading() {
 }
 
 function LoginPageContent() {
-  const [method, setMethod] = useState<LoginMethod>('email')
+  const [method, setMethod] = useState<LoginMethod>('phone')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState(['', '', '', '', '', ''])

@@ -70,15 +70,15 @@ async function sendVerificationWhatsApp(phone: string, name: string, code: strin
 }
 
 async function sendVerificationCode(email: string, phone: string | undefined, name: string, code: string): Promise<'email' | 'whatsapp' | 'console'> {
-  // Try email first (primary channel)
-  const emailSent = await sendVerificationEmail(email, name, code)
-  if (emailSent) return 'email'
-
-  // Fall back to WhatsApp if phone provided
+  // Try WhatsApp first if phone provided (primary channel)
   if (phone) {
     const whatsappSent = await sendVerificationWhatsApp(phone, name, code)
     if (whatsappSent) return 'whatsapp'
   }
+
+  // Fall back to email
+  const emailSent = await sendVerificationEmail(email, name, code)
+  if (emailSent) return 'email'
 
   // Dev fallback
   console.log(`[DEV] Verification code for ${email}: ${code}`)

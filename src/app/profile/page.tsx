@@ -96,9 +96,9 @@ export default function ProfilePage() {
           tableNumber,
           phone: phone || null,
           emailOptIn,
-          smsOptIn: false,
-          whatsappOptIn: false,
-          notificationPref: 'EMAIL',
+          smsOptIn,
+          whatsappOptIn,
+          notificationPref,
         }),
       })
 
@@ -258,27 +258,75 @@ export default function ProfilePage() {
             </h2>
           </div>
           <div className="p-4 space-y-4">
-            <div className="space-y-3">
+            {/* WhatsApp toggle — only show if user has a phone number */}
+            {profile.phone && (
               <label className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Email notifications</span>
+                <div>
+                  <span className="text-sm text-gray-700">WhatsApp notifications</span>
+                  <p className="text-xs text-gray-400">Outbid alerts, winning notifications</p>
+                </div>
                 <button
-                  onClick={() => setEmailOptIn(!emailOptIn)}
+                  onClick={() => setWhatsappOptIn(!whatsappOptIn)}
                   className={`w-11 h-6 rounded-full transition-colors flex items-center px-0.5 ${
-                    emailOptIn ? 'bg-[#a08a1e]' : 'bg-gray-200'
+                    whatsappOptIn ? 'bg-[#a08a1e]' : 'bg-gray-200'
                   }`}
                 >
                   <div
                     className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                      emailOptIn ? 'translate-x-5' : 'translate-x-0'
+                      whatsappOptIn ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
               </label>
-            </div>
+            )}
 
-            <p className="text-xs text-[#6b6b6b] pt-1">
-              More notification channels coming soon
-            </p>
+            <label className="flex items-center justify-between">
+              <div>
+                <span className="text-sm text-gray-700">Email notifications</span>
+                <p className="text-xs text-gray-400">Fallback when WhatsApp is unavailable</p>
+              </div>
+              <button
+                onClick={() => setEmailOptIn(!emailOptIn)}
+                className={`w-11 h-6 rounded-full transition-colors flex items-center px-0.5 ${
+                  emailOptIn ? 'bg-[#a08a1e]' : 'bg-gray-200'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    emailOptIn ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </label>
+
+            {/* Preferred channel selector */}
+            <div className="pt-2 border-t">
+              <label className="block text-sm text-gray-500 mb-2">Preferred notification channel</label>
+              <div className="flex gap-2">
+                {profile.phone && (
+                  <button
+                    onClick={() => setNotificationPref('WHATSAPP')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      notificationPref === 'WHATSAPP'
+                        ? 'bg-[#a08a1e] text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    WhatsApp
+                  </button>
+                )}
+                <button
+                  onClick={() => setNotificationPref('EMAIL')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    notificationPref === 'EMAIL'
+                      ? 'bg-[#a08a1e] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Email
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 

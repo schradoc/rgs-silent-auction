@@ -22,10 +22,10 @@ model Bidder {
   updatedAt    DateTime @updatedAt
 
   // Contact & Notification preferences
-  whatsappOptIn    Boolean @default(false)
+  whatsappOptIn    Boolean @default(true)
   smsOptIn         Boolean @default(false)
   emailOptIn       Boolean @default(true)
-  notificationPref NotificationChannel @default(EMAIL)
+  notificationPref NotificationChannel @default(WHATSAPP)
 
   // Passwordless auth (Phase 2)
   magicLinkToken   String?
