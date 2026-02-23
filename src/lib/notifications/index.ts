@@ -43,8 +43,9 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
     // Build message
     const message = buildMessage(payload, bidder.name)
 
-    // Build fallback chain: preferred channel first, then EMAIL, WHATSAPP, SMS
-    const allChannels: NotificationChannel[] = [bidder.notificationPref, 'EMAIL', 'WHATSAPP', 'SMS']
+    // Build fallback chain: preferred channel first, then SMS, EMAIL, WHATSAPP
+    // SMS is prioritized because WhatsApp requires approved templates we don't have yet
+    const allChannels: NotificationChannel[] = [bidder.notificationPref, 'SMS', 'EMAIL', 'WHATSAPP']
     const channels = allChannels.filter((ch, i) => allChannels.indexOf(ch) === i) // deduplicate
 
     for (const channel of channels) {

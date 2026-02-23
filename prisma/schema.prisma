@@ -23,9 +23,9 @@ model Bidder {
 
   // Contact & Notification preferences
   whatsappOptIn    Boolean @default(true)
-  smsOptIn         Boolean @default(false)
+  smsOptIn         Boolean @default(true)
   emailOptIn       Boolean @default(true)
-  notificationPref NotificationChannel @default(WHATSAPP)
+  notificationPref NotificationChannel @default(SMS)
 
   // Passwordless auth (Phase 2)
   magicLinkToken   String?
