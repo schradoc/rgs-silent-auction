@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button, Input, Card, CardContent } from '@/components/ui'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, MessageCircle } from 'lucide-react'
 
 function StepIndicator({ currentStep }: { currentStep: 1 | 2 }) {
   return (
@@ -298,6 +298,27 @@ export default function RegisterPage() {
                   </div>
 
                   <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '100ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                    <div className="w-full">
+                      <label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                        <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                        WhatsApp Number
+                      </label>
+                      <input
+                        id="phone-number"
+                        type="tel"
+                        placeholder="+852 9XXX XXXX"
+                        value={formData.phone}
+                        onChange={(e) =>
+                          setFormData({ ...formData, phone: e.target.value })
+                        }
+                        required
+                        className="w-full px-4 py-2.5 border rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent placeholder:text-gray-400 border-gray-300 hover:border-gray-400"
+                      />
+                      <p className="mt-1 text-sm text-gray-500">We&apos;ll verify you via WhatsApp</p>
+                    </div>
+                  </div>
+
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '150ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
                     <Input
                       label="Email"
                       type="email"
@@ -306,21 +327,8 @@ export default function RegisterPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, email: e.target.value })
                       }
-                      hint="We'll send your verification code here"
+                      hint="Backup only — verification is sent via WhatsApp"
                       required
-                    />
-                  </div>
-
-                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '150ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
-                    <Input
-                      label="Phone Number (Optional)"
-                      type="tel"
-                      placeholder="+852 9XXX XXXX"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
-                      hint="We'll send your verification code via WhatsApp"
                     />
                   </div>
 

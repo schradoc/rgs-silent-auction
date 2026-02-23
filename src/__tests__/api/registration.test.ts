@@ -111,6 +111,7 @@ describe('Registration Email Flow', () => {
       json: () => Promise.resolve({
         name: 'Bob Chan',
         email: 'bob@test.com',
+        phone: '99876543',
       }),
     } as any
 
@@ -153,6 +154,7 @@ describe('Registration Email Flow', () => {
       json: () => Promise.resolve({
         name: 'Charlie Li',
         email: 'charlie@test.com',
+        phone: '91111111',
       }),
     } as any
 
@@ -177,10 +179,10 @@ describe('Registration Email Flow', () => {
     expect(mockResendSend).toHaveBeenCalled()
   })
 
-  it('should require name and email', async () => {
+  it('should require name, phone, and email', async () => {
     const { POST } = await import('@/app/api/auth/register/route')
 
-    // Missing email
+    // Missing phone and email
     const request1 = {
       json: () => Promise.resolve({ name: 'Test' }),
     } as any
@@ -190,47 +192,19 @@ describe('Registration Email Flow', () => {
 
     // Missing name
     const request2 = {
-      json: () => Promise.resolve({ email: 'test@test.com' }),
+      json: () => Promise.resolve({ email: 'test@test.com', phone: '91234567' }),
     } as any
 
     const response2 = await POST(request2)
     expect(response2.status).toBe(400)
-  })
 
-  it('should accept registration without phone (phone is optional)', async () => {
-    mockPrisma.bidder.findUnique.mockResolvedValue(null)
-    mockPrisma.bidder.create.mockResolvedValue({
-      id: 'no-phone',
-      name: 'No Phone User',
-      email: 'nophone@test.com',
-      phone: null,
-      tableNumber: null,
-      phoneVerified: false,
-    })
-
-    const { POST } = await import('@/app/api/auth/register/route')
-
-    const request = {
-      json: () => Promise.resolve({
-        name: 'No Phone User',
-        email: 'nophone@test.com',
-      }),
+    // Missing phone
+    const request3 = {
+      json: () => Promise.resolve({ name: 'Test', email: 'test@test.com' }),
     } as any
 
-    const response = await POST(request)
-    const body = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(body.success).toBe(true)
-
-    // Should create bidder with null phone
-    expect(mockPrisma.bidder.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          phone: null,
-        }),
-      })
-    )
+    const response3 = await POST(request3)
+    expect(response3.status).toBe(400)
   })
 
   it('should reject invalid phone number when provided', async () => {

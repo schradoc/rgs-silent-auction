@@ -90,18 +90,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, phone: rawPhone, tableNumber, email } = body
 
-    // Name and email are required
-    if (!name || !email) {
+    // Name, phone, and email are required
+    if (!name || !rawPhone || !email) {
       return NextResponse.json(
-        { error: 'Name and email are required' },
+        { error: 'Name, WhatsApp number, and email are required' },
         { status: 400 }
       )
     }
 
-    // Normalize and validate phone only if provided
-    const phone = rawPhone ? normalizeHKPhone(rawPhone) : null
+    // Normalize and validate phone
+    const phone = normalizeHKPhone(rawPhone)
 
-    if (phone && !isValidPhone(phone)) {
+    if (!isValidPhone(phone)) {
       return NextResponse.json(
         { error: 'Please enter a valid phone number' },
         { status: 400 }
