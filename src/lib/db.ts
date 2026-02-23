@@ -55,6 +55,9 @@ export async function getPrizeBySlug(slug: string) {
           },
         },
         variants: true,
+        images: {
+          orderBy: { order: 'asc' },
+        },
       },
     })
     return prize

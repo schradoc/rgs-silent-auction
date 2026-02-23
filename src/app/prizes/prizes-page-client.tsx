@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { User, Search, Clock, X, Lock, Eye, Heart, Settings, UserPlus } from 'lucide-react'
+import { User, Search, Clock, X, Lock, Eye, Heart, Settings, UserPlus, HelpCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { AuctionCountdown } from '@/components/auction-countdown'
@@ -40,6 +40,7 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
   const [auctionStatus, setAuctionStatus] = useState<AuctionStatus | null>(null)
   const [isSignedIn, setIsSignedIn] = useState(false)
   const [winningCount, setWinningCount] = useState(0)
+  const [bidStatusMap, setBidStatusMap] = useState<Record<string, 'WINNING' | 'OUTBID'>>({})
 
   useEffect(() => {
     setMounted(true)
@@ -63,13 +64,22 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
       .then(data => {
         if (data?.bidder) {
           setIsSignedIn(true)
-          // Fetch winning bid count
+          // Fetch bid statuses for badge display
           fetch('/api/my-bids')
             .then(res => res.ok ? res.json() : null)
             .then(bidsData => {
               if (bidsData?.bids) {
                 const winning = bidsData.bids.filter((b: { status: string }) => b.status === 'WINNING').length
                 setWinningCount(winning)
+                // Build a map of prizeId -> latest bid status
+                const statusMap: Record<string, 'WINNING' | 'OUTBID'> = {}
+                for (const b of bidsData.bids as { prize: { id: string }; status: string }[]) {
+                  // Only record WINNING or OUTBID, keep the first (latest) per prize
+                  if (!statusMap[b.prize.id] && (b.status === 'WINNING' || b.status === 'OUTBID')) {
+                    statusMap[b.prize.id] = b.status as 'WINNING' | 'OUTBID'
+                  }
+                }
+                setBidStatusMap(statusMap)
               }
             })
             .catch(() => {})
@@ -185,6 +195,14 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
             </Link>
 
             <div className="flex items-center gap-3">
+              <Link
+                href="/help"
+                className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                title="How It Works"
+              >
+                <HelpCircle className="w-5 h-5 text-white/70 hover:text-white" />
+              </Link>
+
               {isSignedIn ? (
                 <>
                   <Link
@@ -243,7 +261,11 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
 
             <div className="flex items-center gap-2 text-white/40 text-sm">
               <Clock className="w-4 h-4" />
-              <span>Bidding closes 10:30pm</span>
+              <span>
+                {auctionStatus?.auctionEndTime
+                  ? `Bidding closes ${new Date(auctionStatus.auctionEndTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+                  : 'Bidding closes at the event'}
+              </span>
             </div>
           </div>
         </div>
@@ -252,6 +274,28 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
       {/* Filters */}
       <section className="bg-white border-b border-gray-100 sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* Mobile search */}
+          <div className="sm:hidden py-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b6b]" />
+              <input
+                type="text"
+                placeholder="Search prizes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-8 py-2 bg-gray-50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#a08a1e]/20"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  <X className="w-4 h-4 text-[#6b6b6b]" />
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center gap-4 py-3 overflow-x-auto scrollbar-hide">
             {/* Category pills */}
             <div className="flex items-center gap-2">
@@ -272,7 +316,7 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
 
             <div className="h-6 w-px bg-gray-200 hidden sm:block" />
 
-            {/* Search */}
+            {/* Desktop search */}
             <div className="relative hidden sm:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b6b]" />
               <input
@@ -308,6 +352,7 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
                   prize={prize}
                   index={index}
                   mounted={mounted}
+                  bidStatus={bidStatusMap[prize.id]}
                 />
               ))}
             </div>
@@ -324,7 +369,7 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
 }
 
 // Prize Card — Scandinavian design
-function PrizeCard({ prize, index, mounted }: { prize: Prize; index: number; mounted: boolean }) {
+function PrizeCard({ prize, index, mounted, bidStatus }: { prize: Prize; index: number; mounted: boolean; bidStatus?: 'WINNING' | 'OUTBID' }) {
   const [imgSrc, setImgSrc] = useState(prize.imageUrl || FALLBACK_IMAGE)
   const hasActiveBid = prize.currentHighestBid > 0
 
@@ -356,6 +401,19 @@ function PrizeCard({ prize, index, mounted }: { prize: Prize; index: number; mou
               {CATEGORY_LABELS[prize.category]}
             </span>
           </div>
+
+          {/* Bid status badge */}
+          {bidStatus && (
+            <div className="absolute top-3 right-3">
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${
+                bidStatus === 'WINNING'
+                  ? 'bg-green-500/90 text-white'
+                  : 'bg-orange-500/90 text-white'
+              }`}>
+                {bidStatus === 'WINNING' ? 'Winning' : 'Outbid'}
+              </span>
+            </div>
+          )}
 
           {/* Current bid overlay */}
           <div className="absolute bottom-3 left-3">

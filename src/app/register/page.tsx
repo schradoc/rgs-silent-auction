@@ -137,10 +137,19 @@ export default function RegisterPage() {
   })
 
   const [verificationCode, setVerificationCode] = useState('')
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [resendLoading, setResendLoading] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -173,10 +182,42 @@ export default function RegisterPage() {
 
       setVerificationChannel(data.verificationChannel || 'email')
       setStep('verify')
+      setResendCooldown(60)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    setResendLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || undefined,
+          tableNumber: formData.tableNumber || undefined,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend code')
+      }
+
+      setResendCooldown(60)
+      setVerificationCode('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend code')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -350,9 +391,25 @@ export default function RegisterPage() {
                     onComplete={(code) => handleVerify(code)}
                   />
 
-                  <p className="text-xs text-gray-400 text-center">
-                    Codes typically arrive within 30 seconds. Check spam if needed.
-                  </p>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-400 mb-2">
+                      Codes typically arrive within 30 seconds. Check spam if needed.
+                    </p>
+                    {resendCooldown > 0 ? (
+                      <p className="text-xs text-gray-400">
+                        Resend code in {resendCooldown}s
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResendCode}
+                        disabled={resendLoading}
+                        className="text-xs text-[#c9a227] hover:text-[#a08a1e] font-medium disabled:opacity-50"
+                      >
+                        {resendLoading ? 'Sending...' : "Didn't receive a code? Resend"}
+                      </button>
+                    )}
+                  </div>
 
                   {error && (
                     <p className="text-red-600 text-sm text-center">{error}</p>

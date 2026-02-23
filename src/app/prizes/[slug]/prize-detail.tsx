@@ -10,6 +10,8 @@ import {
   Users,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Trophy,
   Shield,
   Share2,
@@ -28,9 +30,18 @@ import type { Prize, Bid } from '@prisma/client'
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop'
 
+type PrizeImage = {
+  id: string
+  url: string
+  alt: string | null
+  order: number
+  isPrimary: boolean
+}
+
 type PrizeWithBids = Prize & {
   bids: (Bid & { bidder: { tableNumber: string | null } })[]
   variants: Prize[]
+  images?: PrizeImage[]
 }
 
 type PledgeTier = Prize & {
@@ -57,8 +68,23 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
   const [isAuctionOpen, setIsAuctionOpen] = useState(true)
   const [deepLinkPending, setDeepLinkPending] = useState(false)
   const [selectedPledgeTier, setSelectedPledgeTier] = useState<PledgeTier | null>(null)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   const searchParams = useSearchParams()
+
+  // Build image list: use images array if available, fall back to single imageUrl
+  const allImages = (() => {
+    const imgs: { url: string; alt: string | null }[] = []
+    if (prize.images && prize.images.length > 0) {
+      for (const img of prize.images) {
+        imgs.push({ url: img.url, alt: img.alt })
+      }
+    }
+    if (imgs.length === 0) {
+      imgs.push({ url: prize.imageUrl || FALLBACK_IMAGE, alt: prize.title })
+    }
+    return imgs
+  })()
 
   const isPledge = prize.category === 'PLEDGES'
 
@@ -280,18 +306,21 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
       </header>
 
       <div className="max-w-4xl mx-auto">
-        {/* Hero Image */}
+        {/* Hero Image Carousel */}
         <div
           className={`relative aspect-[16/10] sm:aspect-[2/1] transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
         >
           <Image
-            src={imgSrc}
-            alt={prize.title}
+            src={allImages[currentImageIndex]?.url || FALLBACK_IMAGE}
+            alt={allImages[currentImageIndex]?.alt || prize.title}
             fill
-            className="object-cover"
+            className="object-cover transition-opacity duration-300"
             priority
             unoptimized
-            onError={() => setImgSrc(FALLBACK_IMAGE)}
+            onError={() => {
+              // Replace broken image in the list with fallback
+              setImgSrc(FALLBACK_IMAGE)
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
@@ -310,6 +339,42 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
                 {prize.multiWinnerSlots || 'Multiple'} available
               </span>
             </div>
+          )}
+
+          {/* Carousel controls — only show if multiple images */}
+          {allImages.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === 0 ? allImages.length - 1 : i - 1) }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                aria-label="Previous image"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === allImages.length - 1 ? 0 : i + 1) }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                aria-label="Next image"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+
+              {/* Dots indicator */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                {allImages.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i) }}
+                    className={`rounded-full transition-all ${
+                      i === currentImageIndex
+                        ? 'w-6 h-2 bg-white'
+                        : 'w-2 h-2 bg-white/50 hover:bg-white/70'
+                    }`}
+                    aria-label={`Image ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
 
