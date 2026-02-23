@@ -80,7 +80,7 @@ interface Bidder {
   id: string
   name: string
   phone: string | null
-  email: string
+  email: string | null
   tableNumber: string | null
   emailVerified: boolean
   phoneVerified: boolean
@@ -151,7 +151,7 @@ interface PotentialWinner {
   winningBid: {
     id: string
     amount: number
-    bidder: { id: string; name: string; phone: string | null; email: string; tableNumber: string | null }
+    bidder: { id: string; name: string; phone: string | null; email: string | null; tableNumber: string | null }
   } | null
   isConfirmed: boolean
   confirmedWinners: Array<{
@@ -236,7 +236,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       amount: number
       createdAt: string
       status: string
-      bidder: { id: string; name: string; tableNumber: string | null; email: string }
+      bidder: { id: string; name: string; tableNumber: string | null; email: string | null }
     }>
     winners: Array<{
       id: string
