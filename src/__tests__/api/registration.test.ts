@@ -47,7 +47,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }))
 
-describe('Registration Email Flow', () => {
+describe('Registration Flow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.resetModules()
@@ -56,12 +56,12 @@ describe('Registration Email Flow', () => {
     process.env.FROM_EMAIL = 'auction@rgsauction.com'
   })
 
-  it('should send verification email on new registration', async () => {
+  it('should send verification via WhatsApp on new registration with phone', async () => {
     mockPrisma.bidder.findUnique.mockResolvedValue(null) // No existing user
     mockPrisma.bidder.create.mockResolvedValue({
       id: 'new-bidder-1',
       name: 'Alice Wong',
-      email: 'alice@test.com',
+      email: null,
       phone: '+85291234567',
       tableNumber: 'A1',
       phoneVerified: false,
@@ -72,7 +72,6 @@ describe('Registration Email Flow', () => {
     const request = {
       json: () => Promise.resolve({
         name: 'Alice Wong',
-        email: 'alice@test.com',
         phone: '91234567',
         tableNumber: 'A1',
       }),
@@ -84,18 +83,9 @@ describe('Registration Email Flow', () => {
     expect(response.status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.requiresVerification).toBe(true)
-    expect(body.verificationChannel).toBe('email')
-
-    // Verification email should have been sent
-    expect(mockResendSend).toHaveBeenCalled()
-    const emailCall = mockResendSend.mock.calls[0][0]
-    expect(emailCall.to).toBe('alice@test.com')
-    expect(emailCall.subject).toContain('Verification Code')
-    // HTML should contain a 6-digit code
-    expect(emailCall.html).toMatch(/\d{6}/)
   })
 
-  it('should auto-login already verified user without sending email', async () => {
+  it('should auto-login already verified user', async () => {
     mockPrisma.bidder.findUnique.mockResolvedValue({
       id: 'existing-verified',
       name: 'Bob Chan',
@@ -110,7 +100,6 @@ describe('Registration Email Flow', () => {
     const request = {
       json: () => Promise.resolve({
         name: 'Bob Chan',
-        email: 'bob@test.com',
         phone: '99876543',
       }),
     } as any
@@ -129,18 +118,16 @@ describe('Registration Email Flow', () => {
       'existing-verified',
       expect.any(Object)
     )
-
-    // Should NOT send verification email
-    expect(mockResendSend).not.toHaveBeenCalled()
   })
 
   it('should resend verification code for existing unverified user', async () => {
     mockPrisma.bidder.findUnique.mockResolvedValue({
       id: 'existing-unverified',
       name: 'Charlie Li',
-      email: 'charlie@test.com',
+      email: null,
       phone: '+85291111111',
       emailVerified: false,
+      phoneVerified: false,
     })
 
     mockPrisma.bidder.update.mockResolvedValue({
@@ -153,7 +140,6 @@ describe('Registration Email Flow', () => {
     const request = {
       json: () => Promise.resolve({
         name: 'Charlie Li',
-        email: 'charlie@test.com',
         phone: '91111111',
       }),
     } as any
@@ -174,15 +160,12 @@ describe('Registration Email Flow', () => {
         }),
       })
     )
-
-    // Should send verification email
-    expect(mockResendSend).toHaveBeenCalled()
   })
 
-  it('should require name, phone, and email', async () => {
+  it('should require name and at least phone or email', async () => {
     const { POST } = await import('@/app/api/auth/register/route')
 
-    // Missing phone and email
+    // Missing both phone and email
     const request1 = {
       json: () => Promise.resolve({ name: 'Test' }),
     } as any
@@ -192,19 +175,47 @@ describe('Registration Email Flow', () => {
 
     // Missing name
     const request2 = {
-      json: () => Promise.resolve({ email: 'test@test.com', phone: '91234567' }),
+      json: () => Promise.resolve({ phone: '91234567' }),
     } as any
 
     const response2 = await POST(request2)
     expect(response2.status).toBe(400)
+  })
 
-    // Missing phone
-    const request3 = {
-      json: () => Promise.resolve({ name: 'Test', email: 'test@test.com' }),
+  it('should accept registration with email only (no phone)', async () => {
+    mockPrisma.bidder.findUnique.mockResolvedValue(null)
+    mockPrisma.bidder.create.mockResolvedValue({
+      id: 'email-only',
+      name: 'Email User',
+      email: 'emailonly@test.com',
+      phone: null,
+      tableNumber: null,
+      phoneVerified: false,
+    })
+
+    const { POST } = await import('@/app/api/auth/register/route')
+
+    const request = {
+      json: () => Promise.resolve({
+        name: 'Email User',
+        email: 'emailonly@test.com',
+      }),
     } as any
 
-    const response3 = await POST(request3)
-    expect(response3.status).toBe(400)
+    const response = await POST(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.success).toBe(true)
+
+    // Should create bidder with null phone
+    expect(mockPrisma.bidder.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phone: null,
+        }),
+      })
+    )
   })
 
   it('should reject invalid phone number when provided', async () => {
@@ -213,7 +224,6 @@ describe('Registration Email Flow', () => {
     const request = {
       json: () => Promise.resolve({
         name: 'Bad Phone',
-        email: 'bad@test.com',
         phone: '123', // Too short
       }),
     } as any
@@ -229,7 +239,7 @@ describe('Registration Email Flow', () => {
     mockPrisma.bidder.create.mockResolvedValue({
       id: 'hk-phone',
       name: 'HK Phone',
-      email: 'hk@test.com',
+      email: null,
       phone: '+85291234567',
       tableNumber: null,
       phoneVerified: false,
@@ -240,7 +250,6 @@ describe('Registration Email Flow', () => {
     const request = {
       json: () => Promise.resolve({
         name: 'HK Phone',
-        email: 'hk@test.com',
         phone: '91234567', // 8 digit HK number without prefix
       }),
     } as any

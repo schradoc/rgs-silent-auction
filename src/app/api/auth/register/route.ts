@@ -69,19 +69,21 @@ async function sendVerificationWhatsApp(phone: string, name: string, code: strin
   return false
 }
 
-async function sendVerificationCode(email: string, phone: string | undefined, name: string, code: string): Promise<'email' | 'whatsapp' | 'console'> {
+async function sendVerificationCode(email: string | null, phone: string | null, name: string, code: string): Promise<'email' | 'whatsapp' | 'console'> {
   // Try WhatsApp first if phone provided (primary channel)
   if (phone) {
     const whatsappSent = await sendVerificationWhatsApp(phone, name, code)
     if (whatsappSent) return 'whatsapp'
   }
 
-  // Fall back to email
-  const emailSent = await sendVerificationEmail(email, name, code)
-  if (emailSent) return 'email'
+  // Fall back to email if provided
+  if (email) {
+    const emailSent = await sendVerificationEmail(email, name, code)
+    if (emailSent) return 'email'
+  }
 
   // Dev fallback
-  console.log(`[DEV] Verification code for ${email}: ${code}`)
+  console.log(`[DEV] Verification code for ${phone || email}: ${code}`)
   return 'console'
 }
 
@@ -90,18 +92,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, phone: rawPhone, tableNumber, email } = body
 
-    // Name, phone, and email are required
-    if (!name || !rawPhone || !email) {
+    // Name is always required; need at least phone or email
+    if (!name || (!rawPhone && !email)) {
       return NextResponse.json(
-        { error: 'Name, WhatsApp number, and email are required' },
+        { error: 'Name and either WhatsApp number or email are required' },
         { status: 400 }
       )
     }
 
-    // Normalize and validate phone
-    const phone = normalizeHKPhone(rawPhone)
+    // Normalize and validate phone if provided
+    const phone = rawPhone ? normalizeHKPhone(rawPhone) : null
 
-    if (!isValidPhone(phone)) {
+    if (rawPhone && (!phone || !isValidPhone(phone))) {
       return NextResponse.json(
         { error: 'Please enter a valid phone number' },
         { status: 400 }
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
         maxAge: 60 * 60 * 24,
       })
 
-      console.log(`[DEMO] Verification code for ${email}: ${verificationCode}`)
+      console.log(`[DEMO] Verification code for ${phone || email}: ${verificationCode}`)
 
       return NextResponse.json({
         success: true,
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
           id: mockBidderId,
           name,
           phone: phone || null,
-          email,
+          email: email || null,
           tableNumber: tableNumber || null,
           phoneVerified: false,
         },
@@ -142,13 +144,21 @@ export async function POST(request: NextRequest) {
     // Real database mode
     const { prisma } = await import('@/lib/prisma')
 
-    // Look up by email (primary identifier)
-    const existingBidder = await prisma.bidder.findUnique({
-      where: { email },
-    })
+    // Look up by phone first (primary), then email
+    let existingBidder = null
+    if (phone) {
+      existingBidder = await prisma.bidder.findUnique({
+        where: { phone },
+      })
+    }
+    if (!existingBidder && email) {
+      existingBidder = await prisma.bidder.findUnique({
+        where: { email },
+      })
+    }
 
     if (existingBidder) {
-      if (existingBidder.emailVerified) {
+      if (existingBidder.emailVerified || existingBidder.phoneVerified) {
         const cookieStore = await cookies()
         cookieStore.set(COOKIE_NAMES.bidderId, existingBidder.id, {
           httpOnly: true,
@@ -171,20 +181,21 @@ export async function POST(request: NextRequest) {
           verificationCode,
           name,
           phone: phone || existingBidder.phone,
+          email: email || existingBidder.email,
           tableNumber: tableNumber || existingBidder.tableNumber,
         },
       })
 
-      const channel = await sendVerificationCode(email, phone || undefined, name, verificationCode)
+      const channel = await sendVerificationCode(email || null, phone, name, verificationCode)
 
       return NextResponse.json({
         success: true,
         requiresVerification: true,
         verificationChannel: channel,
-        message: channel === 'email'
-          ? 'Verification code sent to your email'
-          : channel === 'whatsapp'
-            ? 'Verification code sent to your WhatsApp'
+        message: channel === 'whatsapp'
+          ? 'Verification code sent to your WhatsApp'
+          : channel === 'email'
+            ? 'Verification code sent to your email'
             : 'Verification code generated (check console)',
       })
     }
@@ -194,7 +205,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         phone: phone || null,
-        email,
+        email: email || null,
         tableNumber: tableNumber || null,
         verificationCode,
         phoneVerified: false,
@@ -209,7 +220,7 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24,
     })
 
-    const channel = await sendVerificationCode(email, phone || undefined, name, verificationCode)
+    const channel = await sendVerificationCode(email || null, phone, name, verificationCode)
 
     return NextResponse.json({
       success: true,
@@ -223,10 +234,10 @@ export async function POST(request: NextRequest) {
       },
       requiresVerification: true,
       verificationChannel: channel,
-      message: channel === 'email'
-        ? 'Verification code sent to your email'
-        : channel === 'whatsapp'
-          ? 'Verification code sent to your WhatsApp'
+      message: channel === 'whatsapp'
+        ? 'Verification code sent to your WhatsApp'
+        : channel === 'email'
+          ? 'Verification code sent to your email'
           : 'Verification code generated (check console)',
     })
   } catch (error) {

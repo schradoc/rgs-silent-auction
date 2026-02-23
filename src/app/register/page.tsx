@@ -121,11 +121,14 @@ function OTPInput({ value, onChange, onComplete }: {
   )
 }
 
+type RegisterMode = 'whatsapp' | 'email'
+
 export default function RegisterPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'register' | 'verify'>('register')
+  const [mode, setMode] = useState<RegisterMode>('whatsapp')
   const [verificationChannel, setVerificationChannel] = useState<'email' | 'whatsapp' | 'console'>('email')
   const [mounted, setMounted] = useState(false)
 
@@ -232,7 +235,11 @@ export default function RegisterPage() {
       const response = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email, code: codeToVerify }),
+        body: JSON.stringify({
+          ...(formData.phone ? { phone: formData.phone } : {}),
+          ...(formData.email ? { email: formData.email } : {}),
+          code: codeToVerify,
+        }),
       })
 
       const data = await response.json()
@@ -297,42 +304,44 @@ export default function RegisterPage() {
                     />
                   </div>
 
-                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '100ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
-                    <div className="w-full">
-                      <label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
-                        <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                        WhatsApp Number
-                      </label>
-                      <input
-                        id="phone-number"
-                        type="tel"
-                        placeholder="+852 9XXX XXXX"
-                        value={formData.phone}
-                        onChange={(e) =>
-                          setFormData({ ...formData, phone: e.target.value })
-                        }
-                        required
-                        className="w-full px-4 py-2.5 border rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent placeholder:text-gray-400 border-gray-300 hover:border-gray-400"
-                      />
-                      <p className="mt-1 text-sm text-gray-500">We&apos;ll verify you via WhatsApp</p>
+                  {mode === 'whatsapp' ? (
+                    <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '100ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                      <div className="w-full">
+                        <label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                          <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                          WhatsApp Number
+                        </label>
+                        <input
+                          id="phone-number"
+                          type="tel"
+                          placeholder="+852 9XXX XXXX"
+                          value={formData.phone}
+                          onChange={(e) =>
+                            setFormData({ ...formData, phone: e.target.value })
+                          }
+                          required
+                          className="w-full px-4 py-2.5 border rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent placeholder:text-gray-400 border-gray-300 hover:border-gray-400"
+                        />
+                        <p className="mt-1 text-sm text-gray-500">We&apos;ll send a verification code to your WhatsApp</p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '100ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                      <Input
+                        label="Email"
+                        type="email"
+                        placeholder="john@example.com"
+                        value={formData.email}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
+                        hint="We'll send a verification code to your email"
+                        required
+                      />
+                    </div>
+                  )}
 
                   <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '150ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
-                    <Input
-                      label="Email"
-                      type="email"
-                      placeholder="john@example.com"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      hint="Backup only — verification is sent via WhatsApp"
-                      required
-                    />
-                  </div>
-
-                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '200ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
                     <Input
                       label="Table Number (Optional)"
                       placeholder="e.g., 12"
@@ -348,7 +357,7 @@ export default function RegisterPage() {
                     <p className="text-red-600 text-sm text-center">{error}</p>
                   )}
 
-                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '250ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '200ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
                     <Button
                       type="submit"
                       variant="gold"
@@ -364,6 +373,14 @@ export default function RegisterPage() {
                       </p>
                     )}
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMode(mode === 'whatsapp' ? 'email' : 'whatsapp'); setError('') }}
+                    className="w-full text-sm text-[#1e3a5f] hover:underline"
+                  >
+                    {mode === 'whatsapp' ? 'or register with email instead' : 'or register with WhatsApp instead'}
+                  </button>
                 </form>
               </CardContent>
             </Card>
