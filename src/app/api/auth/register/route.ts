@@ -45,8 +45,8 @@ async function sendVerificationEmail(email: string, name: string, code: string):
   }
 }
 
-async function sendVerificationWhatsApp(phone: string): Promise<boolean> {
-  // Use Twilio Verify API — handles WhatsApp templates automatically
+async function sendVerificationSMS(phone: string): Promise<boolean> {
+  // Use Twilio Verify API for SMS OTP
   if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID) {
     try {
       const twilio = await import('twilio')
@@ -58,11 +58,11 @@ async function sendVerificationWhatsApp(phone: string): Promise<boolean> {
       await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
         .verifications.create({
           to: phone,
-          channel: 'whatsapp',
+          channel: 'sms',
         })
       return true
     } catch (error) {
-      console.error('Failed to send WhatsApp verification:', error)
+      console.error('Failed to send SMS verification:', error)
       return false
     }
   }
@@ -70,11 +70,11 @@ async function sendVerificationWhatsApp(phone: string): Promise<boolean> {
   return false
 }
 
-async function sendVerificationCode(email: string | null, phone: string | null, name: string, code: string): Promise<'email' | 'whatsapp' | 'console'> {
-  // Try WhatsApp first if phone provided (primary channel) — uses Twilio Verify
+async function sendVerificationCode(email: string | null, phone: string | null, name: string, code: string): Promise<'email' | 'sms' | 'console'> {
+  // Try SMS first if phone provided (primary channel) — uses Twilio Verify
   if (phone) {
-    const whatsappSent = await sendVerificationWhatsApp(phone)
-    if (whatsappSent) return 'whatsapp'
+    const smsSent = await sendVerificationSMS(phone)
+    if (smsSent) return 'sms'
   }
 
   // Fall back to email if provided — uses Resend with our own code
@@ -193,8 +193,8 @@ export async function POST(request: NextRequest) {
         success: true,
         requiresVerification: true,
         verificationChannel: channel,
-        message: channel === 'whatsapp'
-          ? 'Verification code sent to your WhatsApp'
+        message: channel === 'sms'
+          ? 'Verification code sent via SMS'
           : channel === 'email'
             ? 'Verification code sent to your email'
             : 'Verification code generated (check console)',
@@ -235,8 +235,8 @@ export async function POST(request: NextRequest) {
       },
       requiresVerification: true,
       verificationChannel: channel,
-      message: channel === 'whatsapp'
-        ? 'Verification code sent to your WhatsApp'
+      message: channel === 'sms'
+        ? 'Verification code sent via SMS'
         : channel === 'email'
           ? 'Verification code sent to your email'
           : 'Verification code generated (check console)',

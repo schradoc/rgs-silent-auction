@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
         process.env.TWILIO_AUTH_TOKEN
       )
 
-      const verifyChannel = channel === 'WHATSAPP' ? 'whatsapp' : 'sms'
+      // Use SMS for OTP delivery (WhatsApp templates not yet approved)
+      const verifyChannel = 'sms'
 
       await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
         .verifications.create({
