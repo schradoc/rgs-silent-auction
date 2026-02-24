@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { Toaster } from 'sonner'
+import { BidderProvider } from '@/hooks/useBidder'
 import { RealtimeNotifications } from './realtime-notifications'
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -20,7 +21,9 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <BidderProvider>
       {children}
+      </BidderProvider>
       <RealtimeNotifications />
       <Toaster
         position="top-center"
