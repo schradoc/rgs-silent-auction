@@ -6,13 +6,13 @@ export const dynamic = 'force-dynamic'
 const VALID_STATES = ['DRAFT', 'TESTING', 'PRELAUNCH', 'LIVE', 'CLOSED'] as const
 type AuctionState = typeof VALID_STATES[number]
 
-// State transition rules
+// State transition rules — admins should never get stuck
 const ALLOWED_TRANSITIONS: Record<AuctionState, AuctionState[]> = {
-  DRAFT: ['TESTING', 'PRELAUNCH'],
-  TESTING: ['DRAFT', 'PRELAUNCH'],
+  DRAFT: ['TESTING', 'PRELAUNCH', 'LIVE'],
+  TESTING: ['DRAFT', 'PRELAUNCH', 'LIVE'],
   PRELAUNCH: ['DRAFT', 'TESTING', 'LIVE'],
-  LIVE: ['PRELAUNCH', 'CLOSED'],
-  CLOSED: ['LIVE', 'PRELAUNCH'],
+  LIVE: ['DRAFT', 'TESTING', 'PRELAUNCH', 'CLOSED'],
+  CLOSED: ['DRAFT', 'TESTING', 'PRELAUNCH', 'LIVE'],
 }
 
 // Get current auction state

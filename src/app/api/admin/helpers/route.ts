@@ -180,11 +180,33 @@ export async function DELETE(request: NextRequest) {
 
     const { prisma } = await import('@/lib/prisma')
 
-    // Soft delete - just set isActive to false
-    await prisma.helper.update({
+    // Check if helper has any activity
+    const helper = await prisma.helper.findUnique({
       where: { id },
-      data: { isActive: false },
+      include: {
+        _count: {
+          select: {
+            bidsPrompted: true,
+            paperBids: true,
+          },
+        },
+      },
     })
+
+    if (!helper) {
+      return NextResponse.json({ error: 'Helper not found' }, { status: 404 })
+    }
+
+    if (helper._count.bidsPrompted === 0 && helper._count.paperBids === 0) {
+      // Hard delete — no activity, safe to remove completely
+      await prisma.helper.delete({ where: { id } })
+    } else {
+      // Soft delete — has activity, preserve for records
+      await prisma.helper.update({
+        where: { id },
+        data: { isActive: false },
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

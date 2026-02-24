@@ -1093,6 +1093,13 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
               <ExternalLink className="w-4 h-4" />
               <span className="hidden sm:inline">Visit Live Page</span>
             </a>
+            <Link
+              href="/docs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Help</span>
+            </Link>
             <Button
               variant="ghost"
               size="sm"
@@ -1100,7 +1107,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
               className="text-white hover:bg-white/10"
               title="Start tutorial"
             >
-              <HelpCircle className="w-4 h-4" />
+              <Sparkles className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -1693,141 +1700,6 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
               </div>
             )}
 
-            {/* Prize Detail Modal */}
-            {selectedPrize && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedPrize(null)}>
-                <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-                  <div className="p-6 border-b flex items-start justify-between bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f]">
-                    <div>
-                      <Badge variant="navy" size="sm" className="mb-2 bg-white/20 text-white">
-                        {CATEGORY_LABELS[selectedPrize.category as keyof typeof CATEGORY_LABELS]}
-                      </Badge>
-                      <h3 className="text-xl font-bold text-white">{selectedPrize.title}</h3>
-                      <p className="text-sm text-white/70 mt-1">Donated by {selectedPrize.donorName}</p>
-                    </div>
-                    <button
-                      onClick={() => setSelectedPrize(null)}
-                      className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/70 hover:text-white"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="p-6 space-y-6 overflow-y-auto flex-1">
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-4 gap-4">
-                      <div className="p-4 bg-[#c9a227]/10 rounded-xl text-center">
-                        <p className="text-2xl font-bold text-[#c9a227]">
-                          {formatCurrency(selectedPrize.currentHighestBid || selectedPrize.minimumBid)}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {selectedPrize.currentHighestBid > 0 ? 'Current Bid' : 'Minimum Bid'}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-xl text-center">
-                        <p className="text-2xl font-bold text-gray-900">{selectedPrize.stats.totalBids}</p>
-                        <p className="text-xs text-gray-500 mt-1">Total Bids</p>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-xl text-center">
-                        <p className="text-2xl font-bold text-gray-900">{selectedPrize.stats.uniqueBidders}</p>
-                        <p className="text-xs text-gray-500 mt-1">Unique Bidders</p>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-xl text-center">
-                        <p className="text-2xl font-bold text-gray-900">{formatCurrency(selectedPrize.stats.averageBid)}</p>
-                        <p className="text-xs text-gray-500 mt-1">Avg Bid</p>
-                      </div>
-                    </div>
-
-                    {/* Winner if exists */}
-                    {selectedPrize.winners.length > 0 && (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Trophy className="w-5 h-5 text-green-600" />
-                          <h4 className="font-semibold text-green-800">Winner Confirmed</h4>
-                        </div>
-                        {selectedPrize.winners.map((winner) => (
-                          <div key={winner.id} className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-gray-900">{winner.bidder.name}</p>
-                              <p className="text-sm text-gray-500">{winner.bidder.tableNumber ? `Table ${winner.bidder.tableNumber}` : 'No table'}</p>
-                            </div>
-                            <p className="text-xl font-bold text-green-600">{formatCurrency(winner.bid.amount)}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Bid History */}
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <Gavel className="w-5 h-5 text-[#1e3a5f]" />
-                        Bid History ({selectedPrize.bids.length})
-                      </h4>
-                      {selectedPrize.bids.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
-                          <Gavel className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                          <p>No bids yet</p>
-                        </div>
-                      ) : (
-                        <div className="border rounded-xl overflow-hidden">
-                          <table className="w-full">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Rank</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Bidder</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Table</th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Time</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                              {selectedPrize.bids.map((bid, index) => (
-                                <tr key={bid.id} className={index === 0 ? 'bg-[#c9a227]/5' : ''}>
-                                  <td className="px-4 py-3">
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                      index === 0 ? 'bg-[#c9a227] text-white' :
-                                      index === 1 ? 'bg-gray-300 text-gray-700' :
-                                      index === 2 ? 'bg-amber-600 text-white' :
-                                      'bg-gray-100 text-gray-500'
-                                    }`}>
-                                      {index + 1}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <p className="font-medium text-gray-900">{bid.bidder.name}</p>
-                                    <p className="text-xs text-gray-500">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : bid.bidder.email}</p>
-                                  </td>
-                                  <td className="px-4 py-3 text-gray-600">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : '—'}</td>
-                                  <td className="px-4 py-3 text-right">
-                                    <span className={`font-bold ${index === 0 ? 'text-[#c9a227]' : 'text-gray-900'}`}>
-                                      {formatCurrency(bid.amount)}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-right text-sm text-gray-500">
-                                    {new Date(bid.createdAt).toLocaleString(undefined, {
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="p-4 border-t">
-                    <Button variant="outline" onClick={() => setSelectedPrize(null)} className="w-full">
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -2892,6 +2764,141 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                   </Card>
                 </>
               )}
+            </div>
+          </div>
+        )}
+        {/* Prize Detail Modal (top-level so it works from any tab) */}
+        {selectedPrize && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedPrize(null)}>
+            <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 border-b flex items-start justify-between bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f]">
+                <div>
+                  <Badge variant="navy" size="sm" className="mb-2 bg-white/20 text-white">
+                    {CATEGORY_LABELS[selectedPrize.category as keyof typeof CATEGORY_LABELS]}
+                  </Badge>
+                  <h3 className="text-xl font-bold text-white">{selectedPrize.title}</h3>
+                  <p className="text-sm text-white/70 mt-1">Donated by {selectedPrize.donorName}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedPrize(null)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/70 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="p-4 bg-[#c9a227]/10 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-[#c9a227]">
+                      {formatCurrency(selectedPrize.currentHighestBid || selectedPrize.minimumBid)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedPrize.currentHighestBid > 0 ? 'Current Bid' : 'Minimum Bid'}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-gray-900">{selectedPrize.stats.totalBids}</p>
+                    <p className="text-xs text-gray-500 mt-1">Total Bids</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-gray-900">{selectedPrize.stats.uniqueBidders}</p>
+                    <p className="text-xs text-gray-500 mt-1">Unique Bidders</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-gray-900">{formatCurrency(selectedPrize.stats.averageBid)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Avg Bid</p>
+                  </div>
+                </div>
+
+                {/* Winner if exists */}
+                {selectedPrize.winners.length > 0 && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Trophy className="w-5 h-5 text-green-600" />
+                      <h4 className="font-semibold text-green-800">Winner Confirmed</h4>
+                    </div>
+                    {selectedPrize.winners.map((winner) => (
+                      <div key={winner.id} className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{winner.bidder.name}</p>
+                          <p className="text-sm text-gray-500">{winner.bidder.tableNumber ? `Table ${winner.bidder.tableNumber}` : 'No table'}</p>
+                        </div>
+                        <p className="text-xl font-bold text-green-600">{formatCurrency(winner.bid.amount)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Bid History */}
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Gavel className="w-5 h-5 text-[#1e3a5f]" />
+                    Bid History ({selectedPrize.bids.length})
+                  </h4>
+                  {selectedPrize.bids.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Gavel className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      <p>No bids yet</p>
+                    </div>
+                  ) : (
+                    <div className="border rounded-xl overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Rank</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Bidder</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Table</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Time</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {selectedPrize.bids.map((bid, index) => (
+                            <tr key={bid.id} className={index === 0 ? 'bg-[#c9a227]/5' : ''}>
+                              <td className="px-4 py-3">
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                  index === 0 ? 'bg-[#c9a227] text-white' :
+                                  index === 1 ? 'bg-gray-300 text-gray-700' :
+                                  index === 2 ? 'bg-amber-600 text-white' :
+                                  'bg-gray-100 text-gray-500'
+                                }`}>
+                                  {index + 1}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <p className="font-medium text-gray-900">{bid.bidder.name}</p>
+                                <p className="text-xs text-gray-500">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : bid.bidder.email}</p>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : '—'}</td>
+                              <td className="px-4 py-3 text-right">
+                                <span className={`font-bold ${index === 0 ? 'text-[#c9a227]' : 'text-gray-900'}`}>
+                                  {formatCurrency(bid.amount)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right text-sm text-gray-500">
+                                {new Date(bid.createdAt).toLocaleString(undefined, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4 border-t">
+                <Button variant="outline" onClick={() => setSelectedPrize(null)} className="w-full">
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         )}

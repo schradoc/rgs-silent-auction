@@ -17,6 +17,7 @@ import {
   LogOut,
 } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { useBidder } from '@/hooks/useBidder'
 
 interface Profile {
   id: string
@@ -52,6 +53,7 @@ export default function ProfilePage() {
   const [notificationPref, setNotificationPref] = useState<'EMAIL' | 'SMS' | 'WHATSAPP'>('SMS')
 
   const router = useRouter()
+  const { refreshBidder } = useBidder()
 
   useEffect(() => {
     setMounted(true)
@@ -111,6 +113,7 @@ export default function ProfilePage() {
         return
       }
 
+      await refreshBidder()
       setSuccess('Profile updated successfully')
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {

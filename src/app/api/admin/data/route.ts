@@ -12,19 +12,22 @@ export async function GET(request: NextRequest) {
 
     const { prisma } = await import('@/lib/prisma')
 
-    const [prizes, bidders, recentBids, settings] = await Promise.all([
+    const [prizes, bidders, recentBids, settings, totalBidsCount] = await Promise.all([
       prisma.prize.findMany({
         where: { isActive: true, parentPrizeId: null },
         orderBy: { displayOrder: 'asc' },
         include: {
           _count: { select: { bids: true } },
           images: {
+            where: { isPrimary: true },
+            take: 1,
             orderBy: { order: 'asc' },
           },
         },
       }),
       prisma.bidder.findMany({
         orderBy: { createdAt: 'desc' },
+        take: 200,
         include: {
           _count: { select: { bids: true } },
         },
@@ -38,12 +41,13 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.auctionSettings.findUnique({ where: { id: 'settings' } }),
+      prisma.bid.count(),
     ])
 
     const stats = {
       totalPrizes: prizes.length,
       totalBidders: bidders.length,
-      totalBids: recentBids.length,
+      totalBids: totalBidsCount,
       totalValue: prizes.reduce((sum, p) => sum + p.currentHighestBid, 0),
     }
 

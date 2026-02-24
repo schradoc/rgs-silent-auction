@@ -378,7 +378,7 @@ export default function DocsPage() {
       <header className="bg-[#0f1d2d] text-white sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
-            href="/"
+            href="/admin/dashboard"
             className="flex items-center gap-2 text-white/70 hover:text-white transition-colors px-3 py-2 -ml-2 rounded-lg hover:bg-white/10 min-h-[44px]"
           >
             <ArrowLeft className="w-5 h-5" />
