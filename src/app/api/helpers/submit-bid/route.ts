@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { getMinimumNextBid } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,21 +68,32 @@ export async function POST(request: NextRequest) {
 
     // All bid validation and creation inside interactive transaction with row locking
     const result = await prisma.$transaction(async (tx) => {
+      // Check auction state with row lock to prevent bids after close
+      const settingsRows = await tx.$queryRaw<Array<{ isAuctionOpen: boolean }>>`
+        SELECT "isAuctionOpen" FROM "AuctionSettings" WHERE id = 'settings' FOR UPDATE`
+      const settings = settingsRows[0]
+
+      if (settings && !settings.isAuctionOpen) {
+        return { error: 'The auction is currently closed', status: 400 }
+      }
+
       // Lock the prize row with SELECT FOR UPDATE to serialize concurrent bids
       const prizeRows = await tx.$queryRaw<Array<{
         id: string
         title: string
         currentHighestBid: number
         minimumBid: number
-      }>>`SELECT id, title, "currentHighestBid", "minimumBid" FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
+        category: string
+      }>>`SELECT id, title, "currentHighestBid", "minimumBid", "category" FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
 
       const prize = prizeRows[0]
       if (!prize) {
         return { error: 'Prize not found', status: 404 }
       }
 
-      // Validate bid amount with locked fresh data
-      const minRequired = Math.max(prize.minimumBid, prize.currentHighestBid + 100)
+      // Validate bid amount with locked fresh data using same tiered increment as bidder endpoint
+      const isPledge = prize.category === 'PLEDGES'
+      const minRequired = isPledge ? prize.minimumBid : getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
       if (amount < minRequired) {
         return { error: `Bid must be at least HK$${minRequired.toLocaleString()}`, status: 400, minimumBid: minRequired }
       }

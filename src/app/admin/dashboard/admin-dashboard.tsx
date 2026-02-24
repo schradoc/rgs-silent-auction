@@ -320,7 +320,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
 
   // Poll for updates - reduced frequency when tab is hidden
   useEffect(() => {
-    const pollInterval = isPageVisible ? 5000 : 30000 // 5s when visible, 30s when hidden
+    const pollInterval = isPageVisible ? 10000 : 30000 // 10s when visible, 30s when hidden
     const interval = setInterval(async () => {
       try {
         const res = await fetch('/api/admin/data', { credentials: 'include' })

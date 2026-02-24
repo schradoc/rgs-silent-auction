@@ -154,6 +154,18 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
       })
       .catch(() => {})
       .finally(() => setAuctionLoading(false))
+
+    // Poll auction state every 10s so bidders learn quickly when auction closes
+    const stateInterval = setInterval(() => {
+      fetch('/api/auction-state')
+        .then(res => res.json())
+        .then(data => {
+          setAuctionState(data.state)
+          setIsAuctionOpen(data.isOpen)
+        })
+        .catch(() => {})
+    }, 10000)
+    return () => clearInterval(stateInterval)
   }, [prize.id, searchParams, contextBidder])
 
   const canBid = auctionState === 'LIVE' && isAuctionOpen

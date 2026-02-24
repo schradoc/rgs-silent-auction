@@ -124,6 +124,8 @@ model Bid {
   @@index([bidderId])
   @@index([helperId])
   @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
 }
 
 enum BidStatus {

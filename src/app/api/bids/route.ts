@@ -88,10 +88,11 @@ export async function POST(request: NextRequest) {
         return { error: 'This prize is no longer available for bidding', status: 400 }
       }
 
-      // Check auction state inside transaction
-      const settings = await tx.auctionSettings.findUnique({
-        where: { id: 'settings' },
-      })
+      // Check auction state inside transaction with row lock to prevent
+      // bids slipping through during a concurrent state change to CLOSED
+      const settingsRows = await tx.$queryRaw<Array<{ isAuctionOpen: boolean }>>`
+        SELECT "isAuctionOpen" FROM "AuctionSettings" WHERE id = 'settings' FOR UPDATE`
+      const settings = settingsRows[0]
 
       if (settings && !settings.isAuctionOpen) {
         return { error: 'The auction is currently closed', status: 400 }
