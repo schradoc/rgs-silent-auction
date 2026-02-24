@@ -420,9 +420,12 @@ export default function AdminLoginPage() {
               </p>
 
               {/* Helper text */}
-              <div className="bg-white/5 rounded-lg p-3 mb-4 text-left">
+              <div className="bg-white/5 rounded-lg p-3 mb-4 text-left space-y-2">
                 <p className="text-white/50 text-xs">
                   <strong className="text-white/70">Tip:</strong> Check your spam or junk folder if you don&apos;t see the email within a minute.
+                </p>
+                <p className="text-white/40 text-xs">
+                  Didn&apos;t receive it? Verify you&apos;re using the email registered for admin access. Contact <strong className="text-white/60">schradoc@gmail.com</strong> for help.
                 </p>
               </div>
 

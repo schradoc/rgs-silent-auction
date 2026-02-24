@@ -303,10 +303,10 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  className={`px-5 py-2.5 min-h-[44px] rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                     selectedCategory === cat.id
                       ? 'bg-[#0f1d2d] text-white'
-                      : 'bg-gray-50 text-[#6b6b6b] hover:bg-gray-100'
+                      : 'bg-transparent border border-gray-200/60 text-[#6b6b6b] hover:bg-gray-50'
                   }`}
                 >
                   {cat.label}
@@ -379,7 +379,7 @@ function PrizeCard({ prize, index, mounted, bidStatus }: { prize: Prize; index: 
       className={`group block transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
       style={{ transitionDelay: `${Math.min(index * 30, 200)}ms` }}
     >
-      <article className="bg-white rounded-2xl overflow-hidden border border-gray-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+      <article className="bg-white rounded-2xl overflow-hidden border border-gray-200/60 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
         {/* Image */}
         <div className="relative aspect-[16/9] overflow-hidden">
           <Image
@@ -429,8 +429,8 @@ function PrizeCard({ prize, index, mounted, bidStatus }: { prize: Prize; index: 
         </div>
 
         {/* Content */}
-        <div className="p-5">
-          <h3 className="font-medium text-[#1a1a1a] text-base leading-snug mb-2 line-clamp-2 group-hover:text-[#0f1d2d] transition-colors">
+        <div className="p-4">
+          <h3 className="font-medium tracking-tight text-[#1a1a1a] text-base leading-snug mb-2 line-clamp-2 group-hover:text-[#0f1d2d] transition-colors">
             {prize.title}
           </h3>
           <p className="text-sm text-[#6b6b6b] line-clamp-2 leading-relaxed">

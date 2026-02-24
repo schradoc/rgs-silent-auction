@@ -53,8 +53,15 @@ import { PasswordManagement } from '@/components/admin/password-management'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { OnboardingTutorial, useOnboarding } from '@/components/admin/onboarding-tutorial'
-import { AnalyticsCharts } from '@/components/admin/analytics-charts'
-import { ImageUpload } from '@/components/admin/image-upload'
+import dynamic from 'next/dynamic'
+
+const AnalyticsCharts = dynamic(() => import('@/components/admin/analytics-charts').then(m => m.AnalyticsCharts), {
+  loading: () => <div className="h-64 animate-pulse bg-gray-100 rounded-xl" />,
+})
+
+const ImageUpload = dynamic(() => import('@/components/admin/image-upload').then(m => m.ImageUpload), {
+  loading: () => <div className="h-32 animate-pulse bg-gray-100 rounded-xl" />,
+})
 
 interface PrizeImage {
   id: string
@@ -153,6 +160,11 @@ interface PotentialWinner {
     amount: number
     bidder: { id: string; name: string; phone: string | null; email: string | null; tableNumber: string | null }
   } | null
+  topBids?: Array<{
+    id: string
+    amount: number
+    bidder: { id: string; name: string; phone: string | null; email: string | null; tableNumber: string | null }
+  }>
   isConfirmed: boolean
   confirmedWinners: Array<{
     id: string
@@ -1893,85 +1905,98 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                     Loading winners...
                   </div>
                 ) : (
-                  potentialWinners.map((pw) => (
+                  potentialWinners.map((pw) => {
+                    const bidsToShow = pw.multiWinnerEligible && pw.topBids ? pw.topBids : (pw.winningBid ? [pw.winningBid] : [])
+                    const confirmedBidderIds = new Set(pw.confirmedWinners.map(w => w.bidder.id))
+                    const slots = pw.multiWinnerEligible ? (pw.multiWinnerSlots || bidsToShow.length) : 1
+
+                    return (
                     <div key={pw.prizeId} className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-gray-900">{pw.prizeTitle}</h3>
-                            {pw.isConfirmed && (
-                              <Badge variant="navy" size="sm" className="bg-green-100 text-green-700">
-                                <Check className="w-3 h-3 mr-1" />
-                                Confirmed
-                              </Badge>
-                            )}
-                          </div>
-
-                          {pw.winningBid ? (
-                            <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium text-gray-900">
-                                    {pw.winningBid.bidder.name}
-                                  </p>
-                                  <p className="text-sm text-gray-500">
-                                    {[
-                                      pw.winningBid.bidder.tableNumber ? `Table ${pw.winningBid.bidder.tableNumber}` : null,
-                                      pw.winningBid.bidder.email,
-                                    ].filter(Boolean).join(' • ')}
-                                  </p>
-                                </div>
-                                <p className="text-xl font-bold text-[#c9a227]">
-                                  {formatCurrency(pw.winningBid.amount)}
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-400 italic">No bids received</p>
-                          )}
-                        </div>
-
-                        {pw.winningBid && !pw.isConfirmed && (
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              variant="gold"
-                              size="sm"
-                              disabled={confirmingWinner === pw.prizeId}
-                              onClick={() => handleConfirmWinner(
-                                pw.prizeId,
-                                pw.winningBid!.id,
-                                pw.winningBid!.bidder.id,
-                                true
-                              )}
-                            >
-                              {confirmingWinner === pw.prizeId ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Mail className="w-4 h-4 mr-1" />
-                                  Confirm & Notify
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={confirmingWinner === pw.prizeId}
-                              onClick={() => handleConfirmWinner(
-                                pw.prizeId,
-                                pw.winningBid!.id,
-                                pw.winningBid!.bidder.id,
-                                false
-                              )}
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Confirm Only
-                            </Button>
-                          </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-gray-900">{pw.prizeTitle}</h3>
+                        {pw.multiWinnerEligible && (
+                          <Badge variant="navy" size="sm" className="bg-blue-100 text-blue-700">
+                            <Users className="w-3 h-3 mr-1" />
+                            {pw.multiWinnerSlots ? `${pw.multiWinnerSlots} slots` : 'Unlimited'}
+                          </Badge>
+                        )}
+                        {pw.confirmedWinners.length >= slots && slots > 0 && (
+                          <Badge variant="navy" size="sm" className="bg-green-100 text-green-700">
+                            <Check className="w-3 h-3 mr-1" />
+                            All Confirmed
+                          </Badge>
                         )}
                       </div>
+
+                      {bidsToShow.length > 0 ? (
+                        <div className="space-y-2">
+                          {bidsToShow.map((bid) => {
+                            const isConfirmed = confirmedBidderIds.has(bid.bidder.id)
+                            return (
+                              <div key={bid.id} className={`p-3 rounded-lg ${isConfirmed ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium text-gray-900">{bid.bidder.name}</p>
+                                      {isConfirmed && (
+                                        <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Confirmed</span>
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-gray-500">
+                                      {[
+                                        bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : null,
+                                        bid.bidder.email,
+                                      ].filter(Boolean).join(' \u2022 ')}
+                                    </p>
+                                  </div>
+                                  <p className="text-lg font-bold text-[#c9a227] flex-shrink-0">
+                                    {formatCurrency(bid.amount)}
+                                  </p>
+                                  {!isConfirmed && (
+                                    <div className="flex flex-col gap-1 flex-shrink-0">
+                                      <Button
+                                        variant="gold"
+                                        size="sm"
+                                        disabled={confirmingWinner === `${pw.prizeId}-${bid.id}`}
+                                        onClick={() => {
+                                          setConfirmingWinner(`${pw.prizeId}-${bid.id}`)
+                                          handleConfirmWinner(pw.prizeId, bid.id, bid.bidder.id, true)
+                                        }}
+                                      >
+                                        {confirmingWinner === `${pw.prizeId}-${bid.id}` ? (
+                                          <RefreshCw className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <Mail className="w-3 h-3 mr-1" />
+                                            Confirm & Notify
+                                          </>
+                                        )}
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={confirmingWinner === `${pw.prizeId}-${bid.id}`}
+                                        onClick={() => {
+                                          setConfirmingWinner(`${pw.prizeId}-${bid.id}`)
+                                          handleConfirmWinner(pw.prizeId, bid.id, bid.bidder.id, false)
+                                        }}
+                                      >
+                                        <Check className="w-3 h-3 mr-1" />
+                                        Confirm Only
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic">No bids received</p>
+                      )}
                     </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </Card>
@@ -2767,7 +2792,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       </h3>
                       <div className="space-y-4">
                         <a
-                          href="mailto:chris@example.com?subject=RGS Auction Support"
+                          href="mailto:schradoc@gmail.com?subject=RGS Auction Support"
                           className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                         >
                           <Mail className="w-5 h-5 text-[#c9a227]" />

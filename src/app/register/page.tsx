@@ -180,8 +180,9 @@ export default function RegisterPage() {
       }
 
       if (!data.requiresVerification) {
-        // Already verified — redirect straight to prizes
-        router.push('/prizes')
+        // Already verified — check onboarding
+        const onboarded = typeof window !== 'undefined' && localStorage.getItem('rgs_onboarded')
+        router.push(onboarded ? '/prizes' : '/welcome')
         return
       }
 
@@ -250,7 +251,8 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Verification failed')
       }
 
-      router.push('/prizes')
+      const onboarded = typeof window !== 'undefined' && localStorage.getItem('rgs_onboarded')
+      router.push(onboarded ? '/prizes' : '/welcome')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {

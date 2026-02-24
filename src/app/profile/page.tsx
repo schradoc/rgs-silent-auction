@@ -150,7 +150,7 @@ export default function ProfilePage() {
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/prizes"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors px-3 py-2 -ml-2 rounded-lg hover:bg-white/10 min-h-[44px]"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="text-sm font-medium">Back</span>

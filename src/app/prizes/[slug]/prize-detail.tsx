@@ -21,11 +21,14 @@ import {
   Eye,
   Ban,
   Check,
+  Hash,
 } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { Button, Card, CardContent, Badge, toast } from '@/components/ui'
 import { formatCurrency, formatDate, getMinimumNextBid, getMinimumBidIncrement } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
-import { BidSheet } from './bid-sheet'
+
+const BidSheet = dynamic(() => import('./bid-sheet').then(m => m.BidSheet))
 import type { Prize, Bid } from '@prisma/client'
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop'
@@ -69,6 +72,10 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
   const [deepLinkPending, setDeepLinkPending] = useState(false)
   const [selectedPledgeTier, setSelectedPledgeTier] = useState<PledgeTier | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [userTableNumber, setUserTableNumber] = useState<string | null>(null)
+  const [showTablePrompt, setShowTablePrompt] = useState(false)
+  const [tableInput, setTableInput] = useState('')
+  const [savingTable, setSavingTable] = useState(false)
 
   const searchParams = useSearchParams()
 
@@ -104,6 +111,19 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
       .then(data => {
         const favs = data.favorites || []
         setIsFavorite(favs.some((f: { prizeId: string }) => f.prizeId === prize.id))
+      })
+      .catch(() => {})
+
+    // Check user data for table number prompt
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.bidder) {
+          setUserTableNumber(data.bidder.tableNumber || null)
+          if (!data.bidder.tableNumber) {
+            setShowTablePrompt(true)
+          }
+        }
       })
       .catch(() => {})
 
@@ -215,6 +235,24 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
     }
   }
 
+  const handleSaveTable = async () => {
+    if (!tableInput.trim()) return
+    setSavingTable(true)
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tableNumber: tableInput.trim() }),
+      })
+      if (res.ok) {
+        setUserTableNumber(tableInput.trim())
+        setShowTablePrompt(false)
+        toast.success('Table number saved')
+      }
+    } catch {}
+    setSavingTable(false)
+  }
+
   const hasActiveBid = prize.bids.length > 0
   const minimumNextBid = getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
   const bidIncrement = getMinimumBidIncrement(prize.currentHighestBid || prize.minimumBid)
@@ -279,7 +317,7 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/prizes"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors px-3 py-2 -ml-2 rounded-lg hover:bg-white/10 min-h-[44px]"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="text-sm font-medium">All Prizes</span>
@@ -381,14 +419,14 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
         <div className="px-4 sm:px-6 -mt-8 relative z-10">
           {/* Main Content Card */}
           <div
-            className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+            className={`bg-white rounded-2xl border border-gray-200/60 overflow-hidden transition-all duration-500 delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
           >
             {/* Bid Section */}
             <div className="p-8 sm:p-10 border-b border-gray-100">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
                 <div className="flex-1">
                   <p className="text-sm text-[#6b6b6b] mb-1">Donated by {prize.donorName}</p>
-                  <h1 className="text-2xl sm:text-3xl font-light text-[#1a1a1a] mb-4 tracking-tight">{prize.title}</h1>
+                  <h1 className="text-2xl sm:text-3xl font-semibold text-[#1a1a1a] mb-4 tracking-tight">{prize.title}</h1>
 
                   {/* Urgency indicator */}
                   <div className={`flex items-center gap-2 text-sm ${prize.bids.length > 0 ? 'text-[#a08a1e]' : 'text-[#6b6b6b]'} mb-4 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: '400ms' }}>
@@ -404,7 +442,7 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
                       ? 'Pledge Amount'
                       : hasActiveBid ? 'Current Highest Bid' : 'Starting Bid'}
                   </p>
-                  <p className={`text-4xl sm:text-5xl font-light tracking-tight ${hasActiveBid ? 'text-[#a08a1e]' : 'text-[#1a1a1a]'}`}>
+                  <p className={`text-4xl sm:text-5xl font-semibold tracking-tighter ${hasActiveBid ? 'text-[#a08a1e]' : 'text-[#1a1a1a]'}`}>
                     {formatCurrency(hasActiveBid ? prize.currentHighestBid : prize.minimumBid)}
                   </p>
                   {hasActiveBid && !isPledge && (
@@ -414,6 +452,38 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
                   )}
                 </div>
               </div>
+
+              {/* Table Number Prompt */}
+              {showTablePrompt && canBid && (
+                <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center gap-3">
+                  <Hash className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-blue-700">Add your table number for easier identification</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <input
+                      type="text"
+                      value={tableInput}
+                      onChange={(e) => setTableInput(e.target.value)}
+                      placeholder="e.g. 12"
+                      className="w-16 px-2 py-1 text-sm border border-blue-200 rounded-lg focus:outline-none focus:border-blue-400"
+                    />
+                    <button
+                      onClick={handleSaveTable}
+                      disabled={savingTable || !tableInput.trim()}
+                      className="px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {savingTable ? '...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => setShowTablePrompt(false)}
+                      className="px-2 py-1 text-xs text-blue-400 hover:text-blue-600 transition-colors"
+                    >
+                      Later
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Bid Area */}
               <div className="mt-6">
@@ -486,10 +556,10 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
                                 <button
                                   key={amount}
                                   onClick={() => handleQuickBid(amount)}
-                                  className={`py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
+                                  className={`py-3 px-4 rounded-xl font-medium transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#a08a1e]/30 focus-visible:outline-none ${
                                     i === 0
-                                      ? 'bg-[#a08a1e] text-white hover:bg-[#8a7618] hover:scale-[1.01] active:scale-[0.99]'
-                                      : 'bg-[#f8f8f6] text-[#1a1a1a] hover:bg-gray-100 hover:scale-[1.01] active:scale-[0.99]'
+                                      ? 'bg-[#a08a1e] text-white hover:bg-[#8a7618]'
+                                      : 'bg-[#f8f8f6] text-[#1a1a1a] hover:bg-gray-100'
                                   }`}
                                 >
                                   {formatCurrency(amount)}
@@ -554,7 +624,7 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
 
           {/* Description */}
           <div
-            className={`mt-6 bg-white rounded-2xl p-8 sm:p-10 shadow-sm border border-gray-100 transition-all duration-500 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+            className={`mt-6 bg-white rounded-2xl p-8 sm:p-10 border border-gray-200/60 transition-all duration-500 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
           >
             <h2 className="text-lg font-medium text-[#1a1a1a] mb-4">About This Prize</h2>
             <div className="prose prose-gray max-w-none">
@@ -565,7 +635,7 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
           {/* Bid History */}
           {prize.bids.length > 0 && (
             <div
-              className={`mt-6 bg-white rounded-2xl p-8 sm:p-10 shadow-sm border border-gray-100 transition-all duration-500 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+              className={`mt-6 bg-white rounded-2xl p-8 sm:p-10 border border-gray-200/60 transition-all duration-500 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium text-[#1a1a1a]">
@@ -615,7 +685,7 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
           {/* Terms & Conditions */}
           {prize.terms && (
             <div
-              className={`mt-6 bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 transition-all duration-500 delay-[400ms] ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+              className={`mt-6 bg-white rounded-2xl overflow-hidden border border-gray-200/60 transition-all duration-500 delay-[400ms] ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
             >
               <button
                 onClick={() => setShowTerms(!showTerms)}

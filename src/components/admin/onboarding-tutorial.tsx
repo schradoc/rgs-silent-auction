@@ -72,10 +72,19 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     position: 'bottom-right',
   },
   {
-    id: 'settings',
-    title: 'Auction States',
+    id: 'helpers',
+    title: 'Helper System',
     description:
-      'Control the auction lifecycle: Draft → Testing → Pre-launch → Live → Closed. Change the state when ready to go live!',
+      'Assign helpers with PINs to enter paper bids on behalf of guests. They can scan bid sheets or manually enter bids from the helper portal.',
+    icon: Users,
+    targetTab: 'helpers',
+    position: 'bottom-right',
+  },
+  {
+    id: 'settings',
+    title: 'Auction States & Team',
+    description:
+      'Control the auction lifecycle: Draft → Testing → Pre-launch → Live → Closed. Invite team members under Settings → Team to share admin access.',
     icon: Settings,
     targetTab: 'settings',
     position: 'bottom-left',
@@ -84,7 +93,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     id: 'launch',
     title: 'You\'re All Set!',
     description:
-      'Add your prizes, then change the state to "Live" when ready to open bidding. Click the ? button anytime to restart this tour.',
+      'Add your prizes, then change the state to "Live" when ready to open bidding. Need help? Check Settings → Support or click the ? button to restart this tour.',
     icon: Rocket,
     position: 'center',
   },

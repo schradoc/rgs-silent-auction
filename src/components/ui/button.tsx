@@ -16,14 +16,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          'inline-flex items-center justify-center font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+          'inline-flex items-center justify-center font-medium transition-all duration-150 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed',
           {
             // Variants
-            'bg-[#1e3a5f] text-white hover:bg-[#2d4a6f] focus:ring-[#1e3a5f]': variant === 'primary',
-            'bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-500': variant === 'secondary',
-            'border-2 border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f] hover:text-white focus:ring-[#1e3a5f]': variant === 'outline',
-            'text-[#1e3a5f] hover:bg-gray-100 focus:ring-gray-500': variant === 'ghost',
-            'bg-[#c9a227] text-white hover:bg-[#b8922a] focus:ring-[#c9a227]': variant === 'gold',
+            'bg-[#1e3a5f] text-white hover:bg-[#2d4a6f] focus-visible:ring-[#1e3a5f]': variant === 'primary',
+            'bg-gray-100 text-gray-900 hover:bg-gray-200 focus-visible:ring-gray-500': variant === 'secondary',
+            'border-2 border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f] hover:text-white focus-visible:ring-[#1e3a5f]': variant === 'outline',
+            'text-[#1e3a5f] hover:bg-gray-100 focus-visible:ring-gray-500': variant === 'ghost',
+            'bg-[#c9a227] text-white hover:bg-[#b8922a] focus-visible:ring-[#c9a227]': variant === 'gold',
             // Sizes
             'text-sm px-3 py-1.5': size === 'sm',
             'text-base px-4 py-2': size === 'md',

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
             },
           },
           orderBy: { amount: 'desc' },
-          take: 1,
+          take: 20,
         },
         winners: {
           include: {
@@ -59,19 +59,24 @@ export async function GET(request: NextRequest) {
       orderBy: { title: 'asc' },
     })
 
-    // Format as potential winners
-    const potentialWinners = prizes.map((prize) => ({
-      prizeId: prize.id,
-      prizeTitle: prize.title,
-      prizeSlug: prize.slug,
-      minimumBid: prize.minimumBid,
-      currentHighestBid: prize.currentHighestBid,
-      winningBid: prize.bids[0] || null,
-      isConfirmed: prize.winners.length > 0,
-      confirmedWinners: prize.winners,
-      multiWinnerEligible: prize.multiWinnerEligible,
-      multiWinnerSlots: prize.multiWinnerSlots,
-    }))
+    // Format as potential winners with top N bids
+    const potentialWinners = prizes.map((prize) => {
+      const slots = prize.multiWinnerEligible ? (prize.multiWinnerSlots || prize.bids.length) : 1
+      const topBids = prize.bids.slice(0, slots)
+      return {
+        prizeId: prize.id,
+        prizeTitle: prize.title,
+        prizeSlug: prize.slug,
+        minimumBid: prize.minimumBid,
+        currentHighestBid: prize.currentHighestBid,
+        winningBid: prize.bids[0] || null,
+        topBids,
+        isConfirmed: prize.winners.length > 0,
+        confirmedWinners: prize.winners,
+        multiWinnerEligible: prize.multiWinnerEligible,
+        multiWinnerSlots: prize.multiWinnerSlots,
+      }
+    })
 
     return NextResponse.json({ potentialWinners })
   } catch (error) {
