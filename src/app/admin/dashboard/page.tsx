@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation'
+import { verifyAdminSession } from '@/lib/admin-auth'
 import { AdminDashboard } from './admin-dashboard'
 
 export const dynamic = 'force-dynamic'
@@ -41,6 +43,11 @@ async function getAdminData() {
 }
 
 export default async function AdminDashboardPage() {
+  const auth = await verifyAdminSession()
+  if (!auth.valid) {
+    redirect('/admin/login')
+  }
+
   const data = await getAdminData()
 
   return <AdminDashboard initialData={data} />

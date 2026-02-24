@@ -137,20 +137,29 @@ export default function LiveDisplayPage() {
     return () => clearInterval(timer)
   }, [data?.stats.totalRaised])
 
-  // Calculate time remaining
+  // Calculate time remaining — only meaningful when auction is live
   const getTimeRemaining = () => {
-    if (!data?.settings.auctionEndTime) return null
+    if (!data?.settings.isAuctionOpen || !data?.settings.auctionEndTime) return null
     const end = new Date(data.settings.auctionEndTime).getTime()
     const now = Date.now()
     const diff = end - now
 
-    if (diff <= 0) return { hours: 0, minutes: 0, seconds: 0 }
+    if (diff <= 0) return { display: '0:00', label: 'Auction Closed' }
 
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+    const totalMinutes = Math.floor(diff / (1000 * 60))
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
 
-    return { hours, minutes, seconds }
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24)
+      const remainingHours = hours % 24
+      return { display: `${days}d ${remainingHours}h`, label: 'Remaining' }
+    }
+
+    return {
+      display: `${hours}:${String(minutes).padStart(2, '0')}`,
+      label: 'Remaining',
+    }
   }
 
   const timeRemaining = getTimeRemaining()
@@ -223,10 +232,9 @@ export default function LiveDisplayPage() {
                     <Clock className="w-6 h-6 text-red-400" />
                   </div>
                   <p className="text-2xl font-bold font-mono">
-                    {String(timeRemaining.hours).padStart(2, '0')}:
-                    {String(timeRemaining.minutes).padStart(2, '0')}
+                    {timeRemaining.display}
                   </p>
-                  <p className="text-red-400 text-xs">Remaining</p>
+                  <p className="text-red-400 text-xs">{timeRemaining.label}</p>
                 </div>
               )}
             </div>
@@ -260,13 +268,13 @@ export default function LiveDisplayPage() {
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6 text-center">
               <div className="bg-white p-4 rounded-xl inline-block mb-3">
                 <QRCode
-                  value="https://rgs-auction.vercel.app/prizes"
+                  value="https://rgsauction.com/prizes"
                   size={140}
                   level="M"
                 />
               </div>
               <p className="text-lg font-medium mb-1">Scan to Bid</p>
-              <p className="text-white/40 text-sm">rgs-auction.vercel.app</p>
+              <p className="text-white/40 text-sm">rgsauction.com</p>
             </div>
 
             {/* Live Feed Mini */}

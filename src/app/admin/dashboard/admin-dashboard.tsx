@@ -2379,7 +2379,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                             displaySettings.showDonorNames ? 'bg-[#c9a227]' : 'bg-gray-300'
                           }`}
                         >
-                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md ring-1 ring-black/10 transition-transform ${
                             displaySettings.showDonorNames ? 'translate-x-7' : 'translate-x-1'
                           }`} />
                         </button>
@@ -2397,7 +2397,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                             displaySettings.showBidderNames ? 'bg-[#c9a227]' : 'bg-gray-300'
                           }`}
                         >
-                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md ring-1 ring-black/10 transition-transform ${
                             displaySettings.showBidderNames ? 'translate-x-7' : 'translate-x-1'
                           }`} />
                         </button>

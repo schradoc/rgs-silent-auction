@@ -277,7 +277,7 @@ export default function ProfilePage() {
                   }`}
                 >
                   <div
-                    className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    className={`w-5 h-5 rounded-full bg-white shadow-md ring-1 ring-black/10 transition-transform ${
                       smsOptIn ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
@@ -297,7 +297,7 @@ export default function ProfilePage() {
                 }`}
               >
                 <div
-                  className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  className={`w-5 h-5 rounded-full bg-white shadow-md ring-1 ring-black/10 transition-transform ${
                     emailOptIn ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
