@@ -16,8 +16,10 @@ import {
   Award,
   AlertTriangle,
   ChevronRight,
+  ChevronDown,
   Plus,
   Camera,
+  Hash,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -50,12 +52,25 @@ interface OutbidAlert {
   prize: { title: string; slug: string; currentHighestBid: number }
 }
 
+interface TableActivityEntry {
+  tableNumber: string
+  winningCount: number
+  outbidCount: number
+  bids: Array<{
+    bidderName: string
+    prizeTitle: string
+    amount: number
+    status: string
+  }>
+}
+
 interface DashboardData {
   helper: { id: string; name: string; avatarColor: string }
   stats: HelperStats
   leaderboard: HelperStats[]
   recentBids: RecentBid[]
   outbidAlerts: OutbidAlert[]
+  tableActivity?: TableActivityEntry[]
 }
 
 export default function HelperDashboardPage() {
@@ -63,6 +78,7 @@ export default function HelperDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set())
   const router = useRouter()
 
   useEffect(() => {
@@ -236,6 +252,81 @@ export default function HelperDashboardPage() {
                     </p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-orange-400" />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Table Activity */}
+        {data.tableActivity && data.tableActivity.length > 0 && (
+          <section
+            className={`transition-all duration-500 delay-150 ${
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+          >
+            <h2 className="text-white/70 text-sm font-medium mb-3 flex items-center gap-2">
+              <Hash className="w-4 h-4 text-blue-400" />
+              Table Activity
+            </h2>
+            <div className="bg-white/5 rounded-xl overflow-hidden border border-white/10">
+              {data.tableActivity.map((table, index) => (
+                <div key={table.tableNumber}>
+                  <button
+                    onClick={() => {
+                      setExpandedTables(prev => {
+                        const next = new Set(prev)
+                        if (next.has(table.tableNumber)) next.delete(table.tableNumber)
+                        else next.add(table.tableNumber)
+                        return next
+                      })
+                    }}
+                    className={`w-full flex items-center gap-3 p-3 text-left hover:bg-white/5 transition-colors ${
+                      index !== data.tableActivity!.length - 1 && !expandedTables.has(table.tableNumber) ? 'border-b border-white/10' : ''
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-sm font-bold">
+                      {table.tableNumber}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium">Table {table.tableNumber}</p>
+                      <p className="text-white/50 text-xs">
+                        {table.winningCount} winning · {table.outbidCount} outbid
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {table.outbidCount > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300">
+                          {table.outbidCount} outbid
+                        </span>
+                      )}
+                      {expandedTables.has(table.tableNumber) ? (
+                        <ChevronDown className="w-4 h-4 text-white/40" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-white/40" />
+                      )}
+                    </div>
+                  </button>
+                  {expandedTables.has(table.tableNumber) && (
+                    <div className={`px-3 pb-3 space-y-1 ${index !== data.tableActivity!.length - 1 ? 'border-b border-white/10' : ''}`}>
+                      {table.bids.map((bid, bidIdx) => (
+                        <div key={bidIdx} className="flex items-center justify-between gap-2 py-1.5 px-3 rounded-lg bg-white/5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white/80 text-xs truncate">{bid.prizeTitle}</p>
+                            <p className="text-white/40 text-xs">{bid.bidderName}</p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-[#b8941f] text-xs font-medium">{formatCurrency(bid.amount)}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${
+                              bid.status === 'WINNING' ? 'bg-green-500/20 text-green-300' : 'bg-orange-500/20 text-orange-300'
+                            }`}>
+                              {bid.status === 'WINNING' ? 'Won' : 'Outbid'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

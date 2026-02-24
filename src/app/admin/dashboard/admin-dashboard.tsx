@@ -165,6 +165,11 @@ interface PotentialWinner {
     amount: number
     bidder: { id: string; name: string; phone: string | null; email: string | null; tableNumber: string | null }
   }>
+  runnerUpBids?: Array<{
+    id: string
+    amount: number
+    bidder: { id: string; name: string; phone: string | null; email: string | null; tableNumber: string | null }
+  }>
   isConfirmed: boolean
   confirmedWinners: Array<{
     id: string
@@ -1990,6 +1995,31 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                               </div>
                             )
                           })}
+                          {/* Runner-ups (next in line) */}
+                          {pw.runnerUpBids && pw.runnerUpBids.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Next in line</p>
+                              {pw.runnerUpBids.map((bid) => (
+                                <div key={bid.id} className="p-2 rounded-lg bg-gray-50/50 mb-1">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm text-gray-600">{bid.bidder.name}</p>
+                                      <p className="text-xs text-gray-400">
+                                        {[
+                                          bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : null,
+                                          bid.bidder.phone,
+                                          bid.bidder.email,
+                                        ].filter(Boolean).join(' \u2022 ')}
+                                      </p>
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-400 flex-shrink-0">
+                                      {formatCurrency(bid.amount)}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="text-sm text-gray-400 italic">No bids received</p>

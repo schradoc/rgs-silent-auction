@@ -34,19 +34,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ winners })
     }
 
-    // Get all prizes with their winning bids (potential winners)
+    // Get all prizes with their winning bids and runner-ups (potential winners)
     const prizes = await prisma.prize.findMany({
       where: { isActive: true, parentPrizeId: null },
       include: {
         bids: {
-          where: { status: 'WINNING' },
+          where: { status: { in: ['WINNING', 'OUTBID'] } },
           include: {
             bidder: {
               select: { id: true, name: true, phone: true, email: true, tableNumber: true },
             },
           },
           orderBy: { amount: 'desc' },
-          take: 20,
+          take: 50,
         },
         winners: {
           include: {
@@ -59,18 +59,23 @@ export async function GET(request: NextRequest) {
       orderBy: { title: 'asc' },
     })
 
-    // Format as potential winners with top N bids
+    // Format as potential winners with top N bids and runner-ups
     const potentialWinners = prizes.map((prize) => {
-      const slots = prize.multiWinnerEligible ? (prize.multiWinnerSlots || prize.bids.length) : 1
-      const topBids = prize.bids.slice(0, slots)
+      const winningBids = prize.bids.filter(b => b.status === 'WINNING')
+      const outbidBids = prize.bids.filter(b => b.status === 'OUTBID')
+      const slots = prize.multiWinnerEligible ? (prize.multiWinnerSlots || winningBids.length) : 1
+      const topBids = winningBids.slice(0, slots)
+      // Top 3 runner-ups (highest outbid amounts)
+      const runnerUpBids = outbidBids.slice(0, 3)
       return {
         prizeId: prize.id,
         prizeTitle: prize.title,
         prizeSlug: prize.slug,
         minimumBid: prize.minimumBid,
         currentHighestBid: prize.currentHighestBid,
-        winningBid: prize.bids[0] || null,
+        winningBid: winningBids[0] || null,
         topBids,
+        runnerUpBids,
         isConfirmed: prize.winners.length > 0,
         confirmedWinners: prize.winners,
         multiWinnerEligible: prize.multiWinnerEligible,

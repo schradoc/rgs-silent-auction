@@ -123,6 +123,40 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Get table activity: all WINNING/OUTBID bids grouped by table
+    const tableBids = await prisma.bid.findMany({
+      where: {
+        status: { in: ['WINNING', 'OUTBID'] },
+        bidder: { tableNumber: { not: null } },
+      },
+      include: {
+        bidder: { select: { name: true, tableNumber: true } },
+        prize: { select: { title: true } },
+      },
+      orderBy: { amount: 'desc' },
+    })
+
+    const tableMap = new Map<string, { winningCount: number; outbidCount: number; bids: Array<{ bidderName: string; prizeTitle: string; amount: number; status: string }> }>()
+    for (const bid of tableBids) {
+      const table = bid.bidder.tableNumber!
+      if (!tableMap.has(table)) {
+        tableMap.set(table, { winningCount: 0, outbidCount: 0, bids: [] })
+      }
+      const entry = tableMap.get(table)!
+      if (bid.status === 'WINNING') entry.winningCount++
+      else entry.outbidCount++
+      entry.bids.push({
+        bidderName: bid.bidder.name,
+        prizeTitle: bid.prize.title,
+        amount: bid.amount,
+        status: bid.status,
+      })
+    }
+
+    const tableActivity = Array.from(tableMap.entries())
+      .map(([tableNumber, data]) => ({ tableNumber, ...data }))
+      .sort((a, b) => b.outbidCount - a.outbidCount || b.winningCount - a.winningCount)
+
     return NextResponse.json({
       helper: {
         id: helper.id,
@@ -133,6 +167,7 @@ export async function GET(request: NextRequest) {
       leaderboard: rankedLeaderboard,
       recentBids,
       outbidAlerts: outbidBids,
+      tableActivity,
     })
   } catch (error) {
     console.error('Helper dashboard error:', error)

@@ -66,6 +66,7 @@ export async function PATCH(request: NextRequest) {
       name,
       tableNumber,
       phone,
+      email,
       emailOptIn,
       smsOptIn,
       whatsappOptIn,
@@ -80,6 +81,10 @@ export async function PATCH(request: NextRequest) {
     if (name !== undefined) updateData.name = name
     if (tableNumber !== undefined) updateData.tableNumber = tableNumber
     if (phone !== undefined) updateData.phone = phone
+    if (email !== undefined) {
+      updateData.email = email || null
+      updateData.emailVerified = false
+    }
     if (emailOptIn !== undefined) updateData.emailOptIn = emailOptIn
     if (smsOptIn !== undefined) updateData.smsOptIn = smsOptIn
     if (whatsappOptIn !== undefined) updateData.whatsappOptIn = whatsappOptIn

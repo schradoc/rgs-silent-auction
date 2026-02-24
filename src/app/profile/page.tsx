@@ -47,6 +47,7 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState('')
   const [emailOptIn, setEmailOptIn] = useState(false)
   const [smsOptIn, setSmsOptIn] = useState(false)
+  const [email, setEmail] = useState('')
   const [whatsappOptIn, setWhatsappOptIn] = useState(false)
   const [notificationPref, setNotificationPref] = useState<'EMAIL' | 'SMS' | 'WHATSAPP'>('SMS')
 
@@ -70,6 +71,7 @@ export default function ProfilePage() {
         setName(data.profile.name)
         setTableNumber(data.profile.tableNumber)
         setPhone(data.profile.phone || '')
+        setEmail(data.profile.email || '')
         setEmailOptIn(data.profile.emailOptIn)
         setSmsOptIn(data.profile.smsOptIn)
         setWhatsappOptIn(data.profile.whatsappOptIn)
@@ -95,6 +97,7 @@ export default function ProfilePage() {
           name,
           tableNumber,
           phone: phone || null,
+          email: email || null,
           emailOptIn,
           smsOptIn,
           whatsappOptIn,
@@ -237,10 +240,12 @@ export default function ProfilePage() {
               <label className="block text-sm text-gray-500 mb-1">Email (optional)</label>
               <input
                 type="email"
-                value={profile.email || ''}
-                disabled
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a08a1e]"
               />
+              <p className="text-xs text-gray-400 mt-1">Used for notifications only</p>
             </div>
           </div>
         </section>
