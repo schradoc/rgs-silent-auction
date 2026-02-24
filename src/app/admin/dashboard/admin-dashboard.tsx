@@ -749,6 +749,41 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
     }
   }
 
+  const handleFullReset = async () => {
+    const confirmed = await confirm.confirm({
+      title: 'Reset ALL Auction Data',
+      description: 'This will permanently delete ALL prizes, bidders, bids, helpers, and notifications. Only admin accounts will be kept. This CANNOT be undone.',
+      confirmLabel: 'Delete Everything',
+      variant: 'danger',
+    })
+    if (!confirmed) return
+
+    const doubleConfirmed = await confirm.confirm({
+      title: 'Are you absolutely sure?',
+      description: 'This will wipe the entire auction to a blank state. Type-check: you are about to delete all data.',
+      confirmLabel: 'Yes, reset everything',
+      variant: 'danger',
+    })
+    if (!doubleConfirmed) return
+
+    setMockDataLoading(true)
+    try {
+      const res = await fetch('/api/admin/reset', { method: 'DELETE', credentials: 'include' })
+      const data = await res.json()
+      if (res.ok) {
+        const total = Object.values(data.deleted as Record<string, number>).reduce((a, b) => a + b, 0)
+        toast.success(`Reset complete — ${total} records deleted`)
+        handleRefresh()
+      } else {
+        toast.error(data.error || 'Failed to reset')
+      }
+    } catch (error) {
+      toast.error('Failed to reset data')
+    } finally {
+      setMockDataLoading(false)
+    }
+  }
+
   const handleStateChange = async (newState: string) => {
     const currentState = data.settings?.auctionState || 'DRAFT'
     const stateConfirmed = await confirm.confirm({
@@ -2300,6 +2335,23 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                               <Trash2 className="w-4 h-4 mr-2" />
                             )}
                             Clear Mock Data
+                          </Button>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-red-200">
+                          <p className="text-sm text-red-600 mb-2 font-medium">Full Reset</p>
+                          <p className="text-xs text-gray-500 mb-3">Delete ALL prizes, bidders, bids, helpers, and notifications. Only admin accounts are kept.</p>
+                          <Button
+                            variant="outline"
+                            onClick={handleFullReset}
+                            disabled={mockDataLoading}
+                            className="border-red-500 text-red-700 hover:bg-red-50"
+                          >
+                            {mockDataLoading ? (
+                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4 mr-2" />
+                            )}
+                            Reset All Data
                           </Button>
                         </div>
                       </CardContent>
