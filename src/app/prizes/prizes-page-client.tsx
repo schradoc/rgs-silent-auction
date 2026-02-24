@@ -7,6 +7,7 @@ import { User, Search, Clock, X, Lock, Eye, Heart, Settings, UserPlus, HelpCircl
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { AuctionCountdown } from '@/components/auction-countdown'
+import { useBidder } from '@/hooks/useBidder'
 import type { Prize } from '@prisma/client'
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop'
@@ -38,7 +39,8 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'popular' | 'price-high' | 'price-low'>('popular')
   const [auctionStatus, setAuctionStatus] = useState<AuctionStatus | null>(null)
-  const [isSignedIn, setIsSignedIn] = useState(false)
+  const { bidder, isLoading: bidderLoading } = useBidder()
+  const isSignedIn = !!bidder
   const [winningCount, setWinningCount] = useState(0)
   const [bidStatusMap, setBidStatusMap] = useState<Record<string, 'WINNING' | 'OUTBID'>>({})
 
@@ -54,39 +56,29 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
         auctionState: data.state,
       }))
       .catch(() => {})
+  }, [])
 
-    // Check auth state
-    fetch('/api/auth/me')
-      .then(res => {
-        if (res.ok) return res.json()
-        return null
-      })
-      .then(data => {
-        if (data?.bidder) {
-          setIsSignedIn(true)
-          // Fetch bid statuses for badge display
-          fetch('/api/my-bids')
-            .then(res => res.ok ? res.json() : null)
-            .then(bidsData => {
-              if (bidsData?.bids) {
-                const winning = bidsData.bids.filter((b: { status: string }) => b.status === 'WINNING').length
-                setWinningCount(winning)
-                // Build a map of prizeId -> latest bid status
-                const statusMap: Record<string, 'WINNING' | 'OUTBID'> = {}
-                for (const b of bidsData.bids as { prize: { id: string }; status: string }[]) {
-                  // Only record WINNING or OUTBID, keep the first (latest) per prize
-                  if (!statusMap[b.prize.id] && (b.status === 'WINNING' || b.status === 'OUTBID')) {
-                    statusMap[b.prize.id] = b.status as 'WINNING' | 'OUTBID'
-                  }
-                }
-                setBidStatusMap(statusMap)
-              }
-            })
-            .catch(() => {})
+  // Fetch bid statuses when bidder is available
+  useEffect(() => {
+    if (!bidder) return
+
+    fetch('/api/my-bids')
+      .then(res => res.ok ? res.json() : null)
+      .then(bidsData => {
+        if (bidsData?.bids) {
+          const winning = bidsData.bids.filter((b: { status: string }) => b.status === 'WINNING').length
+          setWinningCount(winning)
+          const statusMap: Record<string, 'WINNING' | 'OUTBID'> = {}
+          for (const b of bidsData.bids as { prize: { id: string }; status: string }[]) {
+            if (!statusMap[b.prize.id] && (b.status === 'WINNING' || b.status === 'OUTBID')) {
+              statusMap[b.prize.id] = b.status as 'WINNING' | 'OUTBID'
+            }
+          }
+          setBidStatusMap(statusMap)
         }
       })
       .catch(() => {})
-  }, [])
+  }, [bidder])
 
   // Filter and sort prizes
   const filteredPrizes = useMemo(() => {
@@ -203,7 +195,9 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
                 <HelpCircle className="w-5 h-5 text-white/70 hover:text-white" />
               </Link>
 
-              {isSignedIn ? (
+              {bidderLoading ? (
+                <div className="w-24 h-9 rounded-full bg-white/10 animate-pulse" />
+              ) : isSignedIn ? (
                 <>
                   <Link
                     href="/favorites"

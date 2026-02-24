@@ -2715,6 +2715,17 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       </h3>
                       <div className="space-y-4">
                         <a
+                          href="/committee"
+                          target="_blank"
+                          className="flex items-center gap-3 p-4 border-2 border-[#c9a227]/30 rounded-lg hover:bg-[#c9a227]/5 transition-colors bg-[#c9a227]/5"
+                        >
+                          <BarChart3 className="w-5 h-5 text-[#c9a227]" />
+                          <div>
+                            <p className="font-medium text-gray-900">Committee Analytics</p>
+                            <p className="text-sm text-gray-500">Live dashboard for committee members (PIN: 2026)</p>
+                          </div>
+                        </a>
+                        <a
                           href="mailto:schradoc@gmail.com?subject=RGS Auction Support"
                           className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                         >
