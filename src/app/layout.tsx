@@ -23,9 +23,6 @@ export const viewport: Viewport = {
   themeColor: '#1e3a5f',
 }
 
-const isStaging = process.env.NEXT_PUBLIC_IS_STAGING === 'true' ||
-  (process.env.NEXT_PUBLIC_APP_URL || '').includes('vercel.app')
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,12 +32,19 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
-        {isStaging && (
-          <div className="fixed bottom-2 left-2 z-[9999] px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-yellow-400 text-yellow-900 opacity-80 pointer-events-none select-none">
-            Staging
-          </div>
-        )}
+        <StagingBadge />
       </body>
     </html>
+  )
+}
+
+function StagingBadge() {
+  // Build-time check from env var
+  const envStaging = process.env.NEXT_PUBLIC_IS_STAGING === 'true'
+  if (!envStaging) return null
+  return (
+    <div className="fixed bottom-2 left-2 z-[9999] px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-yellow-400 text-yellow-900 opacity-80 pointer-events-none select-none">
+      Staging
+    </div>
   )
 }
