@@ -24,6 +24,7 @@ import {
   Hash,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import { useBidder } from '@/hooks/useBidder'
 import { Button, Card, CardContent, Badge, toast } from '@/components/ui'
 import { formatCurrency, formatDate, getMinimumNextBid, getMinimumBidIncrement } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
@@ -59,6 +60,7 @@ interface PrizeDetailProps {
 type AuctionState = 'DRAFT' | 'TESTING' | 'PRELAUNCH' | 'LIVE' | 'CLOSED'
 
 export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
+  const { bidder: contextBidder, refreshBidder } = useBidder()
   const [showBidSheet, setShowBidSheet] = useState(false)
   const [quickBidAmount, setQuickBidAmount] = useState<number | null>(null)
   const [showTerms, setShowTerms] = useState(false)
@@ -114,18 +116,25 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
       })
       .catch(() => {})
 
-    // Check user data for table number prompt
-    fetch('/api/auth/me')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data?.bidder) {
-          setUserTableNumber(data.bidder.tableNumber || null)
-          if (!data.bidder.tableNumber) {
-            setShowTablePrompt(true)
+    // Check user data for table number prompt — prefer context, fallback to API
+    if (contextBidder) {
+      setUserTableNumber(contextBidder.tableNumber || null)
+      if (!contextBidder.tableNumber) {
+        setShowTablePrompt(true)
+      }
+    } else {
+      fetch('/api/auth/me')
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.bidder) {
+            setUserTableNumber(data.bidder.tableNumber || null)
+            if (!data.bidder.tableNumber) {
+              setShowTablePrompt(true)
+            }
           }
-        }
-      })
-      .catch(() => {})
+        })
+        .catch(() => {})
+    }
 
     // Check auction state
     fetch('/api/auction-state')
@@ -136,7 +145,7 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
       })
       .catch(() => {})
       .finally(() => setAuctionLoading(false))
-  }, [prize.id, searchParams])
+  }, [prize.id, searchParams, contextBidder])
 
   const canBid = auctionState === 'LIVE' && isAuctionOpen
 
@@ -248,6 +257,8 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
         setUserTableNumber(tableInput.trim())
         setShowTablePrompt(false)
         toast.success('Table number saved')
+        // Refresh bidder context so other pages see the updated table number
+        refreshBidder()
       }
     } catch {}
     setSavingTable(false)

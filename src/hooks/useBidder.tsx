@@ -17,6 +17,7 @@ interface BidderContextType {
   bidder: Bidder | null
   isLoading: boolean
   setBidder: (bidder: Bidder | null) => void
+  refreshBidder: () => Promise<void>
   logout: () => void
 }
 
@@ -26,20 +27,22 @@ export function BidderProvider({ children }: { children: ReactNode }) {
   const [bidder, setBidderState] = useState<Bidder | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    // Check for existing session
-    const loadBidder = async () => {
-      try {
-        const response = await fetch('/api/auth/me')
-        if (response.ok) {
-          const data = await response.json()
-          setBidderState(data.bidder)
-        }
-      } catch (error) {
-        console.error('Failed to load bidder:', error)
-      } finally {
-        setIsLoading(false)
+  const refreshBidder = async () => {
+    try {
+      const response = await fetch('/api/auth/me')
+      if (response.ok) {
+        const data = await response.json()
+        setBidderState(data.bidder)
       }
+    } catch (error) {
+      console.error('Failed to load bidder:', error)
+    }
+  }
+
+  useEffect(() => {
+    const loadBidder = async () => {
+      await refreshBidder()
+      setIsLoading(false)
     }
 
     loadBidder()
@@ -65,7 +68,7 @@ export function BidderProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <BidderContext.Provider value={{ bidder, isLoading, setBidder, logout }}>
+    <BidderContext.Provider value={{ bidder, isLoading, setBidder, refreshBidder, logout }}>
       {children}
     </BidderContext.Provider>
   )

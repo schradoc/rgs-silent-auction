@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -37,20 +37,13 @@ function LoginPageContent() {
   const [countryCode, setCountryCode] = useState('+852')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otpValue, setOtpValue] = useState('')
   const [step, setStep] = useState<'input' | 'otp' | 'sent'>('input')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [mounted, setMounted] = useState(false)
 
-  const otpRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-  ]
+  const hiddenOtpRef = useRef<HTMLInputElement>(null)
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -126,7 +119,7 @@ function LoginPageContent() {
       }
 
       setStep('otp')
-      setTimeout(() => otpRefs[0].current?.focus(), 100)
+      setTimeout(() => hiddenOtpRef.current?.focus(), 100)
     } catch (err) {
       setError('Failed to send OTP')
     } finally {
@@ -134,35 +127,24 @@ function LoginPageContent() {
     }
   }
 
-  const handleOtpChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return
-
-    const newOtp = [...otp]
-    newOtp[index] = value.slice(-1)
-    setOtp(newOtp)
+  const handleOtpHiddenChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 6)
+    setOtpValue(raw)
     setError('')
-
-    if (value && index < 5) {
-      otpRefs[index + 1].current?.focus()
+    if (raw.length === 6) {
+      handleVerifyOtp(raw)
     }
+  }, [])
 
-    // Auto-submit when all 6 digits entered
-    if (value && index === 5) {
-      const fullOtp = [...newOtp.slice(0, 5), value.slice(-1)].join('')
-      if (fullOtp.length === 6) {
-        handleVerifyOtp(fullOtp)
-      }
+  const handleOtpKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault()
+      setOtpValue(prev => prev.slice(0, -1))
     }
-  }
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      otpRefs[index - 1].current?.focus()
-    }
-  }
+  }, [])
 
   const handleVerifyOtp = async (otpCode?: string) => {
-    const code = otpCode || otp.join('')
+    const code = otpCode || otpValue
     if (code.length !== 6) {
       setError('Please enter the 6-digit code')
       return
@@ -182,8 +164,8 @@ function LoginPageContent() {
 
       if (!res.ok) {
         setError(data.error || 'Invalid code')
-        setOtp(['', '', '', '', '', ''])
-        otpRefs[0].current?.focus()
+        setOtpValue('')
+        hiddenOtpRef.current?.focus()
         return
       }
 
@@ -261,25 +243,43 @@ function LoginPageContent() {
               </p>
             </div>
 
-            <div className="flex justify-center gap-2 mb-6">
-              {otp.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={otpRefs[index]}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleOtpChange(index, e.target.value)}
-                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                  disabled={loading}
-                  className={`w-11 h-14 text-center text-xl font-bold rounded-xl border-2 transition-all duration-200 focus:outline-none ${
-                    digit
-                      ? 'bg-[#b8941f]/20 border-[#b8941f] text-white'
-                      : 'bg-white/5 border-white/20 text-white/50 focus:border-[#b8941f]'
-                  }`}
-                />
-              ))}
+            <div className="relative mb-6">
+              {/* Hidden input for iOS OTP autofill */}
+              <input
+                ref={hiddenOtpRef}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={otpValue}
+                onChange={handleOtpHiddenChange}
+                onKeyDown={handleOtpKeyDown}
+                disabled={loading}
+                className="absolute inset-0 w-full h-full opacity-0 z-10"
+                maxLength={6}
+              />
+              {/* Visible digit boxes */}
+              <div
+                className="flex justify-center gap-2"
+                onClick={() => hiddenOtpRef.current?.focus()}
+              >
+                {Array.from({ length: 6 }).map((_, i) => {
+                  const digit = otpValue[i] || ''
+                  return (
+                    <div
+                      key={i}
+                      className={`w-11 h-14 flex items-center justify-center text-xl font-bold rounded-xl border-2 transition-all duration-200 cursor-text ${
+                        digit
+                          ? 'bg-[#b8941f]/20 border-[#b8941f] text-white'
+                          : i === otpValue.length
+                          ? 'bg-white/5 border-[#b8941f] text-white/50'
+                          : 'bg-white/5 border-white/20 text-white/50'
+                      }`}
+                    >
+                      {digit}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             {error && (
@@ -291,7 +291,7 @@ function LoginPageContent() {
 
             <button
               onClick={() => handleVerifyOtp()}
-              disabled={loading || otp.some(d => !d)}
+              disabled={loading || otpValue.length !== 6}
               className="w-full py-4 rounded-xl font-semibold bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -302,7 +302,7 @@ function LoginPageContent() {
             </button>
 
             <button
-              onClick={() => { setStep('input'); setOtp(['', '', '', '', '', '']); }}
+              onClick={() => { setStep('input'); setOtpValue(''); }}
               className="w-full text-white/50 text-sm mt-4 hover:text-white"
             >
               Use a different number

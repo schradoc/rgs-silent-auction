@@ -296,6 +296,18 @@ export default function HomePage() {
                 </>
               )}
             </div>
+            {!user && (
+              <div
+                className={`mt-4 text-center transition-all duration-700 delay-600 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              >
+                <Link
+                  href="/login"
+                  className="text-white/70 hover:text-white text-sm underline underline-offset-4 transition-colors"
+                >
+                  Already registered? Sign in
+                </Link>
+              </div>
+            )}
 
             {/* Welcome back message */}
             {user && (

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Gavel, Bell, Hash, ChevronRight, PartyPopper } from 'lucide-react'
+import { Gavel, Bell, Hash, ChevronRight, PartyPopper, Check } from 'lucide-react'
 import { Button } from '@/components/ui'
 
 const SCREENS = [
@@ -42,9 +42,25 @@ export default function WelcomePage() {
   const [currentScreen, setCurrentScreen] = useState(0)
   const [tableNumber, setTableNumber] = useState('')
   const [saving, setSaving] = useState(false)
+  const [existingTableNumber, setExistingTableNumber] = useState<string | null>(null)
+  const [skipTableStep, setSkipTableStep] = useState(false)
 
+  // Check if user already has a table number
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.bidder?.tableNumber) {
+          setExistingTableNumber(data.bidder.tableNumber)
+          setSkipTableStep(true)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const totalScreens = skipTableStep ? SCREENS.length - 1 : SCREENS.length
   const screen = SCREENS[currentScreen]
-  const isLast = currentScreen === SCREENS.length - 1
+  const isLast = currentScreen === totalScreens - 1
   const Icon = screen.icon
 
   const completeOnboarding = () => {
@@ -55,8 +71,8 @@ export default function WelcomePage() {
 
   const handleNext = async () => {
     if (isLast) {
-      // Save table number if entered
-      if (tableNumber.trim()) {
+      // Save table number if entered (only on table step)
+      if ('isTableStep' in screen && screen.isTableStep && tableNumber.trim()) {
         setSaving(true)
         try {
           await fetch('/api/profile', {
@@ -70,7 +86,15 @@ export default function WelcomePage() {
       completeOnboarding()
       router.push('/prizes')
     } else {
-      setCurrentScreen(currentScreen + 1)
+      let nextScreen = currentScreen + 1
+      // Skip table step if user already has a table number
+      if (skipTableStep && nextScreen < SCREENS.length && 'isTableStep' in SCREENS[nextScreen] && SCREENS[nextScreen].isTableStep) {
+        // Skip to end
+        completeOnboarding()
+        router.push('/prizes')
+        return
+      }
+      setCurrentScreen(nextScreen)
     }
   }
 
@@ -84,7 +108,7 @@ export default function WelcomePage() {
       <div className="w-full max-w-sm">
         {/* Progress dots */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          {SCREENS.map((_, i) => (
+          {Array.from({ length: totalScreens }).map((_, i) => (
             <div
               key={i}
               className={`rounded-full transition-all duration-300 ${
@@ -125,13 +149,20 @@ export default function WelcomePage() {
           {/* Table number input */}
           {'isTableStep' in screen && screen.isTableStep && (
             <div className="mb-6">
-              <input
-                type="text"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                placeholder="e.g., 12"
-                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227] text-center text-lg"
-              />
+              {existingTableNumber ? (
+                <div className="flex items-center justify-center gap-2 py-3 text-green-400 text-sm">
+                  <Check className="w-4 h-4" />
+                  <span>Table {existingTableNumber} — already saved</span>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value)}
+                  placeholder="e.g., 12"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#c9a227] text-center text-lg"
+                />
+              )}
             </div>
           )}
 

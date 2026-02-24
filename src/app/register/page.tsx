@@ -49,48 +49,34 @@ function OTPInput({ value, onChange, onComplete }: {
   onChange: (val: string) => void
   onComplete: (code: string) => void
 }) {
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const hiddenRef = useRef<HTMLInputElement>(null)
   const digits = value.padEnd(6, '').split('').slice(0, 6)
 
-  const handleInput = useCallback((index: number, char: string) => {
-    if (!/^\d$/.test(char)) return
-
-    const newDigits = [...digits]
-    newDigits[index] = char
-    const newValue = newDigits.join('').replace(/\s/g, '')
-    onChange(newValue)
-
-    if (index < 5) {
-      inputRefs.current[index + 1]?.focus()
+  // Hidden input handles iOS autofill (autoComplete="one-time-code" only works on a single input)
+  const handleHiddenChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 6)
+    onChange(raw)
+    if (raw.length === 6) {
+      onComplete(raw)
     }
+  }, [onChange, onComplete])
 
-    if (newValue.length === 6) {
-      onComplete(newValue)
-    }
-  }, [digits, onChange, onComplete])
+  const handleBoxClick = useCallback(() => {
+    hiddenRef.current?.focus()
+  }, [])
 
-  const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
       e.preventDefault()
-      const newDigits = [...digits]
-      if (newDigits[index] && newDigits[index] !== ' ') {
-        newDigits[index] = ' '
-        onChange(newDigits.join('').trim())
-      } else if (index > 0) {
-        newDigits[index - 1] = ' '
-        onChange(newDigits.join('').trim())
-        inputRefs.current[index - 1]?.focus()
-      }
+      onChange(value.slice(0, -1))
     }
-  }, [digits, onChange])
+  }, [value, onChange])
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault()
     const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
     if (pastedData.length > 0) {
       onChange(pastedData)
-      const focusIndex = Math.min(pastedData.length, 5)
-      inputRefs.current[focusIndex]?.focus()
       if (pastedData.length === 6) {
         onComplete(pastedData)
       }
@@ -98,26 +84,38 @@ function OTPInput({ value, onChange, onComplete }: {
   }, [onChange, onComplete])
 
   return (
-    <div className="flex justify-center gap-2.5">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <input
-          key={i}
-          ref={(el) => { inputRefs.current[i] = el }}
-          type="text"
-          inputMode="numeric"
-          maxLength={1}
-          value={digits[i]?.trim() || ''}
-          onChange={(e) => handleInput(i, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
-          onPaste={handlePaste}
-          autoFocus={i === 0}
-          className={`w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 outline-none transition-all duration-200 ${
-            digits[i]?.trim()
-              ? 'border-[#c9a227] bg-[#c9a227]/5 text-[#1e3a5f] shadow-sm shadow-[#c9a227]/20'
-              : 'border-gray-200 bg-white text-gray-900 focus:border-[#c9a227] focus:shadow-sm focus:shadow-[#c9a227]/20'
-          }`}
-        />
-      ))}
+    <div className="relative">
+      {/* Hidden input for iOS OTP autofill */}
+      <input
+        ref={hiddenRef}
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        autoFocus
+        value={value}
+        onChange={handleHiddenChange}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        className="absolute inset-0 w-full h-full opacity-0 z-10"
+        maxLength={6}
+      />
+      {/* Visible digit boxes */}
+      <div className="flex justify-center gap-2.5" onClick={handleBoxClick}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className={`w-12 h-14 flex items-center justify-center text-2xl font-bold rounded-xl border-2 transition-all duration-200 cursor-text ${
+              digits[i]?.trim()
+                ? 'border-[#c9a227] bg-[#c9a227]/5 text-[#1e3a5f] shadow-sm shadow-[#c9a227]/20'
+                : i === value.length
+                ? 'border-[#c9a227] bg-white text-gray-900 shadow-sm shadow-[#c9a227]/20'
+                : 'border-gray-200 bg-white text-gray-900'
+            }`}
+          >
+            {digits[i]?.trim() || ''}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
