@@ -214,14 +214,15 @@ export function AnalyticsCharts() {
             </div>
           </div>
           <CardContent className="p-4">
+            {/* Bars */}
             <div className="h-48 flex items-end gap-[3px]">
               {data.hourlyActivity.map((hour, i) => {
                 const percentage = Math.max((hour.bids / maxBids) * 100, 0)
                 const isRecent = i >= data.hourlyActivity.length - 3
                 return (
-                  <div key={i} className="flex-1 flex flex-col items-center group relative">
+                  <div key={i} className="flex-1 group relative">
                     {/* Tooltip */}
-                    <div className="absolute bottom-full mb-2 hidden group-hover:block z-10">
+                    <div className="absolute bottom-full mb-2 hidden group-hover:block z-10 left-1/2 -translate-x-1/2">
                       <div className="bg-gray-900 text-white text-xs rounded-lg px-2 py-1.5 whitespace-nowrap">
                         <p className="font-medium">{hour.hour}</p>
                         <p>{hour.bids} bids • {formatCurrency(hour.value)}</p>
@@ -236,15 +237,21 @@ export function AnalyticsCharts() {
                         minHeight: hour.bids > 0 ? '6px' : '2px',
                       }}
                     />
-                    {/* Show label every 6 hours */}
-                    {i % 6 === 0 && (
-                      <span className="text-[10px] text-gray-400 mt-1.5 whitespace-nowrap">
-                        {hour.hour}
-                      </span>
-                    )}
                   </div>
                 )
               })}
+            </div>
+            {/* Time labels — separate row below bars */}
+            <div className="flex gap-[3px] mt-1.5">
+              {data.hourlyActivity.map((hour, i) => (
+                <div key={i} className="flex-1 text-center">
+                  {i % 6 === 0 && (
+                    <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                      {hour.hour}
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
             <div className="flex items-center justify-end gap-4 mt-3 text-xs text-gray-500">
               <div className="flex items-center gap-1.5">

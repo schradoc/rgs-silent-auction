@@ -3,8 +3,6 @@ import { randomBytes } from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
-
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json()
@@ -40,7 +38,10 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send email with magic link
+    // Send email with magic link — derive URL from the incoming request
+    const host = request.headers.get('host') || 'localhost:3000'
+    const protocol = host.includes('localhost') ? 'http' : 'https'
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
     const magicLink = `${APP_URL}/api/auth/magic-link/verify?token=${token}`
 
     // Try to send email via Resend

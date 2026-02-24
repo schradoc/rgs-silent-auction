@@ -18,7 +18,7 @@ export async function POST() {
       return NextResponse.json({ error: 'No admin email found' }, { status: 400 })
     }
 
-    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgsauction.com'
 
     const result = await sendEmail({
       to: adminEmail,

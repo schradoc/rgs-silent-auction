@@ -12,7 +12,7 @@ const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_T
 const FROM_EMAIL = process.env.FROM_EMAIL || 'auction@rgsauction.com'
 const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER
 const TWILIO_WHATSAPP = process.env.TWILIO_WHATSAPP_NUMBER
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgs-auction.vercel.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rgsauction.com'
 
 export type NotificationType = 'OUTBID' | 'WINNING' | 'AUCTION_CLOSING' | 'WON'
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'WHATSAPP'

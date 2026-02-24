@@ -68,8 +68,10 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send email with magic link
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    // Send email with magic link — derive URL from the incoming request
+    const host = request.headers.get('host') || 'localhost:3000'
+    const protocol = host.includes('localhost') ? 'http' : 'https'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
     const magicLink = `${appUrl}/admin/verify?token=${token}`
 
     const { sendEmail } = await import('@/lib/notifications')
