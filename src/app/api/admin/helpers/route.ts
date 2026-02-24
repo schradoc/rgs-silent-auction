@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { name, pin } = await request.json()
+    const { name, pin, assignedTables } = await request.json()
 
     if (!name || !pin) {
       return NextResponse.json(
@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
         pin,
         avatarColor,
         isActive: true,
+        ...(assignedTables && { assignedTables }),
       },
     })
 
@@ -120,7 +121,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id, name, pin, isActive } = await request.json()
+    const { id, name, pin, isActive, assignedTables } = await request.json()
 
     if (!id) {
       return NextResponse.json({ error: 'Helper ID is required' }, { status: 400 })
@@ -148,6 +149,7 @@ export async function PATCH(request: NextRequest) {
         ...(name && { name }),
         ...(pin && { pin }),
         ...(isActive !== undefined && { isActive }),
+        ...(assignedTables !== undefined && { assignedTables: assignedTables || null }),
       },
     })
 

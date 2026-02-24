@@ -264,12 +264,13 @@ model AuditLog {
 // ==========================================
 
 model Helper {
-  id          String   @id @default(cuid())
-  name        String
-  pin         String   // Simple 4-digit PIN for quick login
-  avatarColor String   // For visual identification (hex color)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  name           String
+  pin            String   // Simple 4-digit PIN for quick login
+  avatarColor    String   // For visual identification (hex color)
+  assignedTables String?  // Comma-separated table numbers, e.g. "1,2,3"
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
 
   bidsPrompted Bid[]      // Bids this helper facilitated
   paperBids    PaperBid[]

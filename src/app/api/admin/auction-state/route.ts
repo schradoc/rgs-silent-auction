@@ -10,9 +10,9 @@ type AuctionState = typeof VALID_STATES[number]
 const ALLOWED_TRANSITIONS: Record<AuctionState, AuctionState[]> = {
   DRAFT: ['TESTING', 'PRELAUNCH'],
   TESTING: ['DRAFT', 'PRELAUNCH'],
-  PRELAUNCH: ['TESTING', 'LIVE'],
-  LIVE: ['CLOSED'],
-  CLOSED: ['LIVE'], // Allow reopening if needed
+  PRELAUNCH: ['DRAFT', 'TESTING', 'LIVE'],
+  LIVE: ['PRELAUNCH', 'CLOSED'],
+  CLOSED: ['LIVE', 'PRELAUNCH'],
 }
 
 // Get current auction state

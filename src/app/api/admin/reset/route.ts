@@ -13,7 +13,40 @@ export async function DELETE(request: NextRequest) {
 
     const { prisma } = await import('@/lib/prisma')
 
-    // Delete in FK-safe order
+    // Check for prizesOnly flag in request body
+    let prizesOnly = false
+    try {
+      const body = await request.json()
+      prizesOnly = body?.prizesOnly === true
+    } catch {
+      // No body or invalid JSON — default to full reset
+    }
+
+    if (prizesOnly) {
+      // Delete only prize-related data, keep bidders and helpers
+      const deletedNotifications = await prisma.notification.deleteMany()
+      const deletedFavorites = await prisma.favorite.deleteMany()
+      const deletedWinners = await prisma.winner.deleteMany()
+      const deletedPaperBids = await prisma.paperBid.deleteMany()
+      const deletedBids = await prisma.bid.deleteMany()
+      const deletedImages = await prisma.prizeImage.deleteMany()
+      const deletedPrizes = await prisma.prize.deleteMany()
+
+      return NextResponse.json({
+        success: true,
+        deleted: {
+          notifications: deletedNotifications.count,
+          favorites: deletedFavorites.count,
+          winners: deletedWinners.count,
+          paperBids: deletedPaperBids.count,
+          bids: deletedBids.count,
+          prizeImages: deletedImages.count,
+          prizes: deletedPrizes.count,
+        },
+      })
+    }
+
+    // Full reset — Delete in FK-safe order
     const deletedNotifications = await prisma.notification.deleteMany()
     const deletedFavorites = await prisma.favorite.deleteMany()
     const deletedWinners = await prisma.winner.deleteMany()

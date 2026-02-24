@@ -272,15 +272,11 @@ export default function ProfilePage() {
                 </div>
                 <button
                   onClick={() => setSmsOptIn(!smsOptIn)}
-                  className={`w-11 h-6 rounded-full transition-colors flex items-center px-0.5 ${
-                    smsOptIn ? 'bg-[#a08a1e]' : 'bg-gray-200'
+                  className={`w-11 h-6 rounded-full transition-colors flex items-center ${
+                    smsOptIn ? 'bg-[#a08a1e] justify-end' : 'bg-gray-200 justify-start'
                   }`}
                 >
-                  <div
-                    className={`w-5 h-5 rounded-full bg-white shadow-md ring-1 ring-black/10 transition-transform ${
-                      smsOptIn ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
+                  <span className="w-5 h-5 bg-white rounded-full shadow-md ring-1 ring-black/10 mx-0.5" />
                 </button>
               </label>
             )}
@@ -292,15 +288,11 @@ export default function ProfilePage() {
               </div>
               <button
                 onClick={() => setEmailOptIn(!emailOptIn)}
-                className={`w-11 h-6 rounded-full transition-colors flex items-center px-0.5 ${
-                  emailOptIn ? 'bg-[#a08a1e]' : 'bg-gray-200'
+                className={`w-11 h-6 rounded-full transition-colors flex items-center ${
+                  emailOptIn ? 'bg-[#a08a1e] justify-end' : 'bg-gray-200 justify-start'
                 }`}
               >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white shadow-md ring-1 ring-black/10 transition-transform ${
-                    emailOptIn ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
+                <span className="w-5 h-5 bg-white rounded-full shadow-md ring-1 ring-black/10 mx-0.5" />
               </button>
             </label>
 

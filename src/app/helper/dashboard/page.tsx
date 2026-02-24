@@ -65,7 +65,7 @@ interface TableActivityEntry {
 }
 
 interface DashboardData {
-  helper: { id: string; name: string; avatarColor: string }
+  helper: { id: string; name: string; avatarColor: string; assignedTables: string | null }
   stats: HelperStats
   leaderboard: HelperStats[]
   recentBids: RecentBid[]
@@ -192,6 +192,26 @@ export default function HelperDashboardPage() {
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {/* Assigned Tables */}
+        {data.helper.assignedTables && (
+          <section
+            className={`transition-all duration-500 ${
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+          >
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+              <p className="text-blue-300 text-xs font-medium mb-2">Your Assigned Tables</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                {data.helper.assignedTables.split(',').map((t) => (
+                  <span key={t.trim()} className="px-3 py-1.5 bg-blue-500/20 text-blue-200 rounded-lg text-sm font-bold">
+                    Table {t.trim()}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Stats Cards */}
         <section
           className={`transition-all duration-500 ${
@@ -270,7 +290,17 @@ export default function HelperDashboardPage() {
               Table Activity
             </h2>
             <div className="bg-white/5 rounded-xl overflow-hidden border border-white/10">
-              {data.tableActivity.map((table, index) => (
+              {[...data.tableActivity].sort((a, b) => {
+                const myTables = data.helper.assignedTables?.split(',').map(t => t.trim()) || []
+                const aIsAssigned = myTables.includes(a.tableNumber)
+                const bIsAssigned = myTables.includes(b.tableNumber)
+                if (aIsAssigned && !bIsAssigned) return -1
+                if (!aIsAssigned && bIsAssigned) return 1
+                return 0
+              }).map((table, index) => {
+                const myTables = data.helper.assignedTables?.split(',').map(t => t.trim()) || []
+                const isMyTable = myTables.includes(table.tableNumber)
+                return (
                 <div key={table.tableNumber}>
                   <button
                     onClick={() => {
@@ -285,11 +315,16 @@ export default function HelperDashboardPage() {
                       index !== data.tableActivity!.length - 1 && !expandedTables.has(table.tableNumber) ? 'border-b border-white/10' : ''
                     }`}
                   >
-                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-sm font-bold">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      isMyTable ? 'bg-blue-500/40 text-blue-300 ring-1 ring-blue-400/50' : 'bg-blue-500/20 text-blue-400'
+                    }`}>
                       {table.tableNumber}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium">Table {table.tableNumber}</p>
+                      <p className="text-white text-sm font-medium">
+                        Table {table.tableNumber}
+                        {isMyTable && <span className="ml-2 text-xs text-blue-300">(yours)</span>}
+                      </p>
                       <p className="text-white/50 text-xs">
                         {table.winningCount} winning · {table.outbidCount} outbid
                       </p>
@@ -328,7 +363,7 @@ export default function HelperDashboardPage() {
                     </div>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           </section>
         )}

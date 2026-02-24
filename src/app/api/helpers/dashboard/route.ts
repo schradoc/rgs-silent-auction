@@ -162,6 +162,7 @@ export async function GET(request: NextRequest) {
         id: helper.id,
         name: helper.name,
         avatarColor: helper.avatarColor,
+        assignedTables: helper.assignedTables,
       },
       stats: currentHelperStats,
       leaderboard: rankedLeaderboard,

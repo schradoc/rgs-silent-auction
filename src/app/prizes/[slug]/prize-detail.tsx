@@ -78,6 +78,7 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
   const [showTablePrompt, setShowTablePrompt] = useState(false)
   const [tableInput, setTableInput] = useState('')
   const [savingTable, setSavingTable] = useState(false)
+  const [hasScrolled, setHasScrolled] = useState(false)
 
   const searchParams = useSearchParams()
 
@@ -96,6 +97,14 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
   })()
 
   const isPledge = prize.category === 'PLEDGES'
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 100) setHasScrolled(true)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   useEffect(() => {
     setMounted(true)
@@ -632,6 +641,14 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
               </div>
             </div>
           </div>
+
+          {/* Scroll hint - fades out after user scrolls (mobile only) */}
+          {!hasScrolled && (
+            <div className="flex flex-col items-center py-3 animate-bounce opacity-60 sm:hidden">
+              <span className="text-xs text-[#6b6b6b] mb-1">More details</span>
+              <ChevronDown className="w-4 h-4 text-[#6b6b6b]" />
+            </div>
+          )}
 
           {/* Description */}
           <div

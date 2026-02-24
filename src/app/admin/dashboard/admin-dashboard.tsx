@@ -137,6 +137,7 @@ interface Helper {
   name: string
   pin: string
   avatarColor: string
+  assignedTables: string | null
   isActive: boolean
   createdAt: Date | string
   _count: { bidsPrompted: number; paperBids: number }
@@ -199,6 +200,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
   const [showAddHelper, setShowAddHelper] = useState(false)
   const [newHelperName, setNewHelperName] = useState('')
   const [newHelperPin, setNewHelperPin] = useState('')
+  const [newHelperTables, setNewHelperTables] = useState('')
   const [potentialWinners, setPotentialWinners] = useState<PotentialWinner[]>([])
   const [confirmingWinner, setConfirmingWinner] = useState<string | null>(null)
   const [auctionEndTime, setAuctionEndTime] = useState('')
@@ -693,57 +695,33 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
     }
   }
 
-  const handleGenerateMockData = async () => {
+  const handleClearAllPrizes = async () => {
     const confirmed = await confirm.confirm({
-      title: 'Generate Mock Data',
-      description: 'This will generate mock bidders and bids for all prizes. Continue?',
-      confirmLabel: 'Generate',
-    })
-    if (!confirmed) return
-
-    setMockDataLoading(true)
-    try {
-      const res = await fetch('/api/admin/mock-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bidderCount: 25, bidsPerPrize: 4 }),
-        credentials: 'include',
-      })
-      const data = await res.json()
-      if (res.ok) {
-        toast.success(`Created ${data.created.bidders} bidders and ${data.created.bids} bids`)
-        handleRefresh()
-      } else {
-        toast.error(data.error || 'Failed to generate mock data')
-      }
-    } catch (error) {
-      toast.error('Failed to generate mock data')
-    } finally {
-      setMockDataLoading(false)
-    }
-  }
-
-  const handleClearMockData = async () => {
-    const confirmed = await confirm.confirm({
-      title: 'Clear Mock Data',
-      description: 'This will delete ALL mock bidders and bids. This cannot be undone.',
-      confirmLabel: 'Delete All',
+      title: 'Clear All Prizes',
+      description: 'This will permanently delete all prizes and their associated bids, images, and favorites. This cannot be undone.',
+      confirmLabel: 'Delete All Prizes',
       variant: 'danger',
     })
     if (!confirmed) return
 
     setMockDataLoading(true)
     try {
-      const res = await fetch('/api/admin/mock-data', { method: 'DELETE', credentials: 'include' })
+      const res = await fetch('/api/admin/reset', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prizesOnly: true }),
+        credentials: 'include',
+      })
       const data = await res.json()
       if (res.ok) {
-        toast.success(`Deleted ${data.deleted.bidders} bidders and ${data.deleted.bids} bids`)
+        const total = Object.values(data.deleted as Record<string, number>).reduce((a, b) => a + b, 0)
+        toast.success(`Cleared ${data.deleted.prizes} prizes and ${total - data.deleted.prizes} related records`)
         handleRefresh()
       } else {
-        toast.error(data.error || 'Failed to clear mock data')
+        toast.error(data.error || 'Failed to clear prizes')
       }
     } catch (error) {
-      toast.error('Failed to clear mock data')
+      toast.error('Failed to clear prizes')
     } finally {
       setMockDataLoading(false)
     }
@@ -954,12 +932,13 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       const res = await fetch('/api/admin/helpers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newHelperName, pin: newHelperPin }),
+        body: JSON.stringify({ name: newHelperName, pin: newHelperPin, assignedTables: newHelperTables || null }),
         credentials: 'include',
       })
       if (res.ok) {
         setNewHelperName('')
         setNewHelperPin('')
+        setNewHelperTables('')
         setShowAddHelper(false)
         fetchHelpers()
         toast.success('Helper added successfully')
@@ -1350,10 +1329,18 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">All Prizes ({data.prizes.length})</h2>
-              <Button variant="gold" onClick={() => { resetPrizeForm(); setShowPrizeForm(true); }}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Prize
-              </Button>
+              <div className="flex items-center gap-2">
+                {data.prizes.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={handleClearAllPrizes} className="border-red-300 text-red-700 hover:bg-red-50">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Clear All
+                  </Button>
+                )}
+                <Button variant="gold" onClick={() => { resetPrizeForm(); setShowPrizeForm(true); }}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Prize
+                </Button>
+              </div>
             </div>
 
             {/* Prize Form Modal */}
@@ -2082,27 +2069,39 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
               <Card>
                 <CardContent className="p-4">
                   <h3 className="font-medium mb-4">Add New Helper</h3>
-                  <div className="flex gap-4">
-                    <input
-                      type="text"
-                      placeholder="Helper Name"
-                      value={newHelperName}
-                      onChange={(e) => setNewHelperName(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
-                    />
-                    <input
-                      type="text"
-                      placeholder="4-digit PIN"
-                      value={newHelperPin}
-                      onChange={(e) => setNewHelperPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      maxLength={4}
-                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] text-center font-mono"
-                      disabled={savingHelper}
-                    />
-                    <Button variant="gold" onClick={handleAddHelper} disabled={savingHelper}>
-                      {savingHelper ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
-                    </Button>
-                    <Button variant="outline" onClick={() => { setShowAddHelper(false); setNewHelperName(''); setNewHelperPin(''); }} disabled={savingHelper}>Cancel</Button>
+                  <div className="space-y-3">
+                    <div className="flex gap-4">
+                      <input
+                        type="text"
+                        placeholder="Helper Name"
+                        value={newHelperName}
+                        onChange={(e) => setNewHelperName(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="4-digit PIN"
+                        value={newHelperPin}
+                        onChange={(e) => setNewHelperPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        maxLength={4}
+                        className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] text-center font-mono"
+                        disabled={savingHelper}
+                      />
+                    </div>
+                    <div className="flex gap-4 items-center">
+                      <input
+                        type="text"
+                        placeholder="Assigned tables (e.g. 1, 2, 3)"
+                        value={newHelperTables}
+                        onChange={(e) => setNewHelperTables(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        disabled={savingHelper}
+                      />
+                      <Button variant="gold" onClick={handleAddHelper} disabled={savingHelper}>
+                        {savingHelper ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
+                      </Button>
+                      <Button variant="outline" onClick={() => { setShowAddHelper(false); setNewHelperName(''); setNewHelperPin(''); setNewHelperTables(''); }} disabled={savingHelper}>Cancel</Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -2132,6 +2131,16 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                             )}
                           </div>
                           <p className="text-sm text-gray-500">PIN: {helper.pin}</p>
+                          {helper.assignedTables && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <span className="text-xs text-gray-400">Tables:</span>
+                              {helper.assignedTables.split(',').map((t) => (
+                                <span key={t.trim()} className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded font-medium">
+                                  {t.trim()}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -2298,65 +2307,29 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                     </CardContent>
                   </Card>
 
-                  {/* Mock Data - Only show in DRAFT or TESTING state */}
-                  {(data.settings?.auctionState === 'DRAFT' || data.settings?.auctionState === 'TESTING' || !data.settings?.auctionState) && (
-                    <Card className="border-purple-200">
-                      <CardContent className="p-6">
-                        <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                          <Sparkles className="w-5 h-5 text-purple-500" />
-                          Test Data
-                        </h3>
-                        <p className="text-sm text-gray-500 mb-4">
-                          Generate mock bidders and bids to test the platform. Only available in Draft/Testing mode.
-                        </p>
-                        <div className="flex gap-3">
-                          <Button
-                            variant="outline"
-                            onClick={handleGenerateMockData}
-                            disabled={mockDataLoading}
-                            className="border-purple-300 text-purple-700 hover:bg-purple-50"
-                          >
-                            {mockDataLoading ? (
-                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                              <Plus className="w-4 h-4 mr-2" />
-                            )}
-                            Generate Mock Data
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={handleClearMockData}
-                            disabled={mockDataLoading}
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                          >
-                            {mockDataLoading ? (
-                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4 mr-2" />
-                            )}
-                            Clear Mock Data
-                          </Button>
-                        </div>
-                        <div className="mt-4 pt-4 border-t border-red-200">
-                          <p className="text-sm text-red-600 mb-2 font-medium">Full Reset</p>
-                          <p className="text-xs text-gray-500 mb-3">Delete ALL prizes, bidders, bids, helpers, and notifications. Only admin accounts are kept.</p>
-                          <Button
-                            variant="outline"
-                            onClick={handleFullReset}
-                            disabled={mockDataLoading}
-                            className="border-red-500 text-red-700 hover:bg-red-50"
-                          >
-                            {mockDataLoading ? (
-                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4 mr-2" />
-                            )}
-                            Reset All Data
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                  {/* Danger Zone */}
+                  <Card className="border-red-200">
+                    <CardContent className="p-6">
+                      <h3 className="font-medium text-red-700 mb-2 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5 text-red-500" />
+                        Danger Zone
+                      </h3>
+                      <p className="text-xs text-gray-500 mb-3">Delete ALL prizes, bidders, bids, helpers, and notifications. Only admin accounts are kept.</p>
+                      <Button
+                        variant="outline"
+                        onClick={handleFullReset}
+                        disabled={mockDataLoading}
+                        className="border-red-500 text-red-700 hover:bg-red-50"
+                      >
+                        {mockDataLoading ? (
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
+                        Reset All Data
+                      </Button>
+                    </CardContent>
+                  </Card>
                 </>
               )}
 
@@ -2375,13 +2348,11 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                         </div>
                         <button
                           onClick={() => setDisplaySettings({ ...displaySettings, showDonorNames: !displaySettings.showDonorNames })}
-                          className={`relative w-12 h-6 rounded-full transition-colors ${
-                            displaySettings.showDonorNames ? 'bg-[#c9a227]' : 'bg-gray-300'
+                          className={`w-11 h-6 rounded-full transition-colors flex items-center ${
+                            displaySettings.showDonorNames ? 'bg-[#c9a227] justify-end' : 'bg-gray-300 justify-start'
                           }`}
                         >
-                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md ring-1 ring-black/10 transition-transform ${
-                            displaySettings.showDonorNames ? 'translate-x-7' : 'translate-x-1'
-                          }`} />
+                          <span className="w-5 h-5 bg-white rounded-full shadow-md ring-1 ring-black/10 mx-0.5" />
                         </button>
                       </div>
 
@@ -2393,13 +2364,11 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                         </div>
                         <button
                           onClick={() => setDisplaySettings({ ...displaySettings, showBidderNames: !displaySettings.showBidderNames })}
-                          className={`relative w-12 h-6 rounded-full transition-colors ${
-                            displaySettings.showBidderNames ? 'bg-[#c9a227]' : 'bg-gray-300'
+                          className={`w-11 h-6 rounded-full transition-colors flex items-center ${
+                            displaySettings.showBidderNames ? 'bg-[#c9a227] justify-end' : 'bg-gray-300 justify-start'
                           }`}
                         >
-                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md ring-1 ring-black/10 transition-transform ${
-                            displaySettings.showBidderNames ? 'translate-x-7' : 'translate-x-1'
-                          }`} />
+                          <span className="w-5 h-5 bg-white rounded-full shadow-md ring-1 ring-black/10 mx-0.5" />
                         </button>
                       </div>
 
