@@ -32,6 +32,8 @@ The dashboard has 6 tabs:
 | **Helpers** | Manage event helpers (table runners) |
 | **Settings** | Auction state, display settings, team management |
 
+> **Tip:** There's a Help/Docs link in the admin header bar that takes you to the full documentation page.
+
 ---
 
 ## Key Setup Tasks
@@ -86,7 +88,7 @@ Pledge items (category: PLEDGES) work differently — every bid is accepted and 
 
 ### 4. Manage Auction State
 
-Go to **Settings > Auction Management**. The auction follows this lifecycle:
+Go to **Settings > Auction Management**. The recommended event night flow:
 
 ```
 PRELAUNCH  →  LIVE  →  CLOSED
@@ -98,11 +100,34 @@ PRELAUNCH  →  LIVE  →  CLOSED
 | **LIVE** | Bidding is open. Guests can place bids on all active prizes. |
 | **CLOSED** | Bidding stops. No new bids accepted. You can now confirm winners. |
 
+> **Flexible transitions:** You can switch between any states at any time. Need to go back from LIVE to PRELAUNCH? No problem. Re-open a CLOSED auction? That works too. You'll never get stuck.
+
 **On event night:**
 1. Start in **PRELAUNCH** — guests arrive, scan QR, browse prizes
 2. When the MC announces bidding is open, switch to **LIVE**
 3. When the MC announces bidding is closed, switch to **CLOSED**
 4. Head to the **Winners** tab to confirm winners
+
+### 5. Committee Analytics
+
+A live analytics dashboard is available for committee members to monitor the auction in real time.
+
+- **URL**: https://rgsauction.com/committee
+- **PIN**: `2026`
+- **Link in admin panel**: Settings > Support section
+
+The analytics page shows:
+- **Total raised**, active bidders, total bids (animated counters)
+- **Live bid feed** — last 10 bids as they come in
+- **Prize leaderboard** — top prizes by current bid amount
+- **Cold prizes** — prizes with 0 or few bids (the ones the MC should promote!)
+- **Table leaderboard** — tables ranked by total value (fun competition)
+- **Category breakdown** — how each category is performing
+- **Bid timeline** — hourly bid activity chart
+
+Works on both **mobile** (with tab navigation) and **desktop** (3-column layout). Auto-refreshes every 5 seconds.
+
+Share the URL and PIN with committee members before the event so they can monitor from their phones.
 
 ---
 
@@ -154,6 +179,8 @@ Go to **Settings > Data & Export** to download:
 | Guest can't bid | Verify auction state is **LIVE** in Settings. |
 | Prize not showing | Check the prize is **Active** in the Prizes tab. |
 | Helper can't log in | Verify their PIN in the Helpers tab. Make sure they're at /helper. |
+| Need to go back to a previous state | All state transitions are allowed — just pick the state you need in Settings. |
+| Committee can't access analytics | Go to /committee and enter PIN `2026`. |
 
 ---
 

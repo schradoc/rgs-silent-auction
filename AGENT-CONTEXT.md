@@ -1,7 +1,7 @@
 # RGS Silent Auction - Agent Context File
 
-> **Last Updated**: 2026-02-19
-> **Last Commit**: 158e248 - Fix bid race condition with SELECT FOR UPDATE row locking
+> **Last Updated**: 2026-02-24
+> **Last Commit**: b2a1be1 - Polish: responsive committee dashboard, fix bidder auth flash, add committee link
 > **NOTE**: This file should be updated after every push/commit to keep agents in sync.
 
 ---
@@ -110,9 +110,11 @@ rgs-auction/
 - `src/app/page.tsx` - Landing page
 - `src/app/prizes/page.tsx` - Prize listing
 - `src/app/prizes/[slug]/page.tsx` - Prize detail + bidding
-- `src/app/admin/dashboard/admin-dashboard.tsx` - Full admin dashboard (~2500 lines)
+- `src/app/admin/dashboard/admin-dashboard.tsx` - Full admin dashboard (~2900 lines)
 - `src/app/admin/login/page.tsx` - Admin magic link login
 - `src/app/helper/page.tsx` - Helper PIN login
+- `src/app/committee/page.tsx` - Committee PIN login
+- `src/app/committee/dashboard/page.tsx` - Committee analytics dashboard
 - `src/app/live/page.tsx` - Projector display
 
 ### API Routes
@@ -131,6 +133,9 @@ rgs-auction/
 - `src/app/api/helpers/` - Helper portal APIs
   - `login/` - PIN login (rate-limited)
   - `submit-bid/` - Helper bid submission (SELECT FOR UPDATE)
+- `src/app/api/committee/` - Committee analytics APIs
+  - `login/` - PIN auth (rate-limited, PIN: 2026)
+  - `stats/` - Extended analytics (leaderboards, cold prizes, timeline)
 - `src/app/api/prizes/route.ts` - Prize listing
 - `src/app/api/bids/route.ts` - Place bids (SELECT FOR UPDATE, rate-limited)
 - `src/app/api/auction-status/route.ts` - Auction state (fails closed on error)
@@ -171,6 +176,7 @@ rgs-auction/
 | Helper login (`/api/helpers/login`) | 5 per 15 min per IP |
 | Auth verify (`/api/auth/verify`) | 5 per 15 min per email |
 | Admin login (`/api/admin/login`) | 5 per 30 min per IP |
+| Committee login (`/api/committee/login`) | 5 per 15 min per IP |
 | Bid placement (`/api/bids`) | 10 per min per bidder |
 
 ### Load Test Results
@@ -207,7 +213,7 @@ PaperBid        - Scanned paper bid records
 
 ### Settings
 ```
-AuctionSettings  - State machine (DRAFT/TESTING/PRELAUNCH/LIVE/CLOSED)
+AuctionSettings  - State machine (DRAFT/TESTING/PRELAUNCH/LIVE/CLOSED) — all transitions allowed
 DisplaySettings  - Live page toggles (donor names, bidder names, etc.)
 ```
 
@@ -258,6 +264,12 @@ NotificationType: OUTBID | WINNING | AUCTION_CLOSING | WON
 | `/helper/dashboard` | Helper stats & leaderboard |
 | `/helper/submit-bid` | Manual bid entry |
 | `/helper/scan-bid` | OCR paper bid scanning |
+
+### Committee
+| Route | Purpose |
+|-------|---------|
+| `/committee` | PIN login (PIN: 2026) |
+| `/committee/dashboard` | Live analytics dashboard |
 
 ### Display
 | Route | Purpose |
@@ -430,7 +442,26 @@ TWILIO_PHONE_NUMBER=+1xxx
 - Health check endpoint
 - Structured JSON logging
 
-### Recently Added (2026-02-18)
+### Recently Added (2026-02-24)
+- **Committee analytics dashboard** — PIN-protected live analytics at `/committee`
+  - Hero stats with animated counters, live bid feed, prize/table leaderboards
+  - Cold prizes section (zero-bid alerts for MC promotion)
+  - Category breakdown, bid timeline chart
+  - Responsive: desktop 3-column grid + mobile tab navigation
+  - Auto-refreshes every 5 seconds
+- **Admin UX improvements (Sprint 4/4b)**
+  - All auction state transitions now allowed (never get stuck)
+  - Smart helper deletion (hard delete if no activity, soft delete if has bids)
+  - Prize detail modal fix (was hidden behind wrong tab)
+  - Docs link in admin header, committee analytics link in Settings > Support
+  - Optimized admin data loading (primary images only, bounded queries)
+  - Fixed totalBids stat (was capped at 50, now uses actual count)
+- **Bidder UX polish**
+  - Fixed auth state flash ("Register" showing briefly before session loads)
+  - Table number now persists correctly after profile save
+  - Admin onboarding tutorial improvements
+
+### Previously Added (2026-02-18)
 - **Production security hardening** — full audit and fixes
 - `SELECT FOR UPDATE` row locking to prevent bid race conditions
 - bcrypt password hashing with SHA256 auto-migration
