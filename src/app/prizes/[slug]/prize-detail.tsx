@@ -28,6 +28,7 @@ import {
   Gift,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import { RichDescription } from '@/components/prizes/rich-description'
 import { useBidder } from '@/hooks/useBidder'
 import { Button, Card, CardContent, Badge, toast } from '@/components/ui'
 import { formatCurrency, formatDate, getMinimumNextBid, getMinimumBidIncrement } from '@/lib/utils'
@@ -974,10 +975,8 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
           <div
             className={`mt-6 bg-white rounded-2xl p-8 sm:p-10 border border-gray-200/60 transition-all duration-500 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
           >
-            <h2 className="text-lg font-medium text-[#1a1a1a] mb-4">About This Lot</h2>
-            <div className="prose prose-gray max-w-none">
-              <p className="text-[#6b6b6b] whitespace-pre-line leading-relaxed">{prize.fullDescription}</p>
-            </div>
+            <h2 className="text-lg font-medium text-[#1a1a1a] mb-5">About This Lot</h2>
+            <RichDescription text={prize.fullDescription} />
           </div>
 
           {/* Bid History */}

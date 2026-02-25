@@ -109,26 +109,6 @@ export default function HomePage() {
         {/* Header */}
         <Header transparent />
 
-        {/* Status indicator */}
-        <div className="absolute top-5 right-6 z-50">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-            {isPreEvent ? (
-              <>
-                <Clock className="w-3.5 h-3.5 text-[#a08a1e]" />
-                <span className="text-white/70 text-xs font-medium">Coming Soon</span>
-              </>
-            ) : (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span className="text-white/70 text-xs font-medium">Live Now</span>
-              </>
-            )}
-          </div>
-        </div>
-
         {/* Main content */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 pb-8">
           <div className="max-w-2xl w-full text-center">

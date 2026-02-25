@@ -200,65 +200,64 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
         {/* Subtle gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0f1d2d]" />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24 lg:py-28">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 lg:py-14">
           <div className="max-w-2xl">
-            <p className={`text-white/50 text-sm sm:text-base font-medium tracking-wide mb-3 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <p className={`text-white/50 text-xs sm:text-sm font-medium tracking-wide mb-2 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               RGS-HK 30th Anniversary
             </p>
 
-            <h1 className={`text-[#c9a227] text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-wide uppercase mb-6 transition-all duration-700 delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <h1 className={`text-[#c9a227] text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-wide uppercase mb-3 sm:mb-4 transition-all duration-700 delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               Silent Auction
             </h1>
 
-            <p className={`text-white/60 text-base sm:text-lg leading-relaxed mb-8 max-w-xl transition-all duration-700 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <p className={`text-white/60 text-sm sm:text-base leading-relaxed mb-4 max-w-xl transition-all duration-700 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               Bid on extraordinary experiences, historic items,
               and once-in-a-lifetime travel — all supporting
               geographical education in Hong Kong.
             </p>
 
-            <p className={`text-white/40 text-sm mb-10 transition-all duration-700 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              28 February 2026 &middot; Hong Kong Club &middot; 150 Guests
-            </p>
-
-            <div className={`transition-all duration-700 delay-400 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 transition-all duration-700 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <p className="text-white/40 text-xs sm:text-sm">
+                28 February 2026 &middot; Hong Kong Club &middot; 150 Guests
+              </p>
               <button
                 onClick={scrollToLots}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm font-medium transition-all hover:border-white/30"
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-medium transition-all hover:border-white/30"
               >
                 Browse Lots
-                <ArrowDown className="w-4 h-4" />
+                <ArrowDown className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
           {/* Stats strip */}
-          <div className={`mt-12 grid grid-cols-2 sm:flex sm:flex-wrap gap-4 sm:gap-8 transition-all duration-700 delay-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className={`mt-6 sm:mt-8 grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-6 transition-all duration-700 delay-400 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                 <Target className="w-4 h-4 text-white/50" />
               </div>
               <div>
-                <p className="text-[#c9a227] text-lg font-semibold leading-tight">{stats.total}</p>
+                <p className="text-[#c9a227] text-base font-semibold leading-tight">{stats.total}</p>
                 <p className="text-white/30 text-[11px] uppercase tracking-wider">Lots</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                 <Gavel className="w-4 h-4 text-white/50" />
               </div>
               <div>
-                <p className="text-[#c9a227] text-lg font-semibold leading-tight">{stats.withBids}</p>
+                <p className="text-[#c9a227] text-base font-semibold leading-tight">{stats.withBids}</p>
                 <p className="text-white/30 text-[11px] uppercase tracking-wider">Active</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                 <Banknote className="w-4 h-4 text-white/50" />
               </div>
               <div>
-                <p className="text-[#c9a227] text-lg font-semibold leading-tight">
+                <p className="text-[#c9a227] text-base font-semibold leading-tight">
                   {stats.totalValue > 0
                     ? `HK$${Math.floor(stats.totalValue / 1000).toLocaleString()}k`
                     : 'HK$0'}
@@ -268,20 +267,20 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
             </div>
 
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                 <Clock className="w-4 h-4 text-white/50" />
               </div>
               <div>
                 {auctionStatus?.auctionState === 'LIVE' && auctionStatus?.auctionEndTime ? (
                   <>
-                    <p className="text-[#c9a227] text-lg font-semibold leading-tight">
+                    <p className="text-[#c9a227] text-base font-semibold leading-tight">
                       {new Date(auctionStatus.auctionEndTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                     </p>
                     <p className="text-white/30 text-[11px] uppercase tracking-wider">Closes</p>
                   </>
                 ) : (
                   <>
-                    <p className="text-[#c9a227] text-lg font-semibold leading-tight">{stats.totalBids}</p>
+                    <p className="text-[#c9a227] text-base font-semibold leading-tight">{stats.totalBids}</p>
                     <p className="text-white/30 text-[11px] uppercase tracking-wider">Bids</p>
                   </>
                 )}
