@@ -63,7 +63,7 @@ export function Header({ transparent = false }: HeaderProps) {
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-16 relative">
             {/* Left: Logo */}
             <Link href="/" className="flex items-center gap-2.5 group flex-shrink-0">
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#c9a227] to-[#a08a1e] flex items-center justify-center shadow-sm">
@@ -85,8 +85,8 @@ export function Header({ transparent = false }: HeaderProps) {
               </div>
             </Link>
 
-            {/* Center: Nav Links (Desktop) */}
-            <nav className="hidden md:flex items-center gap-1">
+            {/* Center: Nav Links (Desktop) — absolutely positioned to be truly centered */}
+            <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
               {NAV_LINKS.map((link) => {
                 const isActive = pathname === link.href || pathname.startsWith(link.href + '/')
                 return (

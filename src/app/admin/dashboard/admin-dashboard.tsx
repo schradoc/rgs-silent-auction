@@ -51,6 +51,7 @@ import {
 } from 'lucide-react'
 import { Button, Card, CardContent, Badge, toast, useConfirm, ConfirmProvider } from '@/components/ui'
 import { PasswordManagement } from '@/components/admin/password-management'
+import { RichDescription } from '@/components/prizes/rich-description'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { OnboardingTutorial, useOnboarding } from '@/components/admin/onboarding-tutorial'
@@ -226,6 +227,9 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
     donorUrl: '',
     location: '',
   })
+
+  // Description preview toggle
+  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false)
 
   // Loading states for async operations
   const [savingPrize, setSavingPrize] = useState(false)
@@ -1402,14 +1406,42 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Description *</label>
-                      <textarea
-                        value={prizeForm.fullDescription}
-                        onChange={(e) => setPrizeForm({ ...prizeForm, fullDescription: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
-                        rows={3}
-                        placeholder="Detailed description..."
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">Full Description *</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowDescriptionPreview(!showDescriptionPreview)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-[#c9a227] hover:text-[#b8941f] transition-colors"
+                        >
+                          {showDescriptionPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          {showDescriptionPreview ? 'Hide Preview' : 'Show Preview'}
+                        </button>
+                      </div>
+                      <div className={showDescriptionPreview ? 'grid grid-cols-2 gap-4' : ''}>
+                        <div>
+                          <textarea
+                            value={prizeForm.fullDescription}
+                            onChange={(e) => setPrizeForm({ ...prizeForm, fullDescription: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] font-mono text-sm"
+                            rows={showDescriptionPreview ? 16 : 8}
+                            placeholder={`Start with a paragraph describing the lot...\n\nWhat's Included:\n- Item one\n- Item two\n\nItinerary:\nDay 1 – Arrival\nDescription of day 1 activities.\n\nDay 2 – Exploration\nDescription of day 2 activities.\n\nWhat to Bring:\n- Comfortable shoes\n- Camera`}
+                          />
+                          <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">
+                            Format tips: Lines ending with <code className="bg-gray-100 px-1 rounded">:</code> become section headings. Lines starting with <code className="bg-gray-100 px-1 rounded">-</code> or <code className="bg-gray-100 px-1 rounded">•</code> become bullet points. <code className="bg-gray-100 px-1 rounded">Day 1 – Title</code> creates an itinerary timeline.
+                          </p>
+                        </div>
+                        {showDescriptionPreview && prizeForm.fullDescription && (
+                          <div className="border border-gray-200 rounded-lg p-4 bg-white overflow-y-auto max-h-[400px]">
+                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-3">Live Preview</p>
+                            <RichDescription text={prizeForm.fullDescription} />
+                          </div>
+                        )}
+                        {showDescriptionPreview && !prizeForm.fullDescription && (
+                          <div className="border border-dashed border-gray-200 rounded-lg p-4 flex items-center justify-center">
+                            <p className="text-sm text-gray-400">Start typing to see preview...</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Donor Name *</label>
