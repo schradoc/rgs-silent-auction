@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   LayoutDashboard,
@@ -51,7 +51,7 @@ import {
 } from 'lucide-react'
 import { Button, Card, CardContent, Badge, toast, useConfirm, ConfirmProvider } from '@/components/ui'
 import { PasswordManagement } from '@/components/admin/password-management'
-import { RichDescription } from '@/components/prizes/rich-description'
+import { DescriptionEditor } from '@/components/admin/description-editor'
 import { formatCurrency } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { OnboardingTutorial, useOnboarding } from '@/components/admin/onboarding-tutorial'
@@ -227,10 +227,6 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
     donorUrl: '',
     location: '',
   })
-
-  // Description preview toggle + textarea ref for cursor-position inserts
-  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false)
-  const descriptionRef = useRef<HTMLTextAreaElement>(null)
 
   // Loading states for async operations
   const [savingPrize, setSavingPrize] = useState(false)
@@ -1407,81 +1403,11 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       />
                     </div>
                     <div className="col-span-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-sm font-medium text-gray-700">Full Description *</label>
-                        <button
-                          type="button"
-                          onClick={() => setShowDescriptionPreview(!showDescriptionPreview)}
-                          className="flex items-center gap-1.5 text-xs font-medium text-[#c9a227] hover:text-[#b8941f] transition-colors"
-                        >
-                          {showDescriptionPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          {showDescriptionPreview ? 'Hide Preview' : 'Show Preview'}
-                        </button>
-                      </div>
-
-                      {/* Insert section toolbar */}
-                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mr-1">Insert:</span>
-                        {([
-                          { tag: 'included', label: 'Included', color: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100', template: '\n[included] What\'s Included:\n- \n' },
-                          { tag: 'bring', label: 'What to Bring', color: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100', template: '\n[bring] What to Bring:\n- \n' },
-                          { tag: 'itinerary', label: 'Itinerary', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100', template: '\n[itinerary] Itinerary:\nDay 1 – Title\nDescription of this day.\n' },
-                          { tag: 'info', label: 'Info Box', color: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100', template: '\n[info] Details:\nAdditional information here.\n' },
-                          { tag: 'bullet', label: '• Bullets', color: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50', template: '\n- Item one\n- Item two\n' },
-                        ] as const).map((btn) => (
-                          <button
-                            key={btn.tag}
-                            type="button"
-                            onClick={() => {
-                              const ta = descriptionRef.current
-                              const desc = prizeForm.fullDescription
-                              if (ta) {
-                                const start = ta.selectionStart
-                                const end = ta.selectionEnd
-                                const before = desc.slice(0, start)
-                                const after = desc.slice(end)
-                                const newValue = before + btn.template + after
-                                setPrizeForm({ ...prizeForm, fullDescription: newValue })
-                                // Restore cursor position after the inserted template
-                                requestAnimationFrame(() => {
-                                  const cursorPos = start + btn.template.length
-                                  ta.focus()
-                                  ta.setSelectionRange(cursorPos, cursorPos)
-                                })
-                              } else {
-                                setPrizeForm({ ...prizeForm, fullDescription: desc.trimEnd() + btn.template })
-                              }
-                            }}
-                            className={`px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors ${btn.color}`}
-                          >
-                            {btn.label}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className={showDescriptionPreview ? 'grid grid-cols-2 gap-4' : ''}>
-                        <div>
-                          <textarea
-                            ref={descriptionRef}
-                            value={prizeForm.fullDescription}
-                            onChange={(e) => setPrizeForm({ ...prizeForm, fullDescription: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] font-mono text-sm leading-relaxed"
-                            rows={showDescriptionPreview ? 18 : 10}
-                            placeholder={`Start with a paragraph describing the lot...\n\n[included] What's Included:\n- Item one\n- Item two\n\n[itinerary] Itinerary:\nDay 1 – Arrival\nDescription of day 1 activities.\n\nDay 2 – Exploration\nDescription of day 2 activities.\n\n[bring] What to Bring:\n- Comfortable shoes\n- Camera`}
-                          />
-                        </div>
-                        {showDescriptionPreview && prizeForm.fullDescription && (
-                          <div className="border border-gray-200 rounded-lg p-4 bg-white overflow-y-auto max-h-[480px]">
-                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-3">Live Preview</p>
-                            <RichDescription text={prizeForm.fullDescription} />
-                          </div>
-                        )}
-                        {showDescriptionPreview && !prizeForm.fullDescription && (
-                          <div className="border border-dashed border-gray-200 rounded-lg p-4 flex items-center justify-center">
-                            <p className="text-sm text-gray-400">Start typing to see preview...</p>
-                          </div>
-                        )}
-                      </div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Description *</label>
+                      <DescriptionEditor
+                        value={prizeForm.fullDescription}
+                        onChange={(value) => setPrizeForm({ ...prizeForm, fullDescription: value })}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Donor Name *</label>
