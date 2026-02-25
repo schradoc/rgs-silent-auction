@@ -78,6 +78,10 @@ export async function POST(request: NextRequest) {
       multiWinnerEligible,
       multiWinnerSlots,
       displayOrder,
+      lotNumber,
+      subLotLetter,
+      donorUrl,
+      location,
     } = body
 
     // Generate slug from title
@@ -112,6 +116,10 @@ export async function POST(request: NextRequest) {
         multiWinnerEligible: multiWinnerEligible || false,
         multiWinnerSlots: multiWinnerSlots ? parseInt(multiWinnerSlots) : null,
         displayOrder: displayOrder ? parseInt(displayOrder) : 0,
+        lotNumber: lotNumber ? parseInt(lotNumber) : null,
+        subLotLetter: subLotLetter || null,
+        donorUrl: donorUrl || null,
+        location: location || null,
         isActive: true,
       },
     })
@@ -150,6 +158,9 @@ export async function PUT(request: NextRequest) {
     if (updates.category) data.category = updates.category
     if (updates.imageUrl) data.imageUrl = updates.imageUrl
     if (updates.terms !== undefined) data.terms = updates.terms || ''
+    if (updates.donorUrl !== undefined) data.donorUrl = updates.donorUrl || null
+    if (updates.location !== undefined) data.location = updates.location || null
+    if (updates.subLotLetter !== undefined) data.subLotLetter = updates.subLotLetter || null
 
     // Numeric fields - convert to number or null
     if (updates.minimumBid !== undefined && updates.minimumBid !== '') {
@@ -160,6 +171,9 @@ export async function PUT(request: NextRequest) {
     }
     if (updates.displayOrder !== undefined && updates.displayOrder !== '') {
       data.displayOrder = parseInt(updates.displayOrder)
+    }
+    if (updates.lotNumber !== undefined) {
+      data.lotNumber = updates.lotNumber !== '' && updates.lotNumber !== null ? parseInt(updates.lotNumber) : null
     }
 
     // Date fields - convert to Date or null

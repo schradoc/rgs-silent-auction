@@ -21,6 +21,11 @@ export async function GET(request: NextRequest) {
           minimumBid: true,
           currentHighestBid: true,
           imageUrl: true,
+          lotNumber: true,
+          subLotLetter: true,
+          donorName: true,
+          donorUrl: true,
+          location: true,
         },
       })
 
@@ -34,7 +39,7 @@ export async function GET(request: NextRequest) {
     // List all active top-level prizes
     const prizes = await prisma.prize.findMany({
       where: { isActive: true, parentPrizeId: null },
-      orderBy: { displayOrder: 'asc' },
+      orderBy: [{ lotNumber: 'asc' }, { displayOrder: 'asc' }],
       select: {
         id: true,
         slug: true,
@@ -44,6 +49,11 @@ export async function GET(request: NextRequest) {
         minimumBid: true,
         currentHighestBid: true,
         imageUrl: true,
+        lotNumber: true,
+        subLotLetter: true,
+        donorName: true,
+        donorUrl: true,
+        location: true,
       },
     })
 

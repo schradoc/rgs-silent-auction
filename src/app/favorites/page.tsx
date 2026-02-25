@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  ArrowLeft,
   Heart,
   Trash2,
   TrendingUp,
 } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { Header } from '@/components/layout/header'
 import { formatCurrency } from '@/lib/utils'
 
 const FALLBACK_IMAGE = '' // No default image - show placeholder
@@ -67,18 +67,7 @@ export default function FavoritesPage() {
 
   return (
     <main className="min-h-screen bg-[#fafaf8]">
-      {/* Header */}
-      <header className="bg-[#0f1d2d] text-white sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link
-            href="/prizes"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Browse Prizes</span>
-          </Link>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero */}
       <section className="bg-gradient-to-b from-[#0f1d2d] to-[#1a2f4a] text-white py-8">
@@ -92,7 +81,7 @@ export default function FavoritesPage() {
               <Heart className="w-6 h-6 text-red-400" fill="#f87171" />
               <h1 className="text-3xl font-light tracking-tight">My Favorites</h1>
             </div>
-            <p className="text-white/50">Prizes you're watching</p>
+            <p className="text-white/50">Lots you're watching</p>
           </div>
         </div>
       </section>
@@ -123,9 +112,9 @@ export default function FavoritesPage() {
               <Heart className="w-8 h-8 text-gray-300" />
             </div>
             <h2 className="text-xl font-medium text-gray-900 mb-2">No favorites yet</h2>
-            <p className="text-gray-500 mb-6">Browse prizes and tap the heart to save them here</p>
+            <p className="text-gray-500 mb-6">Browse lots and tap the heart to save them here</p>
             <Link href="/prizes">
-              <Button variant="gold">Browse Prizes</Button>
+              <Button variant="gold">Browse Lots</Button>
             </Link>
           </div>
         ) : (

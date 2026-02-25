@@ -221,6 +221,10 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
     terms: '',
     multiWinnerEligible: false,
     multiWinnerSlots: '',
+    lotNumber: '',
+    subLotLetter: '',
+    donorUrl: '',
+    location: '',
   })
 
   // Loading states for async operations
@@ -822,6 +826,10 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       terms: '',
       multiWinnerEligible: false,
       multiWinnerSlots: '',
+      lotNumber: '',
+      subLotLetter: '',
+      donorUrl: '',
+      location: '',
     })
     setPrizeImages([])
     setEditingPrize(null)
@@ -837,6 +845,10 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       terms?: string
       validUntil?: string | Date | null
       multiWinnerSlots?: number | null
+      lotNumber?: number | null
+      subLotLetter?: string | null
+      donorUrl?: string | null
+      location?: string | null
     }
     // Format date for input[type="date"] if it exists
     let formattedDate = ''
@@ -858,6 +870,10 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       terms: prizeData.terms || '',
       multiWinnerEligible: prize.multiWinnerEligible,
       multiWinnerSlots: prizeData.multiWinnerSlots ? String(prizeData.multiWinnerSlots) : '',
+      lotNumber: prizeData.lotNumber ? String(prizeData.lotNumber) : '',
+      subLotLetter: prizeData.subLotLetter || '',
+      donorUrl: prizeData.donorUrl || '',
+      location: prizeData.location || '',
     })
     // Load prize images if available
     setPrizeImages(prize.images || [])
@@ -1405,12 +1421,56 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       />
                     </div>
                     <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Donor URL</label>
+                      <input
+                        type="url"
+                        value={prizeForm.donorUrl}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, donorUrl: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Bid (HKD) *</label>
                       <input
                         type="number"
                         value={prizeForm.minimumBid}
                         onChange={(e) => setPrizeForm({ ...prizeForm, minimumBid: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Lot #</label>
+                        <input
+                          type="number"
+                          value={prizeForm.lotNumber}
+                          onChange={(e) => setPrizeForm({ ...prizeForm, lotNumber: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                          placeholder="1"
+                          min="1"
+                        />
+                      </div>
+                      <div className="w-20">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Sub-lot</label>
+                        <input
+                          type="text"
+                          value={prizeForm.subLotLetter}
+                          onChange={(e) => setPrizeForm({ ...prizeForm, subLotLetter: e.target.value.toLowerCase().slice(0, 1) })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                          placeholder="a"
+                          maxLength={1}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                      <input
+                        type="text"
+                        value={prizeForm.location}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, location: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        placeholder="e.g., Bali, Indonesia"
                       />
                     </div>
                     <div>
@@ -1515,7 +1575,15 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                             <Loader2 className="w-4 h-4 animate-spin text-[#c9a227]" />
                           )}
                         </div>
-                        <h3 className="font-semibold text-gray-900">{prize.title}</h3>
+                        <h3 className="font-semibold text-gray-900">
+                          {(prize as unknown as { lotNumber?: number | null }).lotNumber && (
+                            <span className="text-[#c9a227] mr-1.5">
+                              Lot {(prize as unknown as { lotNumber: number }).lotNumber}
+                              {(prize as unknown as { subLotLetter?: string | null }).subLotLetter && `.${(prize as unknown as { subLotLetter: string }).subLotLetter}`}
+                            </span>
+                          )}
+                          {prize.title}
+                        </h3>
                         <p className="text-sm text-gray-500 mt-1">Click to view bid history</p>
                       </div>
                       <div className="flex items-center gap-4">

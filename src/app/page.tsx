@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui'
 import { MapPin, Calendar, ArrowRight, Sparkles, Users, TrendingUp, Clock, Bell, Heart } from 'lucide-react'
+import { Header } from '@/components/layout/header'
 import { formatCurrency } from '@/lib/utils'
 
 interface AuctionStatus {
@@ -106,14 +107,10 @@ export default function HomePage() {
 
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header */}
-        <header className="p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#a08a1e] to-[#7a6a16] flex items-center justify-center shadow-lg shadow-[#a08a1e]/10">
-              <span className="text-white text-xs font-bold tracking-wide">RGS</span>
-            </div>
-          </div>
+        <Header transparent />
 
-          {/* Status indicator */}
+        {/* Status indicator */}
+        <div className="absolute top-5 right-6 z-50">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
             {isPreEvent ? (
               <>
@@ -130,7 +127,7 @@ export default function HomePage() {
               </>
             )}
           </div>
-        </header>
+        </div>
 
         {/* Main content */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 pb-8">
@@ -153,7 +150,7 @@ export default function HomePage() {
             <p
               className={`text-xl md:text-2xl text-white/40 font-light mb-10 transition-all duration-700 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             >
-              {isPreEvent ? 'Preview prizes now, bid when the gala begins' : 'Extraordinary experiences await'}
+              {isPreEvent ? 'Preview lots now, bid when the gala begins' : 'Extraordinary experiences await'}
             </p>
 
             {/* Pre-event Countdown */}
@@ -209,7 +206,7 @@ export default function HomePage() {
               >
                 <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
                   <p className="text-3xl font-light text-white">{stats.totalPrizes}</p>
-                  <p className="text-xs text-white/40 uppercase tracking-wider">Prizes</p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider">Lots</p>
                 </div>
                 <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
                   <p className="text-3xl font-light text-white">{stats.totalBidders}</p>
@@ -246,7 +243,7 @@ export default function HomePage() {
                       className="w-full sm:w-auto min-w-[220px] text-base py-4 transition-all group"
                     >
                       <Heart className="w-5 h-5 mr-2" />
-                      <span>Preview Prizes</span>
+                      <span>Preview Lots</span>
                     </Button>
                   </Link>
                   <Link href="/register">

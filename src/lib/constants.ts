@@ -4,7 +4,10 @@ export const SITE_CONFIG = {
   eventDate: '2026-02-28',
   eventVenue: 'Hong Kong Club',
   eventTime: '6:30pm - 11:00pm',
+  eventGuests: 150,
 }
+
+export const DARK_NAVY = '#0f1d2d'
 
 export const BRAND_COLORS = {
   navy: '#1e3a5f',

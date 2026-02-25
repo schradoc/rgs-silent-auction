@@ -57,6 +57,14 @@ model Prize {
   displayOrder          Int      @default(0)
   isActive              Boolean  @default(true)
 
+  // Lot numbering for display
+  lotNumber             Int?     // Primary lot number (1, 2, 3...)
+  subLotLetter          String?  // Sub-lot letter (a, b, c...) for variants
+
+  // Donor & location enrichment
+  donorUrl              String?  // External link for donor
+  location              String?  // Location string for travel/experience lots
+
   // For grouped prizes like maps
   parentPrizeId         String?
   parentPrize           Prize?   @relation("PrizeVariants", fields: [parentPrizeId], references: [id])

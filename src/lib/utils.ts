@@ -73,6 +73,11 @@ export function isValidPhone(phone: string): boolean {
   return /^\+\d{10,15}$/.test(normalized)
 }
 
+export function formatLotNumber(lotNumber?: number | null, subLotLetter?: string | null): string | null {
+  if (!lotNumber) return null
+  return subLotLetter ? `Lot ${lotNumber}.${subLotLetter}` : `Lot ${lotNumber}`
+}
+
 export function normalizeTableNumber(input: string): string {
   // Strip everything except digits
   const digits = input.replace(/\D/g, '')

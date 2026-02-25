@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft,
   User,
   Mail,
   Phone,
@@ -17,6 +16,7 @@ import {
   LogOut,
 } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { Header } from '@/components/layout/header'
 import { useBidder } from '@/hooks/useBidder'
 
 interface Profile {
@@ -151,20 +151,7 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-[#f8f8f6]">
-      {/* Header */}
-      <header className="bg-[#0f1d2d] text-white sticky top-0 z-50">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <Link
-            href="/prizes"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors px-3 py-2 -ml-2 rounded-lg hover:bg-white/10 min-h-[44px]"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Back</span>
-          </Link>
-          <h1 className="text-lg font-semibold">My Profile</h1>
-          <div className="w-16" />
-        </div>
-      </header>
+      <Header />
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {/* Stats */}

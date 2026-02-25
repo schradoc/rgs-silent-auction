@@ -19,6 +19,11 @@ export async function getPrizes() {
         isActive: true,
         parentPrizeId: null,
       },
+      include: {
+        _count: {
+          select: { bids: true },
+        },
+      },
       orderBy: [
         { displayOrder: 'asc' },
         { minimumBid: 'desc' },

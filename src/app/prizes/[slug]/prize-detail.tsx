@@ -22,12 +22,17 @@ import {
   Ban,
   Check,
   Hash,
+  X,
+  ExternalLink,
+  MapPin,
+  Gift,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useBidder } from '@/hooks/useBidder'
 import { Button, Card, CardContent, Badge, toast } from '@/components/ui'
 import { formatCurrency, formatDate, getMinimumNextBid, getMinimumBidIncrement } from '@/lib/utils'
 import { CATEGORY_LABELS } from '@/lib/constants'
+import { Header } from '@/components/layout/header'
 
 const BidSheet = dynamic(() => import('./bid-sheet').then(m => m.BidSheet))
 import type { Prize, Bid } from '@prisma/client'
@@ -74,11 +79,14 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
   const [deepLinkPending, setDeepLinkPending] = useState(false)
   const [selectedPledgeTier, setSelectedPledgeTier] = useState<PledgeTier | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
   const [userTableNumber, setUserTableNumber] = useState<string | null>(null)
   const [showTablePrompt, setShowTablePrompt] = useState(false)
   const [tableInput, setTableInput] = useState('')
   const [savingTable, setSavingTable] = useState(false)
   const [hasScrolled, setHasScrolled] = useState(false)
+  const [similarLots, setSimilarLots] = useState<any[]>([])
 
   const searchParams = useSearchParams()
 
@@ -178,13 +186,24 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
     }
   }, [deepLinkPending, canBid])
 
+  // Fetch similar lots in the same category
+  useEffect(() => {
+    if (!prize.id || !prize.category) return
+    fetch(`/api/prizes/similar?prizeId=${prize.id}&category=${prize.category}`)
+      .then(res => res.json())
+      .then(data => {
+        setSimilarLots(data.prizes || [])
+      })
+      .catch(() => {})
+  }, [prize.id, prize.category])
+
   const getAuctionStateMessage = () => {
     switch (auctionState) {
       case 'DRAFT':
       case 'TESTING':
         return { icon: Lock, title: 'Preview Mode', message: 'The auction is being prepared. Bidding will open soon.' }
       case 'PRELAUNCH':
-        return { icon: Eye, title: 'Coming Soon', message: 'Browse the prizes! Bidding opens at the event.' }
+        return { icon: Eye, title: 'Coming Soon', message: 'Browse the lots! Bidding opens at the event.' }
       case 'CLOSED':
         return { icon: Ban, title: 'Auction Closed', message: 'This auction has ended. Thank you for participating!' }
       default:
@@ -285,6 +304,33 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
     setSavingTable(false)
   }
 
+  // Lightbox keyboard navigation
+  useEffect(() => {
+    if (!lightboxOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxOpen(false)
+      if (e.key === 'ArrowLeft') setLightboxIndex(i => i === 0 ? allImages.length - 1 : i - 1)
+      if (e.key === 'ArrowRight') setLightboxIndex(i => i === allImages.length - 1 ? 0 : i + 1)
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    // Prevent body scroll when lightbox is open
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = ''
+    }
+  }, [lightboxOpen, allImages.length])
+
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index)
+    setLightboxOpen(true)
+  }
+
+  // Lot number display
+  const lotLabel = prize.lotNumber
+    ? `Lot ${prize.lotNumber}${prize.subLotLetter ? `.${prize.subLotLetter}` : ''}`
+    : null
+
   const hasActiveBid = prize.bids.length > 0
   const minimumNextBid = getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
   const bidIncrement = getMinimumBidIncrement(prize.currentHighestBid || prize.minimumBid)
@@ -345,117 +391,333 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
   return (
     <main className="min-h-screen bg-[#f8f8f6]">
       {/* Header */}
-      <header className="bg-[#0f1d2d] text-white sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <Header />
+
+      {/* Back Bar + Actions */}
+      <div className="bg-[#f8f8f6] border-b border-gray-200/60">
+        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
           <Link
             href="/prizes"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors px-3 py-2 -ml-2 rounded-lg hover:bg-white/10 min-h-[44px]"
+            className="flex items-center gap-2 text-[#6b6b6b] hover:text-[#1a1a1a] transition-colors px-3 py-2 -ml-2 rounded-lg hover:bg-gray-100 min-h-[44px]"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">All Prizes</span>
+            <span className="text-sm font-medium">All Lots</span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={toggleFavorite}
               disabled={favoriteLoading}
               className={`p-2 rounded-full transition-colors ${
-                isFavorite ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'
+                isFavorite ? 'bg-red-50 text-red-500' : 'hover:bg-gray-100 text-[#6b6b6b]'
               }`}
             >
               <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
             <button
               onClick={handleShare}
-              className="p-2 rounded-full hover:bg-white/10 transition-colors"
+              className="p-2 rounded-full hover:bg-gray-100 text-[#6b6b6b] transition-colors"
             >
               <Share2 className="w-5 h-5" />
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="max-w-4xl mx-auto">
-        {/* Hero Image Carousel */}
-        <div
-          className={`relative aspect-[16/10] sm:aspect-[2/1] transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
-        >
-          {(allImages[currentImageIndex]?.url) ? (
-            <Image
-              src={allImages[currentImageIndex].url}
-              alt={allImages[currentImageIndex]?.alt || prize.title}
-              fill
-              className="object-cover transition-opacity duration-300"
-              priority
-              unoptimized
-              onError={() => {
-                setImgSrc('')
-              }}
-            />
+        {/* Image Gallery */}
+        <div className={`transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
+          {allImages.length === 0 ? (
+            /* No images — gradient placeholder */
+            <div className="w-full h-[400px] bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f] md:rounded-xl flex items-center justify-center">
+              <Gift className="w-16 h-16 text-white/20" />
+            </div>
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f] flex items-center justify-center">
-              <svg className="w-16 h-16 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-              </svg>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-
-          {/* Category badge */}
-          <div className="absolute top-4 left-4">
-            <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/95 backdrop-blur-sm text-[#6b6b6b]">
-              {CATEGORY_LABELS[prize.category]}
-            </span>
-          </div>
-
-          {/* Multi-winner badge */}
-          {prize.multiWinnerEligible && (
-            <div className="absolute top-4 right-4">
-              <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/90 text-white backdrop-blur-sm">
-                <Users className="w-3.5 h-3.5" />
-                {prize.multiWinnerSlots || 'Multiple'} available
-              </span>
-            </div>
-          )}
-
-          {/* Carousel controls — only show if multiple images */}
-          {allImages.length > 1 && (
             <>
-              <button
-                onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === 0 ? allImages.length - 1 : i - 1) }}
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
-                aria-label="Previous image"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === allImages.length - 1 ? 0 : i + 1) }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
-                aria-label="Next image"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-
-              {/* Dots indicator */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-                {allImages.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i) }}
-                    className={`rounded-full transition-all ${
-                      i === currentImageIndex
-                        ? 'w-6 h-2 bg-white'
-                        : 'w-2 h-2 bg-white/50 hover:bg-white/70'
-                    }`}
-                    aria-label={`Image ${i + 1}`}
+              {/* === MOBILE CAROUSEL (< md) === */}
+              <div className="md:hidden relative aspect-[16/10]">
+                {allImages[currentImageIndex]?.url ? (
+                  <Image
+                    src={allImages[currentImageIndex].url}
+                    alt={allImages[currentImageIndex]?.alt || prize.title}
+                    fill
+                    className="object-cover"
+                    priority
+                    unoptimized
+                    onError={() => setImgSrc('')}
                   />
-                ))}
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f] flex items-center justify-center">
+                    <Gift className="w-16 h-16 text-white/20" />
+                  </div>
+                )}
+
+                {/* Category badge */}
+                <div className="absolute top-4 left-4">
+                  <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/95 backdrop-blur-sm text-[#6b6b6b]">
+                    {CATEGORY_LABELS[prize.category]}
+                  </span>
+                </div>
+
+                {/* Multi-winner badge */}
+                {prize.multiWinnerEligible && (
+                  <div className="absolute top-4 right-4">
+                    <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/90 text-white backdrop-blur-sm">
+                      <Users className="w-3.5 h-3.5" />
+                      {prize.multiWinnerSlots || 'Multiple'} available
+                    </span>
+                  </div>
+                )}
+
+                {/* Mobile carousel controls */}
+                {allImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === 0 ? allImages.length - 1 : i - 1) }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                      aria-label="Previous image"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === allImages.length - 1 ? 0 : i + 1) }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                      aria-label="Next image"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                      {allImages.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i) }}
+                          className={`rounded-full transition-all ${
+                            i === currentImageIndex
+                              ? 'w-6 h-2 bg-white'
+                              : 'w-2 h-2 bg-white/50 hover:bg-white/70'
+                          }`}
+                          aria-label={`Image ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* === DESKTOP GRID (>= md) === */}
+              <div className="hidden md:block">
+                {allImages.length === 1 ? (
+                  /* Single image — full width */
+                  <div
+                    className="relative h-[500px] rounded-xl overflow-hidden cursor-pointer"
+                    onClick={() => openLightbox(0)}
+                  >
+                    <Image
+                      src={allImages[0].url}
+                      alt={allImages[0].alt || prize.title}
+                      fill
+                      className="object-cover"
+                      priority
+                      unoptimized
+                    />
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/95 backdrop-blur-sm text-[#6b6b6b]">
+                        {CATEGORY_LABELS[prize.category]}
+                      </span>
+                    </div>
+                    {prize.multiWinnerEligible && (
+                      <div className="absolute top-4 right-4 z-10">
+                        <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/90 text-white backdrop-blur-sm">
+                          <Users className="w-3.5 h-3.5" />
+                          {prize.multiWinnerSlots || 'Multiple'} available
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : allImages.length === 2 ? (
+                  /* Two images — 50/50 side by side */
+                  <div className="relative grid grid-cols-2 gap-[2px] h-[500px] rounded-xl overflow-hidden">
+                    {allImages.slice(0, 2).map((img, i) => (
+                      <div
+                        key={i}
+                        className="relative cursor-pointer"
+                        onClick={() => openLightbox(i)}
+                      >
+                        <Image
+                          src={img.url}
+                          alt={img.alt || prize.title}
+                          fill
+                          className="object-cover"
+                          priority={i === 0}
+                          unoptimized
+                        />
+                      </div>
+                    ))}
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/95 backdrop-blur-sm text-[#6b6b6b]">
+                        {CATEGORY_LABELS[prize.category]}
+                      </span>
+                    </div>
+                    {prize.multiWinnerEligible && (
+                      <div className="absolute top-4 right-4 z-10">
+                        <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/90 text-white backdrop-blur-sm">
+                          <Users className="w-3.5 h-3.5" />
+                          {prize.multiWinnerSlots || 'Multiple'} available
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : allImages.length === 3 ? (
+                  /* Three images — one large left, two stacked right */
+                  <div className="relative grid grid-cols-2 grid-rows-2 gap-[2px] h-[500px] rounded-xl overflow-hidden">
+                    <div
+                      className="row-span-2 relative cursor-pointer"
+                      onClick={() => openLightbox(0)}
+                    >
+                      <Image
+                        src={allImages[0].url}
+                        alt={allImages[0].alt || prize.title}
+                        fill
+                        className="object-cover"
+                        priority
+                        unoptimized
+                      />
+                    </div>
+                    {allImages.slice(1, 3).map((img, i) => (
+                      <div
+                        key={i + 1}
+                        className="relative cursor-pointer"
+                        onClick={() => openLightbox(i + 1)}
+                      >
+                        <Image
+                          src={img.url}
+                          alt={img.alt || prize.title}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    ))}
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/95 backdrop-blur-sm text-[#6b6b6b]">
+                        {CATEGORY_LABELS[prize.category]}
+                      </span>
+                    </div>
+                    {prize.multiWinnerEligible && (
+                      <div className="absolute top-4 right-4 z-10">
+                        <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/90 text-white backdrop-blur-sm">
+                          <Users className="w-3.5 h-3.5" />
+                          {prize.multiWinnerSlots || 'Multiple'} available
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : allImages.length === 4 ? (
+                  /* Four images — 2x2 grid */
+                  <div className="relative grid grid-cols-2 grid-rows-2 gap-[2px] h-[500px] rounded-xl overflow-hidden">
+                    {allImages.slice(0, 4).map((img, i) => (
+                      <div
+                        key={i}
+                        className="relative cursor-pointer"
+                        onClick={() => openLightbox(i)}
+                      >
+                        <Image
+                          src={img.url}
+                          alt={img.alt || prize.title}
+                          fill
+                          className="object-cover"
+                          priority={i === 0}
+                          unoptimized
+                        />
+                      </div>
+                    ))}
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/95 backdrop-blur-sm text-[#6b6b6b]">
+                        {CATEGORY_LABELS[prize.category]}
+                      </span>
+                    </div>
+                    {prize.multiWinnerEligible && (
+                      <div className="absolute top-4 right-4 z-10">
+                        <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/90 text-white backdrop-blur-sm">
+                          <Users className="w-3.5 h-3.5" />
+                          {prize.multiWinnerSlots || 'Multiple'} available
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Five or more images — Airbnb-style grid */
+                  <div className="relative grid grid-cols-4 grid-rows-2 gap-[2px] h-[500px] rounded-xl overflow-hidden">
+                    {/* Primary image — spans 2 cols, 2 rows */}
+                    <div
+                      className="col-span-2 row-span-2 relative cursor-pointer"
+                      onClick={() => openLightbox(0)}
+                    >
+                      <Image
+                        src={allImages[0].url}
+                        alt={allImages[0].alt || prize.title}
+                        fill
+                        className="object-cover"
+                        priority
+                        unoptimized
+                      />
+                    </div>
+                    {/* Images 2-4 */}
+                    {allImages.slice(1, 4).map((img, i) => (
+                      <div
+                        key={i + 1}
+                        className="relative cursor-pointer"
+                        onClick={() => openLightbox(i + 1)}
+                      >
+                        <Image
+                          src={img.url}
+                          alt={img.alt || prize.title}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    ))}
+                    {/* Image 5 with optional "+N more" overlay */}
+                    <div
+                      className="relative cursor-pointer"
+                      onClick={() => openLightbox(4)}
+                    >
+                      <Image
+                        src={allImages[4].url}
+                        alt={allImages[4].alt || prize.title}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                      {allImages.length > 5 && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <span className="text-white text-lg font-semibold">+{allImages.length - 5} more</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Category badge */}
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/95 backdrop-blur-sm text-[#6b6b6b]">
+                        {CATEGORY_LABELS[prize.category]}
+                      </span>
+                    </div>
+                    {prize.multiWinnerEligible && (
+                      <div className="absolute top-4 right-4 z-10">
+                        <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/90 text-white backdrop-blur-sm">
+                          <Users className="w-3.5 h-3.5" />
+                          {prize.multiWinnerSlots || 'Multiple'} available
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
         </div>
 
-        <div className="px-4 sm:px-6 -mt-8 relative z-10">
+        <div className="px-4 sm:px-6 mt-6 relative z-10">
           {/* Main Content Card */}
           <div
             className={`bg-white rounded-2xl border border-gray-200/60 overflow-hidden transition-all duration-500 delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
@@ -464,8 +726,47 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
             <div className="p-8 sm:p-10 border-b border-gray-100">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
                 <div className="flex-1">
-                  <p className="text-sm text-[#6b6b6b] mb-1">Donated by {prize.donorName}</p>
-                  <h1 className="text-2xl sm:text-3xl font-semibold text-[#1a1a1a] mb-4 tracking-tight">{prize.title}</h1>
+                  {/* Lot Number */}
+                  {lotLabel && (
+                    <p className="text-xs font-semibold text-[#c9a227] uppercase tracking-wider mb-2">{lotLabel}</p>
+                  )}
+
+                  {/* Category + Donor line */}
+                  <p className="text-sm text-[#6b6b6b] mb-1">
+                    <span>{CATEGORY_LABELS[prize.category]}</span>
+                    {prize.donorName && (
+                      <>
+                        <span className="mx-1.5">&middot;</span>
+                        <span>Donated by{' '}
+                          {prize.donorUrl ? (
+                            <a
+                              href={prize.donorUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#c9a227] hover:text-[#b8941f] transition-colors inline-flex items-center gap-1"
+                            >
+                              <span className="font-medium">{prize.donorName}</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          ) : (
+                            <span className="font-medium">{prize.donorName}</span>
+                          )}
+                        </span>
+                      </>
+                    )}
+                  </p>
+
+                  <h1 className="text-2xl sm:text-3xl font-semibold text-[#1a1a1a] mb-3 tracking-tight">{prize.title}</h1>
+
+                  {/* Location badge */}
+                  {prize.location && (
+                    <div className="mb-3">
+                      <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {prize.location}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Urgency indicator */}
                   <div className={`flex items-center gap-2 text-sm ${prize.bids.length > 0 ? 'text-[#a08a1e]' : 'text-[#6b6b6b]'} mb-4 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: '400ms' }}>
@@ -673,7 +974,7 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
           <div
             className={`mt-6 bg-white rounded-2xl p-8 sm:p-10 border border-gray-200/60 transition-all duration-500 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
           >
-            <h2 className="text-lg font-medium text-[#1a1a1a] mb-4">About This Prize</h2>
+            <h2 className="text-lg font-medium text-[#1a1a1a] mb-4">About This Lot</h2>
             <div className="prose prose-gray max-w-none">
               <p className="text-[#6b6b6b] whitespace-pre-line leading-relaxed">{prize.fullDescription}</p>
             </div>
@@ -753,6 +1054,93 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
             </div>
           )}
 
+          {/* Similar Lots */}
+          {similarLots.length > 0 && (
+            <div
+              className={`mt-6 bg-white rounded-2xl p-6 sm:p-8 border border-gray-200/60 transition-all duration-500 delay-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+            >
+              <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4">Similar Lots</h2>
+              {/* Mobile: horizontal scroll */}
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 sm:hidden">
+                {similarLots.map((lot) => (
+                  <Link
+                    key={lot.id}
+                    href={`/prizes/${lot.slug}`}
+                    className="flex-shrink-0 snap-start w-[160px] group"
+                  >
+                    <div className="relative w-[160px] aspect-[4/3] rounded-lg overflow-hidden bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f]">
+                      {lot.imageUrl ? (
+                        <Image
+                          src={lot.imageUrl}
+                          alt={lot.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <svg className="w-8 h-8 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    {lot.lotNumber && (
+                      <p className="text-xs font-medium text-[#c9a227] mt-2">
+                        Lot {lot.lotNumber}{lot.subLotLetter || ''}
+                      </p>
+                    )}
+                    <p className="text-sm font-medium text-[#1a1a1a] mt-1 truncate">{lot.title}</p>
+                    <p className="text-sm font-medium text-[#6b6b6b] mt-0.5">
+                      {lot.currentHighestBid > 0
+                        ? formatCurrency(lot.currentHighestBid)
+                        : formatCurrency(lot.minimumBid)}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+              {/* Desktop: grid of 4 */}
+              <div className="hidden sm:grid sm:grid-cols-4 gap-4">
+                {similarLots.map((lot) => (
+                  <Link
+                    key={lot.id}
+                    href={`/prizes/${lot.slug}`}
+                    className="group"
+                  >
+                    <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f]">
+                      {lot.imageUrl ? (
+                        <Image
+                          src={lot.imageUrl}
+                          alt={lot.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <svg className="w-8 h-8 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    {lot.lotNumber && (
+                      <p className="text-xs font-medium text-[#c9a227] mt-2">
+                        Lot {lot.lotNumber}{lot.subLotLetter || ''}
+                      </p>
+                    )}
+                    <p className="text-sm font-medium text-[#1a1a1a] mt-1 truncate group-hover:text-[#1e3a5f] transition-colors">{lot.title}</p>
+                    <p className="text-sm font-medium text-[#6b6b6b] mt-0.5">
+                      {lot.currentHighestBid > 0
+                        ? formatCurrency(lot.currentHighestBid)
+                        : formatCurrency(lot.minimumBid)}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Bottom padding */}
           <div className="h-32" />
         </div>
@@ -809,6 +1197,65 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
           isPledge={isPledge}
           pledgeTierName={selectedPledgeTier ? getTierLabel(selectedPledgeTier) : undefined}
         />
+      )}
+
+      {/* Fullscreen Lightbox */}
+      {lightboxOpen && allImages.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+          onClick={() => setLightboxOpen(false)}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+            aria-label="Close lightbox"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          {/* Image counter */}
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 text-white/80 text-sm font-medium">
+            {lightboxIndex + 1} / {allImages.length}
+          </div>
+
+          {/* Previous button */}
+          {allImages.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex(i => i === 0 ? allImages.length - 1 : i - 1) }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="w-7 h-7" />
+            </button>
+          )}
+
+          {/* Next button */}
+          {allImages.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex(i => i === allImages.length - 1 ? 0 : i + 1) }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+              aria-label="Next image"
+            >
+              <ChevronRight className="w-7 h-7" />
+            </button>
+          )}
+
+          {/* Main image */}
+          <div
+            className="relative w-full h-full max-w-5xl max-h-[85vh] mx-16 my-16"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Image
+              src={allImages[lightboxIndex].url}
+              alt={allImages[lightboxIndex].alt || prize.title}
+              fill
+              className="object-contain"
+              unoptimized
+              priority
+            />
+          </div>
+        </div>
       )}
     </main>
   )
