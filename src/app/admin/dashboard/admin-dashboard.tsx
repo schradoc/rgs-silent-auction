@@ -1417,21 +1417,43 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                           {showDescriptionPreview ? 'Hide Preview' : 'Show Preview'}
                         </button>
                       </div>
+
+                      {/* Insert section toolbar */}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mr-1">Insert:</span>
+                        {([
+                          { tag: 'included', label: 'Included', color: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100', template: '\n[included] What\'s Included:\n- \n' },
+                          { tag: 'bring', label: 'What to Bring', color: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100', template: '\n[bring] What to Bring:\n- \n' },
+                          { tag: 'itinerary', label: 'Itinerary', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100', template: '\n[itinerary] Itinerary:\nDay 1 – Title\nDescription of this day.\n' },
+                          { tag: 'info', label: 'Info Box', color: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100', template: '\n[info] Details:\nAdditional information here.\n' },
+                          { tag: 'bullet', label: '• Bullets', color: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50', template: '\n- Item one\n- Item two\n' },
+                        ] as const).map((btn) => (
+                          <button
+                            key={btn.tag}
+                            type="button"
+                            onClick={() => {
+                              const desc = prizeForm.fullDescription
+                              setPrizeForm({ ...prizeForm, fullDescription: desc.trimEnd() + btn.template })
+                            }}
+                            className={`px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors ${btn.color}`}
+                          >
+                            {btn.label}
+                          </button>
+                        ))}
+                      </div>
+
                       <div className={showDescriptionPreview ? 'grid grid-cols-2 gap-4' : ''}>
                         <div>
                           <textarea
                             value={prizeForm.fullDescription}
                             onChange={(e) => setPrizeForm({ ...prizeForm, fullDescription: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] font-mono text-sm"
-                            rows={showDescriptionPreview ? 16 : 8}
-                            placeholder={`Start with a paragraph describing the lot...\n\nWhat's Included:\n- Item one\n- Item two\n\nItinerary:\nDay 1 – Arrival\nDescription of day 1 activities.\n\nDay 2 – Exploration\nDescription of day 2 activities.\n\nWhat to Bring:\n- Comfortable shoes\n- Camera`}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] font-mono text-sm leading-relaxed"
+                            rows={showDescriptionPreview ? 18 : 10}
+                            placeholder={`Start with a paragraph describing the lot...\n\n[included] What's Included:\n- Item one\n- Item two\n\n[itinerary] Itinerary:\nDay 1 – Arrival\nDescription of day 1 activities.\n\nDay 2 – Exploration\nDescription of day 2 activities.\n\n[bring] What to Bring:\n- Comfortable shoes\n- Camera`}
                           />
-                          <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">
-                            Format tips: Lines ending with <code className="bg-gray-100 px-1 rounded">:</code> become section headings. Lines starting with <code className="bg-gray-100 px-1 rounded">-</code> or <code className="bg-gray-100 px-1 rounded">•</code> become bullet points. <code className="bg-gray-100 px-1 rounded">Day 1 – Title</code> creates an itinerary timeline.
-                          </p>
                         </div>
                         {showDescriptionPreview && prizeForm.fullDescription && (
-                          <div className="border border-gray-200 rounded-lg p-4 bg-white overflow-y-auto max-h-[400px]">
+                          <div className="border border-gray-200 rounded-lg p-4 bg-white overflow-y-auto max-h-[480px]">
                             <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-3">Live Preview</p>
                             <RichDescription text={prizeForm.fullDescription} />
                           </div>

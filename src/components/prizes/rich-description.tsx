@@ -5,54 +5,54 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle2,
-  MapPin,
   Calendar,
   Backpack,
   Info,
 } from 'lucide-react'
+
+// Section tag types that control rendering style
+type SectionTag = 'included' | 'bring' | 'itinerary' | 'info'
 
 interface Section {
   type: 'paragraph' | 'heading' | 'bullets' | 'itinerary-day' | 'highlight-box'
   heading?: string
   content: string
   items?: string[]
-  icon?: 'included' | 'bring' | 'itinerary' | 'info'
+  icon?: SectionTag
 }
 
 /**
- * Detects if a line is a section heading.
- * Matches patterns like:
- *   "What's Included:"
- *   "Itinerary"
- *   "What to Bring:"
- *   "Day 1 – Arrival & Street Photography (Porto):"
+ * Tag regex: matches [included], [bring], [itinerary], [info] at the start of a line.
+ * The rest of the line after the tag becomes the heading text.
  */
+const TAG_REGEX = /^\[(included|bring|itinerary|info)\]\s*(.*)/i
+
+/**
+ * Legacy keyword-based icon detection (fallback for descriptions without explicit tags).
+ */
+function guessHeadingIcon(heading: string): SectionTag {
+  const lower = heading.toLowerCase()
+  if (lower.includes('include') || lower.includes('what you get') || lower.includes('package')) return 'included'
+  if (lower.includes('bring') || lower.includes('pack') || lower.includes('prepare') || lower.includes('need')) return 'bring'
+  if (lower.includes('itinerary') || lower.includes('schedule') || lower.includes('program')) return 'itinerary'
+  return 'info'
+}
+
 function isHeading(line: string): boolean {
   const trimmed = line.trim()
   if (!trimmed) return false
-  // Short line ending with colon
   if (trimmed.endsWith(':') && trimmed.length < 80) return true
-  // Known standalone headings
   const headingKeywords = ['itinerary', 'overview', 'highlights', 'details', 'schedule', 'program', 'programme']
   if (headingKeywords.includes(trimmed.toLowerCase())) return true
   return false
 }
 
 function isBulletLine(line: string): boolean {
-  const trimmed = line.trim()
-  return /^[•\-\*]\s/.test(trimmed)
+  return /^[•\-\*]\s/.test(line.trim())
 }
 
 function isDayEntry(line: string): boolean {
   return /^day\s+\d+/i.test(line.trim())
-}
-
-function getHeadingIcon(heading: string): Section['icon'] {
-  const lower = heading.toLowerCase()
-  if (lower.includes('include') || lower.includes('what you get') || lower.includes('package')) return 'included'
-  if (lower.includes('bring') || lower.includes('pack') || lower.includes('prepare') || lower.includes('need')) return 'bring'
-  if (lower.includes('itinerary') || lower.includes('schedule') || lower.includes('program')) return 'itinerary'
-  return 'info'
 }
 
 function parseDescription(text: string): Section[] {
@@ -71,7 +71,6 @@ function parseDescription(text: string): Section[] {
 
   const flushCurrentSection = () => {
     if (currentSection) {
-      // If section has bullet items, make it a bullets type
       if (currentSection.items && currentSection.items.length > 0) {
         currentSection.type = 'bullets'
       }
@@ -84,10 +83,30 @@ function parseDescription(text: string): Section[] {
     const line = lines[i]
     const trimmed = line.trim()
 
-    // Skip empty lines
     if (!trimmed) {
       if (!currentSection && paragraphBuffer.length > 0) {
         flushParagraph()
+      }
+      continue
+    }
+
+    // Check for explicit tag: [included], [bring], [itinerary], [info]
+    const tagMatch = trimmed.match(TAG_REGEX)
+    if (tagMatch) {
+      flushParagraph()
+      flushCurrentSection()
+
+      const tag = tagMatch[1].toLowerCase() as SectionTag
+      const headingText = tagMatch[2].replace(/:$/, '').trim()
+
+      // If tag is [itinerary] and no heading text, it's just a section opener
+      // Following Day entries will be collected separately
+      currentSection = {
+        type: 'highlight-box',
+        heading: headingText || tag.charAt(0).toUpperCase() + tag.slice(1),
+        content: '',
+        items: [],
+        icon: tag,
       }
       continue
     }
@@ -97,12 +116,9 @@ function parseDescription(text: string): Section[] {
       flushParagraph()
       flushCurrentSection()
 
-      // Parse the day line: "Day 1 – Title:" or "Day 1 – Title:\nDescription"
       const dayHeading = trimmed.replace(/:$/, '')
-
-      // Collect the description lines after the day heading
       const descLines: string[] = []
-      while (i + 1 < lines.length && lines[i + 1].trim() && !isDayEntry(lines[i + 1]) && !isHeading(lines[i + 1])) {
+      while (i + 1 < lines.length && lines[i + 1].trim() && !isDayEntry(lines[i + 1]) && !isHeading(lines[i + 1]) && !TAG_REGEX.test(lines[i + 1].trim())) {
         i++
         descLines.push(lines[i].trim())
       }
@@ -115,7 +131,7 @@ function parseDescription(text: string): Section[] {
       continue
     }
 
-    // Check for section heading
+    // Check for section heading (legacy: line ending with colon, no tag)
     if (isHeading(trimmed)) {
       flushParagraph()
       flushCurrentSection()
@@ -126,7 +142,7 @@ function parseDescription(text: string): Section[] {
         heading,
         content: '',
         items: [],
-        icon: getHeadingIcon(heading),
+        icon: guessHeadingIcon(heading),
       }
       continue
     }
@@ -142,7 +158,6 @@ function parseDescription(text: string): Section[] {
         if (!currentSection.items) currentSection.items = []
         currentSection.items.push(bulletText)
       } else {
-        // Orphan bullet — create a bullets section
         currentSection = {
           type: 'bullets',
           content: '',
@@ -154,7 +169,6 @@ function parseDescription(text: string): Section[] {
 
     // Regular text line
     if (currentSection) {
-      // Add to current section's content
       if (currentSection.content) {
         currentSection.content += ' ' + trimmed
       } else {
@@ -201,15 +215,12 @@ function ItineraryTimeline({ sections }: { sections: Section[] }) {
 
       <div className="relative ml-4 border-l-2 border-gray-200 pl-6 space-y-4">
         {sections.slice(0, visibleCount).map((day, i) => {
-          // Extract day number from heading
           const dayMatch = day.heading?.match(/day\s+(\d+)/i)
           const dayNum = dayMatch ? dayMatch[1] : String(i + 1)
-          // Extract title after the dash/hyphen
           const title = day.heading?.replace(/^day\s+\d+\s*[–\-—:]\s*/i, '') || ''
 
           return (
             <div key={i} className="relative">
-              {/* Timeline dot */}
               <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-white border-2 border-[#c9a227] flex items-center justify-center">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#c9a227]" />
               </div>
@@ -291,8 +302,7 @@ export function RichDescription({ text }: { text: string }) {
   const itineraryDays = sections.filter(s => s.type === 'itinerary-day')
   const otherSections = sections.filter(s => s.type !== 'itinerary-day')
 
-  // Find where itinerary days sit in the flow (after an "Itinerary" heading or just in order)
-  // We'll render: intro paragraphs, then highlight boxes, then itinerary, then remaining sections
+  // Render sections in order, grouping itinerary days into a timeline
   const introSections: Section[] = []
   const highlightSections: Section[] = []
   const trailingSections: Section[] = []
@@ -313,14 +323,8 @@ export function RichDescription({ text }: { text: string }) {
     }
   }
 
-  // If no itinerary heading was found but we have day entries, split at first day entry
-  if (!pastItinerary && itineraryDays.length > 0) {
-    // Move any highlight sections after intro to trailing
-  }
-
   return (
     <div className="space-y-0">
-      {/* Intro paragraphs */}
       {introSections.map((section, i) => (
         <div key={`intro-${i}`}>
           {section.type === 'paragraph' && (
@@ -330,15 +334,12 @@ export function RichDescription({ text }: { text: string }) {
         </div>
       ))}
 
-      {/* Highlight boxes (What's Included, etc.) */}
       {highlightSections.map((section, i) => (
         <HighlightBox key={`highlight-${i}`} section={section} />
       ))}
 
-      {/* Itinerary timeline */}
       {itineraryDays.length > 0 && <ItineraryTimeline sections={itineraryDays} />}
 
-      {/* Trailing sections (What to Bring, etc.) */}
       {trailingSections.map((section, i) => (
         <div key={`trail-${i}`}>
           {section.type === 'paragraph' && (
