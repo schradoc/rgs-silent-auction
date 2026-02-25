@@ -4,7 +4,6 @@ import { useState } from 'react'
 import {
   Plus,
   X,
-  GripVertical,
   ChevronUp,
   ChevronDown,
   CheckCircle2,
@@ -30,7 +29,7 @@ interface ParagraphBlock {
 interface BulletBlock {
   type: 'included' | 'bring' | 'info'
   heading: string
-  content: string // optional paragraph under heading
+  content: string
   items: string[]
 }
 
@@ -61,7 +60,7 @@ const BLOCK_CONFIG: Record<BlockType, {
   paragraph: {
     label: 'Paragraph',
     icon: Type,
-    borderColor: 'border-gray-200',
+    borderColor: 'border-l-gray-200',
     bgColor: 'bg-white',
     textColor: 'text-gray-600',
     badgeBg: 'bg-gray-100',
@@ -69,32 +68,32 @@ const BLOCK_CONFIG: Record<BlockType, {
   included: {
     label: 'Included',
     icon: CheckCircle2,
-    borderColor: 'border-green-300',
-    bgColor: 'bg-green-50/50',
+    borderColor: 'border-l-green-400',
+    bgColor: 'bg-green-50/30',
     textColor: 'text-green-700',
     badgeBg: 'bg-green-100',
   },
   bring: {
     label: 'What to Bring',
     icon: Backpack,
-    borderColor: 'border-amber-300',
-    bgColor: 'bg-amber-50/50',
+    borderColor: 'border-l-amber-400',
+    bgColor: 'bg-amber-50/30',
     textColor: 'text-amber-700',
     badgeBg: 'bg-amber-100',
   },
   itinerary: {
     label: 'Itinerary',
     icon: Calendar,
-    borderColor: 'border-blue-300',
-    bgColor: 'bg-blue-50/50',
+    borderColor: 'border-l-blue-400',
+    bgColor: 'bg-blue-50/30',
     textColor: 'text-blue-700',
     badgeBg: 'bg-blue-100',
   },
   info: {
     label: 'Info',
     icon: Info,
-    borderColor: 'border-gray-300',
-    bgColor: 'bg-gray-50/50',
+    borderColor: 'border-l-gray-300',
+    bgColor: 'bg-gray-50/30',
     textColor: 'text-gray-600',
     badgeBg: 'bg-gray-100',
   },
@@ -113,7 +112,7 @@ function serializeBlocks(blocks: Block[]): string {
       for (const day of block.days) {
         lines.push(`Day ${day.day} – ${day.title}`)
         if (day.description) lines.push(day.description)
-        lines.push('') // blank line between days
+        lines.push('')
       }
       return lines.join('\n').trimEnd()
     }
@@ -132,6 +131,115 @@ function serializeBlocks(blocks: Block[]): string {
 // ── Deserialization: tagged plain text → blocks ──────────────────────
 
 const TAG_REGEX = /^\[(included|bring|itinerary|info)\]\s*(.*)/i
+const DAY_REGEX = /^day\s+(\d+)\s*[–\-—:．.]\s*(.*)/i
+const HEADING_KEYWORDS = ['itinerary', 'overview', 'highlights', 'details', 'schedule', 'program', 'programme']
+
+function isDayLine(line: string): boolean {
+  return /^day\s+\d+/i.test(line.trim())
+}
+
+function isHeadingLine(line: string): boolean {
+  const trimmed = line.trim()
+  if (!trimmed) return false
+  if (trimmed.endsWith(':') && trimmed.length < 80) return true
+  if (HEADING_KEYWORDS.includes(trimmed.toLowerCase())) return true
+  return false
+}
+
+function guessBlockType(heading: string): 'included' | 'bring' | 'info' {
+  const lower = heading.toLowerCase()
+  if (lower.includes('include') || lower.includes('what you get') || lower.includes('package')) return 'included'
+  if (lower.includes('bring') || lower.includes('pack') || lower.includes('prepare') || lower.includes('need')) return 'bring'
+  return 'info'
+}
+
+function isItineraryHeading(heading: string): boolean {
+  const lower = heading.toLowerCase()
+  return lower.includes('itinerary') || lower.includes('schedule') || lower.includes('program')
+}
+
+function isBulletLine(line: string): boolean {
+  return /^[•\-\*]\s/.test(line.trim())
+}
+
+/** Collect consecutive day entries starting at index i. Returns [days, newIndex]. */
+function collectDays(lines: string[], startIndex: number): [DayEntry[], number] {
+  const days: DayEntry[] = []
+  let i = startIndex
+
+  while (i < lines.length) {
+    const trimmed = lines[i].trim()
+
+    // Skip blank lines between days
+    if (!trimmed) { i++; continue }
+
+    // Stop if we hit a tag, a non-day heading, or a bullet
+    if (TAG_REGEX.test(trimmed)) break
+    if (isBulletLine(trimmed)) break
+    // Stop at headings that aren't day entries
+    if (isHeadingLine(trimmed) && !isDayLine(trimmed)) break
+
+    const dayMatch = trimmed.replace(/:$/, '').match(DAY_REGEX)
+    if (dayMatch) {
+      const dayNum = parseInt(dayMatch[1])
+      const title = dayMatch[2].replace(/:$/, '').trim()
+      const descLines: string[] = []
+      i++
+      // Collect description lines for this day
+      while (i < lines.length) {
+        const next = lines[i].trim()
+        if (!next) { i++; break } // blank line ends this day's description
+        if (isDayLine(next)) break
+        if (TAG_REGEX.test(next)) break
+        if (isHeadingLine(next) && !isDayLine(next)) break
+        if (isBulletLine(next)) break
+        descLines.push(next)
+        i++
+      }
+      days.push({ day: dayNum, title, description: descLines.join(' ') })
+    } else {
+      // Not a day line — stop collecting
+      break
+    }
+  }
+
+  return [days, i]
+}
+
+/** Collect bullet items and content text for a heading section. */
+function collectSectionContent(lines: string[], startIndex: number): [string, string[], number] {
+  let content = ''
+  const items: string[] = []
+  let i = startIndex
+  let consecutiveBlanks = 0
+
+  while (i < lines.length) {
+    const trimmed = lines[i].trim()
+
+    if (!trimmed) {
+      consecutiveBlanks++
+      // Two consecutive blank lines = end of section
+      if (consecutiveBlanks >= 2) { i++; break }
+      i++
+      continue
+    }
+    consecutiveBlanks = 0
+
+    // Stop conditions
+    if (TAG_REGEX.test(trimmed)) break
+    if (isDayLine(trimmed)) break
+    if (isHeadingLine(trimmed) && !isBulletLine(trimmed)) break
+
+    if (isBulletLine(trimmed)) {
+      items.push(trimmed.replace(/^[•\-\*]\s*/, '').trim())
+    } else {
+      content += (content ? ' ' : '') + trimmed
+    }
+    i++
+  }
+
+  return [content, items, i]
+}
 
 function deserializeText(text: string): Block[] {
   if (!text.trim()) return [{ type: 'paragraph', content: '' }]
@@ -150,10 +258,18 @@ function deserializeText(text: string): Block[] {
 
   let i = 0
   while (i < lines.length) {
-    const line = lines[i]
-    const trimmed = line.trim()
+    const trimmed = lines[i].trim()
 
-    // Check for tagged section
+    // Skip blank lines
+    if (!trimmed) {
+      if (paragraphBuffer.length > 0) {
+        flushParagraph()
+      }
+      i++
+      continue
+    }
+
+    // 1. Explicit tags: [included], [bring], [itinerary], [info]
     const tagMatch = trimmed.match(TAG_REGEX)
     if (tagMatch) {
       flushParagraph()
@@ -161,170 +277,61 @@ function deserializeText(text: string): Block[] {
       const heading = tagMatch[2].replace(/:$/, '').trim()
 
       if (tag === 'itinerary') {
-        const days: DayEntry[] = []
         i++
-        while (i < lines.length) {
-          const dayLine = lines[i]?.trim()
-          if (!dayLine) { i++; continue }
-          // Stop if we hit another tag
-          if (TAG_REGEX.test(dayLine)) break
-          // Check for legacy heading that would end the section
-          if (dayLine.endsWith(':') && dayLine.length < 80 && !/^day\s+\d+/i.test(dayLine)) break
-
-          const dayMatch = dayLine.match(/^day\s+(\d+)\s*[–\-—:]\s*(.*)/i)
-          if (dayMatch) {
-            const dayNum = parseInt(dayMatch[1])
-            const title = dayMatch[2].replace(/:$/, '').trim()
-            // Collect description lines
-            const descLines: string[] = []
-            i++
-            while (i < lines.length) {
-              const next = lines[i]?.trim()
-              if (!next || /^day\s+\d+/i.test(next) || TAG_REGEX.test(next)) break
-              descLines.push(next)
-              i++
-            }
-            days.push({ day: dayNum, title, description: descLines.join(' ') })
-          } else {
-            i++
-          }
-        }
-        blocks.push({ type: 'itinerary', heading: heading || 'Itinerary', days })
-        continue
-      }
-
-      // included, bring, info — collect content and bullet items
-      const items: string[] = []
-      let content = ''
-      i++
-      while (i < lines.length) {
-        const next = lines[i]?.trim()
-        if (next === undefined) break
-        if (!next) { i++; continue } // skip blanks within section
-        if (TAG_REGEX.test(next)) break
-        // Stop if we hit a legacy heading (line ending with colon, not a bullet)
-        if (next.endsWith(':') && next.length < 80 && !/^[•\-\*]\s/.test(next)) break
-        // Stop if we hit a Day entry
-        if (/^day\s+\d+/i.test(next)) break
-
-        if (/^[•\-\*]\s/.test(next)) {
-          items.push(next.replace(/^[•\-\*]\s*/, '').trim())
-        } else {
-          // Non-bullet text — treat as content paragraph
-          content += (content ? ' ' : '') + next
-        }
+        const [days, newI] = collectDays(lines, i)
+        i = newI
+        blocks.push({
+          type: 'itinerary',
+          heading: heading || 'Itinerary',
+          days: days.length > 0 ? days : [{ day: 1, title: '', description: '' }],
+        })
+      } else {
         i++
+        const [content, items, newI] = collectSectionContent(lines, i)
+        i = newI
+        blocks.push({ type: tag, heading: heading || tag, content, items })
       }
-      blocks.push({ type: tag, heading: heading || tag, content, items })
       continue
     }
 
-    // Check for legacy heading (no tag) — convert to info block
-    if (trimmed.endsWith(':') && trimmed.length < 80 && trimmed.length > 0) {
+    // 2. Day entries (check BEFORE headings — "Day 1 – Title:" would match both)
+    if (isDayLine(trimmed)) {
       flushParagraph()
-      const heading = trimmed.replace(/:$/, '').trim()
-
-      // Guess icon type from heading keywords
-      const lower = heading.toLowerCase()
-      let guessedType: 'included' | 'bring' | 'info' = 'info'
-      if (lower.includes('include') || lower.includes('what you get') || lower.includes('package')) guessedType = 'included'
-      if (lower.includes('bring') || lower.includes('pack') || lower.includes('prepare') || lower.includes('need')) guessedType = 'bring'
-
-      // Check if next lines are an itinerary
-      if (lower.includes('itinerary') || lower.includes('schedule') || lower.includes('program')) {
-        const days: DayEntry[] = []
-        i++
-        while (i < lines.length) {
-          const dayLine = lines[i]?.trim()
-          if (!dayLine) { i++; continue }
-          if (TAG_REGEX.test(dayLine)) break
-          if (dayLine.endsWith(':') && dayLine.length < 80 && !/^day\s+\d+/i.test(dayLine)) break
-
-          const dayMatch = dayLine.match(/^day\s+(\d+)\s*[–\-—:]\s*(.*)/i)
-          if (dayMatch) {
-            const dayNum = parseInt(dayMatch[1])
-            const title = dayMatch[2].replace(/:$/, '').trim()
-            const descLines: string[] = []
-            i++
-            while (i < lines.length) {
-              const next = lines[i]?.trim()
-              if (!next || /^day\s+\d+/i.test(next) || TAG_REGEX.test(next)) break
-              descLines.push(next)
-              i++
-            }
-            days.push({ day: dayNum, title, description: descLines.join(' ') })
-          } else {
-            i++
-          }
-        }
-        if (days.length > 0) {
-          blocks.push({ type: 'itinerary', heading, days })
-        }
-        continue
-      }
-
-      // Collect items for bullet-style blocks
-      const items: string[] = []
-      let content = ''
-      i++
-      while (i < lines.length) {
-        const next = lines[i]?.trim()
-        if (next === undefined) break
-        if (!next) { i++; break } // blank line ends section
-        if (TAG_REGEX.test(next)) break
-        if (next.endsWith(':') && next.length < 80 && !/^[•\-\*]\s/.test(next)) break
-        if (/^day\s+\d+/i.test(next)) break
-
-        if (/^[•\-\*]\s/.test(next)) {
-          items.push(next.replace(/^[•\-\*]\s*/, '').trim())
-        } else {
-          content += (content ? ' ' : '') + next
-        }
-        i++
-      }
-      blocks.push({ type: guessedType, heading, content, items })
-      continue
-    }
-
-    // Check for orphan day entries (no itinerary heading)
-    if (/^day\s+\d+/i.test(trimmed)) {
-      flushParagraph()
-      const days: DayEntry[] = []
-      while (i < lines.length) {
-        const dayLine = lines[i]?.trim()
-        if (!dayLine) { i++; continue }
-        if (TAG_REGEX.test(dayLine)) break
-        if (dayLine.endsWith(':') && dayLine.length < 80 && !/^day\s+\d+/i.test(dayLine)) break
-
-        const dayMatch = dayLine.match(/^day\s+(\d+)\s*[–\-—:]\s*(.*)/i)
-        if (dayMatch) {
-          const dayNum = parseInt(dayMatch[1])
-          const title = dayMatch[2].replace(/:$/, '').trim()
-          const descLines: string[] = []
-          i++
-          while (i < lines.length) {
-            const next = lines[i]?.trim()
-            if (!next || /^day\s+\d+/i.test(next) || TAG_REGEX.test(next)) break
-            descLines.push(next)
-            i++
-          }
-          days.push({ day: dayNum, title, description: descLines.join(' ') })
-        } else {
-          break
-        }
-      }
+      const [days, newI] = collectDays(lines, i)
+      i = newI
       if (days.length > 0) {
         blocks.push({ type: 'itinerary', heading: 'Itinerary', days })
       }
       continue
     }
 
-    // Regular text
-    if (trimmed) {
-      paragraphBuffer.push(trimmed)
-    } else if (paragraphBuffer.length > 0) {
+    // 3. Headings: lines ending with ":" or standalone keywords like "Itinerary"
+    if (isHeadingLine(trimmed)) {
       flushParagraph()
+      const heading = trimmed.replace(/:$/, '').trim()
+
+      // Itinerary-type heading → collect days
+      if (isItineraryHeading(heading)) {
+        i++
+        const [days, newI] = collectDays(lines, i)
+        i = newI
+        if (days.length > 0) {
+          blocks.push({ type: 'itinerary', heading, days })
+        }
+        continue
+      }
+
+      // Other heading → collect bullets/content
+      const guessed = guessBlockType(heading)
+      i++
+      const [content, items, newI] = collectSectionContent(lines, i)
+      i = newI
+      blocks.push({ type: guessed, heading, content, items })
+      continue
     }
+
+    // 4. Regular text → paragraph
+    paragraphBuffer.push(trimmed)
     i++
   }
 
@@ -490,7 +497,7 @@ export function DescriptionEditor({ value, onChange }: DescriptionEditorProps) {
 
       <div className={showPreview ? 'grid grid-cols-2 gap-4' : ''}>
         {/* Block editor */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {blocks.map((block, blockIndex) => {
             const config = BLOCK_CONFIG[block.type]
             const Icon = config.icon
@@ -498,109 +505,79 @@ export function DescriptionEditor({ value, onChange }: DescriptionEditorProps) {
             return (
               <div
                 key={blockIndex}
-                className={`border-l-4 ${config.borderColor} ${config.bgColor} rounded-lg border border-gray-200 overflow-hidden`}
+                className={`border-l-[3px] ${config.borderColor} ${config.bgColor} rounded-r-lg border border-gray-200 border-l-0`}
               >
-                {/* Block header */}
-                <div className="flex items-center justify-between px-3 py-2 bg-white/60 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <GripVertical className="w-3.5 h-3.5 text-gray-300" />
-                    <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-md ${config.badgeBg} ${config.textColor}`}>
-                      <Icon className="w-3 h-3" />
-                      {config.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => moveBlock(blockIndex, -1)}
-                      disabled={blockIndex === 0}
-                      className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
-                    >
-                      <ChevronUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveBlock(blockIndex, 1)}
-                      disabled={blockIndex === blocks.length - 1}
-                      className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
-                    >
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeBlock(blockIndex)}
-                      className="p-1 text-gray-400 hover:text-red-500 transition-colors ml-1"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                {/* Compact block header */}
+                <div className="flex items-center justify-between px-2.5 py-1.5">
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${config.badgeBg} ${config.textColor}`}>
+                    <Icon className="w-3 h-3" />
+                    {config.label}
+                  </span>
+                  <div className="flex items-center gap-0">
+                    <button type="button" onClick={() => moveBlock(blockIndex, -1)} disabled={blockIndex === 0} className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronUp className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={() => moveBlock(blockIndex, 1)} disabled={blockIndex === blocks.length - 1} className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronDown className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={() => removeBlock(blockIndex)} className="p-0.5 text-gray-300 hover:text-red-400 ml-1"><X className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
 
                 {/* Block content */}
-                <div className="px-3 py-3">
-                  {/* Paragraph block */}
+                <div className="px-2.5 pb-2.5">
+                  {/* Paragraph */}
                   {block.type === 'paragraph' && (
                     <textarea
                       value={block.content}
                       onChange={(e) => updateBlock(blockIndex, { content: e.target.value })}
-                      className="w-full px-2.5 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227] resize-y"
-                      rows={3}
+                      className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#c9a227] resize-y bg-white"
+                      rows={2}
                       placeholder="Write a paragraph..."
                     />
                   )}
 
                   {/* Bullet-based blocks (included, bring, info) */}
                   {(block.type === 'included' || block.type === 'bring' || block.type === 'info') && (
-                    <div className="space-y-2.5">
+                    <div className="space-y-1.5">
                       <input
                         type="text"
                         value={block.heading}
                         onChange={(e) => updateBlock(blockIndex, { heading: e.target.value })}
-                        className="w-full px-2.5 py-1.5 border border-gray-200 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#c9a227] bg-white"
                         placeholder="Section heading..."
                       />
-                      {block.content !== undefined && (
+                      {block.content && (
                         <textarea
                           value={block.content}
                           onChange={(e) => updateBlock(blockIndex, { content: e.target.value })}
-                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227] resize-y"
+                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#c9a227] resize-y bg-white"
                           rows={1}
-                          placeholder="Optional description text..."
+                          placeholder="Optional description..."
                         />
                       )}
-                      <div className="space-y-1.5">
+                      <div className="space-y-1">
                         {block.items.map((item, itemIndex) => (
-                          <div key={itemIndex} className="flex items-center gap-1.5">
-                            <span className={`text-xs ${config.textColor}`}>•</span>
+                          <div key={itemIndex} className="flex items-center gap-1">
+                            <span className={`text-xs ${config.textColor} flex-shrink-0`}>•</span>
                             <input
                               type="text"
                               value={item}
                               onChange={(e) => updateItem(blockIndex, itemIndex, e.target.value)}
-                              className="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                              className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#c9a227] bg-white"
                               placeholder="Item..."
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault()
-                                  addItem(blockIndex)
+                                if (e.key === 'Enter') { e.preventDefault(); addItem(blockIndex) }
+                                if (e.key === 'Backspace' && !item && block.items.length > 1) {
+                                  e.preventDefault(); removeItem(blockIndex, itemIndex)
                                 }
                               }}
                             />
-                            <button
-                              type="button"
-                              onClick={() => removeItem(blockIndex, itemIndex)}
-                              className="p-1 text-gray-300 hover:text-red-400 transition-colors"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
+                            <button type="button" onClick={() => removeItem(blockIndex, itemIndex)} className="p-0.5 text-gray-300 hover:text-red-400"><X className="w-3 h-3" /></button>
                           </div>
                         ))}
                         <button
                           type="button"
                           onClick={() => addItem(blockIndex)}
-                          className={`flex items-center gap-1 text-xs font-medium ${config.textColor} opacity-70 hover:opacity-100 transition-opacity mt-1`}
+                          className={`flex items-center gap-1 text-[11px] font-medium ${config.textColor} opacity-60 hover:opacity-100 transition-opacity`}
                         >
-                          <Plus className="w-3 h-3" />
-                          Add item
+                          <Plus className="w-3 h-3" /> Add item
                         </button>
                       </div>
                     </div>
@@ -608,45 +585,35 @@ export function DescriptionEditor({ value, onChange }: DescriptionEditorProps) {
 
                   {/* Itinerary block */}
                   {block.type === 'itinerary' && (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {block.days.map((day, dayIndex) => (
-                        <div key={dayIndex} className="flex gap-2 items-start">
-                          <div className="flex items-center gap-1 pt-1.5 flex-shrink-0">
-                            <span className="text-xs font-bold text-[#c9a227] w-10">Day {day.day}</span>
-                            <span className="text-gray-300">–</span>
-                          </div>
-                          <div className="flex-1 space-y-1">
+                        <div key={dayIndex} className="flex gap-1.5 items-start bg-white rounded border border-gray-100 p-2">
+                          <span className="text-[11px] font-bold text-[#c9a227] pt-1 flex-shrink-0 w-8">D{day.day}</span>
+                          <div className="flex-1 space-y-1 min-w-0">
                             <input
                               type="text"
                               value={day.title}
                               onChange={(e) => updateDay(blockIndex, dayIndex, { title: e.target.value })}
-                              className="w-full px-2.5 py-1.5 border border-gray-200 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                              className="w-full px-2 py-1 border border-gray-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#c9a227]"
                               placeholder="Day title..."
                             />
                             <textarea
                               value={day.description}
                               onChange={(e) => updateDay(blockIndex, dayIndex, { description: e.target.value })}
-                              className="w-full px-2.5 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227] resize-y"
+                              className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#c9a227] resize-y"
                               rows={1}
                               placeholder="Description..."
                             />
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removeDay(blockIndex, dayIndex)}
-                            className="p-1 text-gray-300 hover:text-red-400 transition-colors mt-1"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                          <button type="button" onClick={() => removeDay(blockIndex, dayIndex)} className="p-0.5 text-gray-300 hover:text-red-400 mt-1"><X className="w-3 h-3" /></button>
                         </div>
                       ))}
                       <button
                         type="button"
                         onClick={() => addDay(blockIndex)}
-                        className="flex items-center gap-1 text-xs font-medium text-blue-600 opacity-70 hover:opacity-100 transition-opacity"
+                        className="flex items-center gap-1 text-[11px] font-medium text-blue-600 opacity-60 hover:opacity-100 transition-opacity"
                       >
-                        <Plus className="w-3 h-3" />
-                        Add day
+                        <Plus className="w-3 h-3" /> Add day
                       </button>
                     </div>
                   )}
@@ -656,8 +623,8 @@ export function DescriptionEditor({ value, onChange }: DescriptionEditorProps) {
           })}
 
           {/* Add block toolbar */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mr-1">Add section:</span>
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 pb-1">
+            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Add:</span>
             {(Object.keys(BLOCK_CONFIG) as BlockType[]).map((type) => {
               const config = BLOCK_CONFIG[type]
               const Icon = config.icon
@@ -666,7 +633,7 @@ export function DescriptionEditor({ value, onChange }: DescriptionEditorProps) {
                   key={type}
                   type="button"
                   onClick={() => addBlock(type)}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors ${config.badgeBg} ${config.textColor} border-gray-200 hover:border-gray-300`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border transition-colors ${config.badgeBg} ${config.textColor} border-gray-200 hover:border-gray-300`}
                 >
                   <Icon className="w-3 h-3" />
                   {config.label}
