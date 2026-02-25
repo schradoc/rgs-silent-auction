@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     // List all active top-level prizes
     const prizes = await prisma.prize.findMany({
       where: { isActive: true, parentPrizeId: null },
-      orderBy: [{ lotNumber: 'asc' }, { displayOrder: 'asc' }],
+      orderBy: [{ lotNumber: { sort: 'asc', nulls: 'last' } }, { displayOrder: 'asc' }],
       select: {
         id: true,
         slug: true,
