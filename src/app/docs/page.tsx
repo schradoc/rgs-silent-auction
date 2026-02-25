@@ -100,7 +100,7 @@ function GettingStartedTab() {
           </li>
           <li className="flex gap-3">
             <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-sm font-medium flex items-center justify-center">3</span>
-            <span>Helpers can submit bids on behalf of guests and scan paper bids</span>
+            <span>Helpers can submit bids on behalf of guests</span>
           </li>
         </ol>
       </div>
@@ -226,7 +226,7 @@ function EventNightTab() {
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Helper Tips for Event Night</h2>
         <ul className="space-y-2 text-gray-700">
           <li className="flex items-start gap-2"><span className="text-[#c9a227] mt-1">&#9679;</span><span>Helpers log in at <PageLink href="/helper">rgsauction.com/helper</PageLink> with their 4-digit PIN</span></li>
-          <li className="flex items-start gap-2"><span className="text-[#c9a227] mt-1">&#9679;</span><span>They can submit bids manually or scan paper bid cards with their camera</span></li>
+          <li className="flex items-start gap-2"><span className="text-[#c9a227] mt-1">&#9679;</span><span>They can submit bids manually on behalf of guests from the helper portal</span></li>
           <li className="flex items-start gap-2"><span className="text-[#c9a227] mt-1">&#9679;</span><span>Their dashboard shows which of their bidders have been outbid — encourage re-bidding!</span></li>
         </ul>
       </div>

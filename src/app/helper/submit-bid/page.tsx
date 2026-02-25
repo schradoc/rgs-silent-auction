@@ -6,7 +6,6 @@ import Link from 'next/link'
 import {
   ArrowLeft,
   Search,
-  Camera,
   Check,
   AlertCircle,
   Sparkles,
@@ -34,12 +33,15 @@ export default function HelperSubmitBidPage() {
   const [amount, setAmount] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [isPaperBid, setIsPaperBid] = useState(false)
-
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [mounted, setMounted] = useState(false)
+
+  const [bidderSuggestions, setBidderSuggestions] = useState<Array<{ id: string; name: string; tableNumber: string | null; email: string | null; phone: string | null }>>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [matchedBidder, setMatchedBidder] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const router = useRouter()
 
@@ -67,6 +69,36 @@ export default function HelperSubmitBidPage() {
     } catch (error) {
       console.error('Failed to fetch prizes:', error)
     }
+  }
+
+  const searchBidders = async (query: string) => {
+    if (query.length < 2) {
+      setBidderSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+    try {
+      const params = new URLSearchParams({ q: query })
+      if (tableNumber) params.set('table', tableNumber)
+      const res = await fetch(`/api/helpers/search-bidders?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setBidderSuggestions(data.bidders || [])
+        setShowSuggestions(data.bidders?.length > 0)
+      }
+    } catch (err) {
+      console.error('Search failed:', err)
+    }
+  }
+
+  const selectBidder = (bidder: typeof bidderSuggestions[0]) => {
+    setBidderName(bidder.name)
+    if (bidder.tableNumber) setTableNumber(bidder.tableNumber)
+    if (bidder.email) setEmail(bidder.email)
+    if (bidder.phone) setPhone(bidder.phone)
+    setMatchedBidder(true)
+    setShowSuggestions(false)
+    setBidderSuggestions([])
   }
 
   const filteredPrizes = prizes.filter((prize) =>
@@ -104,7 +136,6 @@ export default function HelperSubmitBidPage() {
           amount: bidAmount,
           email: email || undefined,
           phone: phone || undefined,
-          isPaperBid,
         }),
       })
 
@@ -126,8 +157,9 @@ export default function HelperSubmitBidPage() {
         setAmount('')
         setEmail('')
         setPhone('')
-        setIsPaperBid(false)
         setPrizeSearch('')
+        setMatchedBidder(false)
+        setBidderSuggestions([])
       }, 2000)
     } catch (err) {
       setError('Failed to submit bid')
@@ -242,27 +274,67 @@ export default function HelperSubmitBidPage() {
           </div>
 
           {/* Bidder Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-white/70 text-sm mb-2">Bidder Name *</label>
-              <input
-                type="text"
-                value={bidderName}
-                onChange={(e) => setBidderName(e.target.value)}
-                placeholder="John Smith"
-                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#b8941f]"
-              />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="relative">
+                <label className="block text-white/70 text-sm mb-2">
+                  Bidder Name *
+                  {matchedBidder && (
+                    <span className="ml-2 text-green-400 text-xs font-normal">Matched</span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  value={bidderName}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setBidderName(val)
+                    setMatchedBidder(false)
+                    if (searchTimeout) clearTimeout(searchTimeout)
+                    const timeout = setTimeout(() => searchBidders(val), 300)
+                    setSearchTimeout(timeout)
+                  }}
+                  onFocus={() => { if (bidderSuggestions.length > 0) setShowSuggestions(true) }}
+                  onBlur={() => { setTimeout(() => setShowSuggestions(false), 200) }}
+                  placeholder="John Smith"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#b8941f]"
+                  autoComplete="off"
+                />
+                {/* Autocomplete dropdown */}
+                {showSuggestions && bidderSuggestions.length > 0 && (
+                  <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-[#1a2f4a] border border-white/20 rounded-xl overflow-hidden shadow-2xl max-h-48 overflow-y-auto">
+                    {bidderSuggestions.map((bidder) => (
+                      <button
+                        key={bidder.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectBidder(bidder)}
+                        className="w-full px-3 py-2.5 text-left hover:bg-white/10 transition-colors border-b border-white/5 last:border-b-0"
+                      >
+                        <p className="text-white text-sm font-medium">{bidder.name}</p>
+                        <p className="text-white/50 text-xs">
+                          {bidder.tableNumber ? `Table ${bidder.tableNumber}` : 'No table'}
+                          {bidder.email && ` · ${bidder.email}`}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-white/70 text-sm mb-2">Table # *</label>
+                <input
+                  type="text"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value.replace(/\D/g, ''))}
+                  placeholder="7"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#b8941f]"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-white/70 text-sm mb-2">Table # *</label>
-              <input
-                type="text"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                placeholder="7"
-                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#b8941f]"
-              />
-            </div>
+            {!matchedBidder && bidderName.length >= 2 && !showSuggestions && bidderSuggestions.length === 0 && (
+              <p className="text-white/40 text-xs">New bidder — will be created on submit</p>
+            )}
           </div>
 
           {/* Bid Amount */}
@@ -324,24 +396,6 @@ export default function HelperSubmitBidPage() {
             </div>
           </div>
 
-          {/* Paper Bid Toggle */}
-          <div className="flex items-center gap-3 py-2">
-            <button
-              type="button"
-              onClick={() => setIsPaperBid(!isPaperBid)}
-              className={`w-12 h-7 rounded-full transition-colors flex items-center px-1 ${
-                isPaperBid ? 'bg-[#b8941f]' : 'bg-white/20'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                  isPaperBid ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-            <span className="text-white/70 text-sm">This is a paper bid</span>
-          </div>
-
           {/* Error */}
           {error && (
             <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 px-4 py-3 rounded-xl">
@@ -350,28 +404,36 @@ export default function HelperSubmitBidPage() {
             </div>
           )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading || !selectedPrize || !bidderName || !tableNumber || !amount}
-            className={`w-full py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-              loading || !selectedPrize || !bidderName || !tableNumber || !amount
-                ? 'bg-white/10 text-white/30 cursor-not-allowed'
-                : 'bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white hover:shadow-lg hover:shadow-[#b8941f]/30 hover:scale-[1.02]'
-            }`}
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                Submit Bid
-              </>
-            )}
-          </button>
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Link
+              href="/helper/dashboard"
+              className="flex-1 py-4 rounded-xl font-semibold text-lg border-2 border-white/20 text-white/70 text-center hover:bg-white/5 transition-colors"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={loading || !selectedPrize || !bidderName || !tableNumber || !amount}
+              className={`flex-1 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center gap-2 ${
+                loading || !selectedPrize || !bidderName || !tableNumber || !amount
+                  ? 'bg-white/10 text-white/30 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white hover:shadow-lg hover:shadow-[#b8941f]/30 hover:scale-[1.02]'
+              }`}
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  Submit Bid
+                </>
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </main>

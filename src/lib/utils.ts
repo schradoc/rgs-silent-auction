@@ -72,3 +72,10 @@ export function isValidPhone(phone: string): boolean {
   // Must start with + and have at least 8 digits after country code
   return /^\+\d{10,15}$/.test(normalized)
 }
+
+export function normalizeTableNumber(input: string): string {
+  // Strip everything except digits
+  const digits = input.replace(/\D/g, '')
+  // Remove leading zeros
+  return digits.replace(/^0+/, '') || ''
+}

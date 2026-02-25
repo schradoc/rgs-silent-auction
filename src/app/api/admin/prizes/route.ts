@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         minimumBid: parseInt(minimumBid),
         category,
         validUntil: new Date(validUntil),
-        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop',
+        imageUrl: imageUrl || null,
         terms,
         multiWinnerEligible: multiWinnerEligible || false,
         multiWinnerSlots: multiWinnerSlots ? parseInt(multiWinnerSlots) : null,

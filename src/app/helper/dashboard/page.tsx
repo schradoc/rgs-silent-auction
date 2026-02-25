@@ -18,7 +18,6 @@ import {
   ChevronRight,
   ChevronDown,
   Plus,
-  Camera,
   Hash,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -30,7 +29,6 @@ interface HelperStats {
   totalBids: number
   totalValue: number
   uniqueBidders: number
-  paperBidsCount: number
   streak: number
   rank: number
   isCurrentHelper: boolean
@@ -40,7 +38,6 @@ interface RecentBid {
   id: string
   amount: number
   createdAt: string
-  isPaperBid: boolean
   bidder: { name: string; tableNumber: string }
   prize: { title: string; slug: string }
 }
@@ -449,9 +446,6 @@ export default function HelperDashboardPage() {
                       </p>
                       <p className="text-white/50 text-xs">
                         {bid.bidder.name} · Table {bid.bidder.tableNumber}
-                        {bid.isPaperBid && (
-                          <span className="ml-2 text-[#b8941f]">Paper bid</span>
-                        )}
                       </p>
                     </div>
                     <p className="text-[#b8941f] font-semibold text-sm whitespace-nowrap">
@@ -467,20 +461,13 @@ export default function HelperDashboardPage() {
 
       {/* Fixed Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0f1d2d] via-[#0f1d2d] to-transparent pt-8 pb-6 px-4">
-        <div className="max-w-lg mx-auto flex gap-3">
-          <Link
-            href="/helper/scan-bid"
-            className="flex-1 py-4 rounded-xl font-semibold text-lg border-2 border-[#b8941f] text-[#b8941f] text-center hover:bg-[#b8941f]/10 transition-colors flex items-center justify-center gap-2"
-          >
-            <Camera className="w-5 h-5" />
-            Scan Paper Bid
-          </Link>
+        <div className="max-w-lg mx-auto">
           <Link
             href="/helper/submit-bid"
-            className="flex-1 py-4 rounded-xl font-semibold text-lg bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white text-center shadow-lg shadow-[#b8941f]/30 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-xl font-semibold text-lg bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white text-center shadow-lg shadow-[#b8941f]/30 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            Manual Entry
+            Submit a Bid
           </Link>
         </div>
       </div>

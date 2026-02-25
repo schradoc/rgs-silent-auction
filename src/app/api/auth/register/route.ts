@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateVerificationCode, normalizeHKPhone, isValidPhone } from '@/lib/utils'
+import { generateVerificationCode, normalizeHKPhone, isValidPhone, normalizeTableNumber } from '@/lib/utils'
 import { cookies } from 'next/headers'
 import { COOKIE_NAMES } from '@/lib/constants'
 
@@ -93,10 +93,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, phone: rawPhone, tableNumber, email } = body
 
-    // Name is always required; need at least phone or email
-    if (!name || (!rawPhone && !email)) {
+    // Name, phone, and email are all required
+    if (!name || !rawPhone || !email) {
       return NextResponse.json(
-        { error: 'Name and either phone number or email are required' },
+        { error: 'Name, phone number, and email are all required' },
         { status: 400 }
       )
     }
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
           name,
           phone: phone || existingBidder.phone,
           email: email || existingBidder.email,
-          tableNumber: tableNumber || existingBidder.tableNumber,
+          tableNumber: tableNumber ? normalizeTableNumber(tableNumber) : existingBidder.tableNumber,
         },
       })
 
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
         name,
         phone: phone || null,
         email: email || null,
-        tableNumber: tableNumber || null,
+        tableNumber: tableNumber ? normalizeTableNumber(tableNumber) : null,
         verificationCode,
         phoneVerified: false,
       },

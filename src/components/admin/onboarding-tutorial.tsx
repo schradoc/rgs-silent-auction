@@ -75,7 +75,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     id: 'helpers',
     title: 'Helper System',
     description:
-      'Assign helpers with PINs to enter paper bids on behalf of guests. They can scan bid sheets or manually enter bids from the helper portal.',
+      'Assign helpers with PINs to enter bids on behalf of guests. They can manually enter bids from the helper portal.',
     icon: Users,
     targetTab: 'helpers',
     position: 'bottom-right',

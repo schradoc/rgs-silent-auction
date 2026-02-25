@@ -208,7 +208,6 @@ AuditLog        - Action tracking
 ### Helper System
 ```
 Helper          - Event helpers (name, PIN, avatar color)
-PaperBid        - Scanned paper bid records
 ```
 
 ### Settings
@@ -263,7 +262,6 @@ NotificationType: OUTBID | WINNING | AUCTION_CLOSING | WON
 | `/helper` | PIN login |
 | `/helper/dashboard` | Helper stats & leaderboard |
 | `/helper/submit-bid` | Manual bid entry |
-| `/helper/scan-bid` | OCR paper bid scanning |
 
 ### Committee
 | Route | Purpose |
@@ -430,7 +428,7 @@ TWILIO_PHONE_NUMBER=+1xxx
 ### Working Features
 - Full bidder flow (register, browse, bid, notifications)
 - Admin dashboard with all tabs
-- Helper portal with paper bid OCR
+- Helper portal for bid entry
 - Real-time bid updates with reconnection handling
 - Email notifications (outbid, winner)
 - Image upload to Supabase Storage

@@ -43,9 +43,6 @@ export async function GET(request: NextRequest) {
             createdAt: true,
           },
         },
-        paperBids: {
-          select: { id: true },
-        },
       },
     })
 
@@ -54,8 +51,6 @@ export async function GET(request: NextRequest) {
       const totalBids = h.bidsPrompted.length
       const totalValue = h.bidsPrompted.reduce((sum, b) => sum + b.amount, 0)
       const uniqueBidders = new Set(h.bidsPrompted.map((b) => b.bidderId)).size
-      const paperBidsCount = h.paperBids.length
-
       // Calculate streak (consecutive winning bids)
       const sortedBids = [...h.bidsPrompted].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -76,7 +71,6 @@ export async function GET(request: NextRequest) {
         totalBids,
         totalValue,
         uniqueBidders,
-        paperBidsCount,
         streak,
         isCurrentHelper: h.id === helperId,
       }

@@ -114,10 +114,7 @@ model Bid {
   // Helper tracking (Phase 2)
   helperId   String?
   helper     Helper?  @relation(fields: [helperId], references: [id])
-  isPaperBid Boolean  @default(false)
-
   winner    Winner?
-  paperBid  PaperBid?
 
   @@index([prizeId, amount])
   @@index([prizeId, status])
@@ -275,36 +272,8 @@ model Helper {
   createdAt      DateTime @default(now())
 
   bidsPrompted Bid[]      // Bids this helper facilitated
-  paperBids    PaperBid[]
 
   @@index([pin, isActive])
-}
-
-// ==========================================
-// Phase 2: Paper Bid System
-// ==========================================
-
-model PaperBid {
-  id             String   @id @default(cuid())
-  imageUrl       String?  // Stored photo of paper bid
-  tableNumber    String
-  bidderName     String
-  prizeId        String
-  amount         Int
-  email          String?
-  phone          String?
-  notifyIfOutbid Boolean  @default(false)
-
-  processedAt DateTime @default(now())
-  helperId    String
-  helper      Helper   @relation(fields: [helperId], references: [id])
-
-  // Links to actual bid once processed
-  bidId String? @unique
-  bid   Bid?    @relation(fields: [bidId], references: [id])
-
-  @@index([helperId])
-  @@index([prizeId])
 }
 
 // ==========================================

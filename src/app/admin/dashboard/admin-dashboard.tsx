@@ -47,6 +47,7 @@ import {
   RotateCw,
   User,
   Key,
+  Heart,
 } from 'lucide-react'
 import { Button, Card, CardContent, Badge, toast, useConfirm, ConfirmProvider } from '@/components/ui'
 import { PasswordManagement } from '@/components/admin/password-management'
@@ -140,7 +141,7 @@ interface Helper {
   assignedTables: string | null
   isActive: boolean
   createdAt: Date | string
-  _count: { bidsPrompted: number; paperBids: number }
+  _count: { bidsPrompted: number }
 }
 
 interface Stats {
@@ -193,7 +194,7 @@ interface AdminDashboardProps {
 function AdminDashboardContent({ initialData }: AdminDashboardProps) {
   const confirm = useConfirm()
   const [data, setData] = useState(initialData)
-  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'bidders' | 'winners' | 'helpers' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'pledges' | 'bidders' | 'winners' | 'helpers' | 'settings'>('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const { showOnboarding, completeOnboarding, startOnboarding } = useOnboarding()
   const [helpers, setHelpers] = useState<Helper[]>([])
@@ -868,9 +869,14 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
     try {
       const url = '/api/admin/prizes'
       const method = editingPrize ? 'PUT' : 'POST'
+
+      // Get primary image URL from uploaded images
+      const primaryImage = prizeImages.find(img => img.isPrimary) || prizeImages[0]
+      const imageUrl = primaryImage?.url || prizeForm.imageUrl || null
+
       const body = editingPrize
-        ? { id: editingPrize.id, ...prizeForm }
-        : prizeForm
+        ? { id: editingPrize.id, ...prizeForm, imageUrl }
+        : { ...prizeForm, imageUrl }
 
       const res = await fetch(url, {
         method,
@@ -1131,6 +1137,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
             {[
               { id: 'overview', label: 'Overview', icon: LayoutDashboard },
               { id: 'prizes', label: 'Prizes', icon: Trophy },
+              { id: 'pledges', label: 'Pledges', icon: Heart },
               { id: 'bidders', label: 'Bidders', icon: Users },
               { id: 'winners', label: 'Winners', icon: Award },
               { id: 'helpers', label: 'Helpers', icon: UserCheck },
@@ -1335,7 +1342,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
         {activeTab === 'prizes' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">All Prizes ({data.prizes.length})</h2>
+              <h2 className="text-xl font-bold text-gray-900">All Prizes ({data.prizes.filter(p => p.category !== 'PLEDGES').length})</h2>
               <div className="flex items-center gap-2">
                 {data.prizes.length > 0 && (
                   <Button variant="outline" size="sm" onClick={handleClearAllPrizes} className="border-red-300 text-red-700 hover:bg-red-50">
@@ -1413,9 +1420,11 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                         onChange={(e) => setPrizeForm({ ...prizeForm, category: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
                       >
-                        {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                          <option key={key} value={key}>{label}</option>
-                        ))}
+                        {Object.entries(CATEGORY_LABELS)
+                          .filter(([key]) => prizeForm.category === 'PLEDGES' || key !== 'PLEDGES')
+                          .map(([key, label]) => (
+                            <option key={key} value={key}>{label}</option>
+                          ))}
                       </select>
                     </div>
                     <div>
@@ -1486,7 +1495,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
             )}
 
             <div className="grid gap-4">
-              {data.prizes.map((prize) => (
+              {data.prizes.filter(p => p.category !== 'PLEDGES').map((prize) => (
                 <Card key={prize.id} className={`${!prize.isActive ? 'opacity-50' : ''} hover:shadow-md transition-shadow cursor-pointer`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -1547,6 +1556,209 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'pledges' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">
+                Pledges ({data.prizes.filter(p => p.category === 'PLEDGES').length})
+              </h2>
+              <Button variant="gold" onClick={() => {
+                resetPrizeForm()
+                setPrizeForm(prev => ({ ...prev, category: 'PLEDGES', multiWinnerEligible: true, multiWinnerSlots: '' }))
+                setShowPrizeForm(true)
+              }}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Pledge
+              </Button>
+            </div>
+
+            {/* Pledge Stats */}
+            {(() => {
+              const pledges = data.prizes.filter(p => p.category === 'PLEDGES')
+              const totalPledgers = pledges.reduce((sum, p) => sum + p._count.bids, 0)
+              const totalPledged = pledges.reduce((sum, p) => sum + p.currentHighestBid, 0)
+              return (
+                <div className="grid grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <p className="text-3xl font-bold text-gray-900">{pledges.length}</p>
+                      <p className="text-sm text-gray-500">Pledge Items</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <p className="text-3xl font-bold text-gray-900">{totalPledgers}</p>
+                      <p className="text-sm text-gray-500">Total Pledgers</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <p className="text-3xl font-bold text-[#c9a227]">{formatCurrency(totalPledged)}</p>
+                      <p className="text-sm text-gray-500">Total Pledged</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })()}
+
+            {/* Info Banner */}
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="p-4 flex items-start gap-3">
+                <Heart className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <p className="text-blue-900 font-medium">How pledges work</p>
+                  <p className="text-blue-700 text-sm mt-1">
+                    Unlike competitive prizes, pledges allow unlimited participants. Every bid meeting the minimum amount is a winner.
+                    No one gets outbid.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pledge Form - reuse the same showPrizeForm modal */}
+            {showPrizeForm && prizeForm.category === 'PLEDGES' && (
+              <Card className="border-2 border-[#c9a227]">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold text-lg mb-4">
+                    {editingPrize ? 'Edit Pledge' : 'Add New Pledge'}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Pledge Title *</label>
+                      <input
+                        type="text"
+                        value={prizeForm.title}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, title: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        placeholder="e.g., Support RGS Expeditions Fund"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                      <textarea
+                        value={prizeForm.fullDescription}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, fullDescription: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        rows={3}
+                        placeholder="Describe what this pledge supports..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Pledge (HKD) *</label>
+                      <input
+                        type="number"
+                        value={prizeForm.minimumBid}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, minimumBid: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                        placeholder="1000"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Valid Until *</label>
+                      <input
+                        type="date"
+                        value={prizeForm.validUntil}
+                        onChange={(e) => setPrizeForm({ ...prizeForm, validUntil: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <ImageUpload
+                        prizeId={editingPrize?.id}
+                        images={prizeImages}
+                        onImagesChange={setPrizeImages}
+                        maxImages={3}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <Button variant="outline" onClick={() => { setShowPrizeForm(false); resetPrizeForm(); }} disabled={savingPrize}>
+                      Cancel
+                    </Button>
+                    <Button variant="gold" onClick={handleSavePrize} disabled={savingPrize}>
+                      {savingPrize ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        editingPrize ? 'Update Pledge' : 'Create Pledge'
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Pledge List */}
+            <div className="grid gap-4">
+              {data.prizes.filter(p => p.category === 'PLEDGES').length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-gray-500">
+                    <Heart className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="font-medium">No pledges yet</p>
+                    <p className="text-sm mt-1">Create your first pledge to start accepting donations.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                data.prizes.filter(p => p.category === 'PLEDGES').map((pledge) => (
+                  <Card key={pledge.id} className={`${!pledge.isActive ? 'opacity-50' : ''} hover:shadow-md transition-shadow cursor-pointer`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div
+                          className="flex-1 cursor-pointer"
+                          onClick={() => handleViewPrize(pledge.id)}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="navy" size="sm" className="bg-pink-100 text-pink-700">Pledge</Badge>
+                            <span className="text-sm text-gray-500">{pledge._count.bids} pledgers</span>
+                            {!pledge.isActive && (
+                              <Badge variant="navy" size="sm" className="bg-red-100 text-red-700">Inactive</Badge>
+                            )}
+                            {loadingPrizeId === pledge.id && (
+                              <Loader2 className="w-4 h-4 animate-spin text-[#c9a227]" />
+                            )}
+                          </div>
+                          <h3 className="font-semibold text-gray-900">{pledge.title}</h3>
+                          <p className="text-sm text-gray-500 mt-1">Min: {formatCurrency(pledge.minimumBid)}</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right" onClick={() => handleViewPrize(pledge.id)}>
+                            <p className="text-sm text-gray-500">Total Pledged</p>
+                            <p className={`text-xl font-bold ${pledge.currentHighestBid > 0 ? 'text-[#c9a227]' : 'text-gray-400'}`}>
+                              {pledge.currentHighestBid > 0
+                                ? formatCurrency(pledge.currentHighestBid)
+                                : 'No pledges yet'}
+                            </p>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); handleEditPrize(pledge); }}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); handleDeletePrize(pledge.id); }}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -2018,7 +2230,6 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="font-medium">{helper._count.bidsPrompted} bids</p>
-                          <p className="text-sm text-gray-500">{helper._count.paperBids} paper bids</p>
                         </div>
                         {helper.isActive && (
                           <Button

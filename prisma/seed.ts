@@ -547,7 +547,6 @@ async function main() {
   }
 
   // Clear and create helpers
-  await prisma.paperBid.deleteMany()
   await prisma.helper.deleteMany()
 
   const helpers = [

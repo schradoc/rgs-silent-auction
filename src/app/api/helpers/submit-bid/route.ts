@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { getMinimumNextBid } from '@/lib/utils'
+import { getMinimumNextBid, normalizeTableNumber } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { bidderName, tableNumber, prizeId, amount, email, phone, isPaperBid, imageUrl } = body
+    const { bidderName, tableNumber, prizeId, amount, email, phone } = body
 
     // Validate required fields
     if (!bidderName || !tableNumber || !prizeId || !amount) {
@@ -37,21 +37,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Normalize the table number
+    const normalizedTable = normalizeTableNumber(tableNumber)
+
     // Find or create bidder (outside transaction - not part of the race-sensitive path)
     let bidder = await prisma.bidder.findFirst({
       where: {
         name: { equals: bidderName, mode: 'insensitive' },
-        tableNumber,
+        tableNumber: normalizedTable,
       },
     })
 
     if (!bidder) {
-      const generatedEmail = email || `${bidderName.toLowerCase().replace(/\s+/g, '.')}.table${tableNumber}@guest.rgs-auction.hk`
+      const generatedEmail = email || `${bidderName.toLowerCase().replace(/\s+/g, '.')}.table${normalizedTable}@guest.rgs-auction.hk`
 
       bidder = await prisma.bidder.create({
         data: {
           name: bidderName,
-          tableNumber,
+          tableNumber: normalizedTable,
           email: generatedEmail,
           phone: phone || null,
           emailVerified: false,
@@ -117,7 +120,6 @@ export async function POST(request: NextRequest) {
           bidderId,
           prizeId,
           helperId,
-          isPaperBid: isPaperBid || false,
           status: 'WINNING',
         },
       })
@@ -137,24 +139,6 @@ export async function POST(request: NextRequest) {
         { error: result.error, ...(result.minimumBid && { minimumBid: result.minimumBid }) },
         { status: result.status }
       )
-    }
-
-    // If paper bid, create paper bid record
-    if (isPaperBid) {
-      await prisma.paperBid.create({
-        data: {
-          imageUrl: imageUrl || null,
-          tableNumber,
-          bidderName,
-          prizeId,
-          amount,
-          email: email || null,
-          phone: phone || null,
-          notifyIfOutbid: !!phone || !!email,
-          helperId,
-          bidId: result.bid.id,
-        },
-      })
     }
 
     // Send outbid notifications (async, don't await)

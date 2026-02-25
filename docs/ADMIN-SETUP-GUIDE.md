@@ -59,7 +59,6 @@ Go to the **Helpers** tab:
 
 Helpers log in at **https://rgsauction.com/helper** using their PIN. They can:
 - Submit bids on behalf of guests
-- Scan paper bid sheets
 - See which guests have been outbid (so they can alert them)
 - View table-level activity
 

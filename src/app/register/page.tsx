@@ -120,14 +120,11 @@ function OTPInput({ value, onChange, onComplete }: {
   )
 }
 
-type RegisterMode = 'phone' | 'email'
-
 export default function RegisterPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'register' | 'verify'>('register')
-  const [mode, setMode] = useState<RegisterMode>('phone')
   const [verificationChannel, setVerificationChannel] = useState<'email' | 'sms' | 'console'>('email')
   const [mounted, setMounted] = useState(false)
 
@@ -165,8 +162,8 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
-          email: formData.email || undefined,
-          phone: formData.phone ? `${countryCode}${formData.phone.replace(/^0+/, '')}` : undefined,
+          email: formData.email,
+          phone: `${countryCode}${formData.phone.replace(/^0+/, '')}`,
           tableNumber: formData.tableNumber || undefined,
         }),
       })
@@ -204,8 +201,8 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
-          email: formData.email || undefined,
-          phone: formData.phone ? `${countryCode}${formData.phone.replace(/^0+/, '')}` : undefined,
+          email: formData.email,
+          phone: `${countryCode}${formData.phone.replace(/^0+/, '')}`,
           tableNumber: formData.tableNumber || undefined,
         }),
       })
@@ -306,8 +303,7 @@ export default function RegisterPage() {
                     />
                   </div>
 
-                  {mode === 'phone' ? (
-                    <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '100ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '100ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
                       <div className="w-full">
                         <label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
                           <MessageCircle className="w-4 h-4 text-[#1e3a5f]" />
@@ -330,8 +326,8 @@ export default function RegisterPage() {
                         <p className="mt-1 text-sm text-gray-500">We&apos;ll send a verification code via SMS</p>
                       </div>
                     </div>
-                  ) : (
-                    <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '100ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '150ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
                       <Input
                         label="Email"
                         type="email"
@@ -344,15 +340,14 @@ export default function RegisterPage() {
                         required
                       />
                     </div>
-                  )}
 
-                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '150ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '200ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
                     <Input
                       label="Table Number (Optional)"
                       placeholder="e.g., 12"
                       value={formData.tableNumber}
                       onChange={(e) =>
-                        setFormData({ ...formData, tableNumber: e.target.value })
+                        setFormData({ ...formData, tableNumber: e.target.value.replace(/\D/g, '') })
                       }
                       hint="You can add this later once you're seated"
                     />
@@ -362,7 +357,7 @@ export default function RegisterPage() {
                     <p className="text-red-600 text-sm text-center">{error}</p>
                   )}
 
-                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '200ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                  <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`} style={{ transitionDelay: '250ms', transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
                     <Button
                       type="submit"
                       variant="gold"
@@ -378,14 +373,6 @@ export default function RegisterPage() {
                       </p>
                     )}
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => { setMode(mode === 'phone' ? 'email' : 'phone'); setError('') }}
-                    className="w-full text-sm text-[#1e3a5f] hover:underline"
-                  >
-                    {mode === 'phone' ? 'or register with email instead' : 'or register with phone number instead'}
-                  </button>
                 </form>
               </CardContent>
             </Card>

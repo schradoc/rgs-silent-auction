@@ -42,7 +42,6 @@ npm run dev
 - **Email**: Resend
 - **SMS/WhatsApp**: Twilio (optional)
 - **Toast Notifications**: Sonner
-- **OCR**: Tesseract.js (paper bid scanning)
 - **Deployment**: Vercel
 
 ## Project Structure
@@ -68,7 +67,6 @@ src/
 │   │   └── ...               # Prizes, bids, favorites, etc.
 │   ├── helper/
 │   │   ├── dashboard/        # Helper dashboard
-│   │   ├── scan-bid/         # OCR paper bid scanning
 │   │   └── submit-bid/       # Manual bid entry
 │   ├── live/                 # Live display for projectors
 │   ├── prizes/               # Prize listing and detail pages
@@ -124,7 +122,6 @@ src/
 ### Helper Routes
 - `/helper` - Helper login (4-digit PIN)
 - `/helper/dashboard` - Helper dashboard
-- `/helper/scan-bid` - OCR paper bid scanning
 - `/helper/submit-bid` - Manual bid entry
 
 ### Public Routes
@@ -176,8 +173,6 @@ NEXT_PUBLIC_APP_URL=
 
 ### Helper System
 - **Helper**: Name, PIN, avatar color, activity tracking
-- **PaperBid**: Scanned paper bid records with image
-
 ### Notifications
 - **Notification**: Outbid, winning, auction closing, won notifications
 
@@ -310,8 +305,7 @@ npx prisma db push
 - [x] Bidder list with detail modal
 - [x] Winner selection and notifications
 - [x] Data export (CSV)
-- [x] Helper system for paper bids
-- [x] OCR paper bid scanning
+- [x] Helper system for bid entry
 - [x] Analytics charts
 - [x] Onboarding tutorial
 - [x] Auction state machine
@@ -359,7 +353,7 @@ npx prisma db push
 
 ## Current Status
 
-**Ready for event**: Core functionality complete. Bidders can register, browse prizes, place bids. Admins can manage everything. Helpers can enter paper bids.
+**Ready for event**: Core functionality complete. Bidders can register, browse prizes, place bids. Admins can manage everything. Helpers can enter bids on behalf of guests.
 
 **Event Date**: 28 February 2026
 

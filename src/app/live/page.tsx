@@ -15,7 +15,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import QRCode from 'react-qr-code'
 
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop'
+const FALLBACK_IMAGE = '' // No default image - show placeholder
 
 interface LiveData {
   stats: {
@@ -364,7 +364,7 @@ function BidCard({ bid, isNew, index }: {
   isNew: boolean
   index: number
 }) {
-  const [imgSrc, setImgSrc] = useState(bid.prize.imageUrl || FALLBACK_IMAGE)
+  const [imgSrc, setImgSrc] = useState(bid.prize.imageUrl || '')
 
   return (
     <div
@@ -375,14 +375,22 @@ function BidCard({ bid, isNew, index }: {
     >
       <div className="flex gap-3">
         <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-          <Image
-            src={imgSrc}
-            alt={bid.prize.title}
-            fill
-            className="object-cover"
-            onError={() => setImgSrc(FALLBACK_IMAGE)}
-            unoptimized
-          />
+          {imgSrc ? (
+            <Image
+              src={imgSrc}
+              alt={bid.prize.title}
+              fill
+              className="object-cover"
+              onError={() => setImgSrc('')}
+              unoptimized
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f] flex items-center justify-center">
+              <svg className="w-6 h-6 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+              </svg>
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-medium text-sm truncate">{bid.prize.title}</p>
@@ -417,19 +425,27 @@ function HotItemsDisplay({ items }: { items: LiveData['hotItems'] }) {
 }
 
 function HotItemCard({ item, rank }: { item: LiveData['hotItems'][0]; rank: number }) {
-  const [imgSrc, setImgSrc] = useState(item.imageUrl || FALLBACK_IMAGE)
+  const [imgSrc, setImgSrc] = useState(item.imageUrl || '')
 
   return (
     <div className="bg-white/5 rounded-xl overflow-hidden border border-white/5 group">
       <div className="relative aspect-square">
-        <Image
-          src={imgSrc}
-          alt={item.title}
-          fill
-          className="object-cover group-hover:scale-110 transition-transform duration-500"
-          onError={() => setImgSrc(FALLBACK_IMAGE)}
-          unoptimized
-        />
+        {imgSrc ? (
+          <Image
+            src={imgSrc}
+            alt={item.title}
+            fill
+            className="object-cover group-hover:scale-110 transition-transform duration-500"
+            onError={() => setImgSrc('')}
+            unoptimized
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f] flex items-center justify-center">
+            <svg className="w-12 h-12 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+            </svg>
+          </div>
+        )}
         <div className="absolute top-2 left-2 w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center font-bold">
           {rank}
         </div>
@@ -486,19 +502,27 @@ function TopTablesDisplay({ tables }: { tables: LiveData['topTables'] }) {
 }
 
 function FeaturedPrizeDisplay({ prize }: { prize: NonNullable<LiveData['featuredPrize']> }) {
-  const [imgSrc, setImgSrc] = useState(prize.imageUrl || FALLBACK_IMAGE)
+  const [imgSrc, setImgSrc] = useState(prize.imageUrl || '')
 
   return (
     <div className="h-full flex gap-8">
       <div className="flex-1 relative rounded-2xl overflow-hidden">
-        <Image
-          src={imgSrc}
-          alt={prize.title}
-          fill
-          className="object-cover"
-          onError={() => setImgSrc(FALLBACK_IMAGE)}
-          unoptimized
-        />
+        {imgSrc ? (
+          <Image
+            src={imgSrc}
+            alt={prize.title}
+            fill
+            className="object-cover"
+            onError={() => setImgSrc('')}
+            unoptimized
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f] flex items-center justify-center">
+            <svg className="w-16 h-16 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+            </svg>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
       </div>
 

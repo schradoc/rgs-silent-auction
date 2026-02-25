@@ -235,7 +235,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
+                onChange={(e) => setTableNumber(e.target.value.replace(/\D/g, ''))}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a08a1e]"
               />
             </div>

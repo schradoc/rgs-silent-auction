@@ -27,7 +27,6 @@ export async function DELETE(request: NextRequest) {
       const deletedNotifications = await prisma.notification.deleteMany()
       const deletedFavorites = await prisma.favorite.deleteMany()
       const deletedWinners = await prisma.winner.deleteMany()
-      const deletedPaperBids = await prisma.paperBid.deleteMany()
       const deletedBids = await prisma.bid.deleteMany()
       const deletedImages = await prisma.prizeImage.deleteMany()
       const deletedPrizes = await prisma.prize.deleteMany()
@@ -38,7 +37,6 @@ export async function DELETE(request: NextRequest) {
           notifications: deletedNotifications.count,
           favorites: deletedFavorites.count,
           winners: deletedWinners.count,
-          paperBids: deletedPaperBids.count,
           bids: deletedBids.count,
           prizeImages: deletedImages.count,
           prizes: deletedPrizes.count,
@@ -50,7 +48,6 @@ export async function DELETE(request: NextRequest) {
     const deletedNotifications = await prisma.notification.deleteMany()
     const deletedFavorites = await prisma.favorite.deleteMany()
     const deletedWinners = await prisma.winner.deleteMany()
-    const deletedPaperBids = await prisma.paperBid.deleteMany()
     const deletedBids = await prisma.bid.deleteMany()
     const deletedBidders = await prisma.bidder.deleteMany()
     const deletedImages = await prisma.prizeImage.deleteMany()
@@ -78,7 +75,6 @@ export async function DELETE(request: NextRequest) {
         notifications: deletedNotifications.count,
         favorites: deletedFavorites.count,
         winners: deletedWinners.count,
-        paperBids: deletedPaperBids.count,
         bids: deletedBids.count,
         bidders: deletedBidders.count,
         prizeImages: deletedImages.count,

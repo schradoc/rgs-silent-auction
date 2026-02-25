@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
         _count: {
           select: {
             bidsPrompted: true,
-            paperBids: true,
           },
         },
       },
@@ -187,7 +186,6 @@ export async function DELETE(request: NextRequest) {
         _count: {
           select: {
             bidsPrompted: true,
-            paperBids: true,
           },
         },
       },
@@ -197,7 +195,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Helper not found' }, { status: 404 })
     }
 
-    if (helper._count.bidsPrompted === 0 && helper._count.paperBids === 0) {
+    if (helper._count.bidsPrompted === 0) {
       // Hard delete — no activity, safe to remove completely
       await prisma.helper.delete({ where: { id } })
     } else {

@@ -32,7 +32,7 @@ import { CATEGORY_LABELS } from '@/lib/constants'
 const BidSheet = dynamic(() => import('./bid-sheet').then(m => m.BidSheet))
 import type { Prize, Bid } from '@prisma/client'
 
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&fit=crop'
+const FALLBACK_IMAGE = '' // No default image - show placeholder
 
 type PrizeImage = {
   id: string
@@ -64,7 +64,7 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
   const [showBidSheet, setShowBidSheet] = useState(false)
   const [quickBidAmount, setQuickBidAmount] = useState<number | null>(null)
   const [showTerms, setShowTerms] = useState(false)
-  const [imgSrc, setImgSrc] = useState(prize.imageUrl || FALLBACK_IMAGE)
+  const [imgSrc, setImgSrc] = useState(prize.imageUrl || '')
   const [mounted, setMounted] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
   const [favoriteLoading, setFavoriteLoading] = useState(false)
@@ -90,8 +90,8 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
         imgs.push({ url: img.url, alt: img.alt })
       }
     }
-    if (imgs.length === 0) {
-      imgs.push({ url: prize.imageUrl || FALLBACK_IMAGE, alt: prize.title })
+    if (imgs.length === 0 && prize.imageUrl) {
+      imgs.push({ url: prize.imageUrl, alt: prize.title })
     }
     return imgs
   })()
@@ -380,18 +380,25 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
         <div
           className={`relative aspect-[16/10] sm:aspect-[2/1] transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
         >
-          <Image
-            src={allImages[currentImageIndex]?.url || FALLBACK_IMAGE}
-            alt={allImages[currentImageIndex]?.alt || prize.title}
-            fill
-            className="object-cover transition-opacity duration-300"
-            priority
-            unoptimized
-            onError={() => {
-              // Replace broken image in the list with fallback
-              setImgSrc(FALLBACK_IMAGE)
-            }}
-          />
+          {(allImages[currentImageIndex]?.url) ? (
+            <Image
+              src={allImages[currentImageIndex].url}
+              alt={allImages[currentImageIndex]?.alt || prize.title}
+              fill
+              className="object-cover transition-opacity duration-300"
+              priority
+              unoptimized
+              onError={() => {
+                setImgSrc('')
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f] flex items-center justify-center">
+              <svg className="w-16 h-16 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+              </svg>
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
           {/* Category badge */}

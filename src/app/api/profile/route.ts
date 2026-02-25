@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { COOKIE_NAMES } from '@/lib/constants'
+import { normalizeTableNumber } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,7 +80,7 @@ export async function PATCH(request: NextRequest) {
     const updateData: Record<string, unknown> = {}
 
     if (name !== undefined) updateData.name = name
-    if (tableNumber !== undefined) updateData.tableNumber = tableNumber
+    if (tableNumber !== undefined) updateData.tableNumber = tableNumber ? normalizeTableNumber(tableNumber) : tableNumber
     if (phone !== undefined) updateData.phone = phone
     if (email !== undefined) {
       updateData.email = email || null
