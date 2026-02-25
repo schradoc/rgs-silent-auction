@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   LayoutDashboard,
@@ -228,8 +228,9 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
     location: '',
   })
 
-  // Description preview toggle
+  // Description preview toggle + textarea ref for cursor-position inserts
   const [showDescriptionPreview, setShowDescriptionPreview] = useState(false)
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
 
   // Loading states for async operations
   const [savingPrize, setSavingPrize] = useState(false)
@@ -1432,8 +1433,24 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                             key={btn.tag}
                             type="button"
                             onClick={() => {
+                              const ta = descriptionRef.current
                               const desc = prizeForm.fullDescription
-                              setPrizeForm({ ...prizeForm, fullDescription: desc.trimEnd() + btn.template })
+                              if (ta) {
+                                const start = ta.selectionStart
+                                const end = ta.selectionEnd
+                                const before = desc.slice(0, start)
+                                const after = desc.slice(end)
+                                const newValue = before + btn.template + after
+                                setPrizeForm({ ...prizeForm, fullDescription: newValue })
+                                // Restore cursor position after the inserted template
+                                requestAnimationFrame(() => {
+                                  const cursorPos = start + btn.template.length
+                                  ta.focus()
+                                  ta.setSelectionRange(cursorPos, cursorPos)
+                                })
+                              } else {
+                                setPrizeForm({ ...prizeForm, fullDescription: desc.trimEnd() + btn.template })
+                              }
                             }}
                             className={`px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors ${btn.color}`}
                           >
@@ -1445,6 +1462,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       <div className={showDescriptionPreview ? 'grid grid-cols-2 gap-4' : ''}>
                         <div>
                           <textarea
+                            ref={descriptionRef}
                             value={prizeForm.fullDescription}
                             onChange={(e) => setPrizeForm({ ...prizeForm, fullDescription: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] font-mono text-sm leading-relaxed"
