@@ -20,9 +20,9 @@ export async function POST(request: NextRequest) {
       if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds)
     }
 
-    if ((!email && !phone) || !code) {
+    if (!phone || !code) {
       return NextResponse.json(
-        { error: 'Email (or phone) and verification code are required' },
+        { error: 'Phone number and verification code are required' },
         { status: 400 }
       )
     }
@@ -62,14 +62,9 @@ export async function POST(request: NextRequest) {
     // Real database mode
     const { prisma } = await import('@/lib/prisma')
 
-    // Look up by email first, fall back to phone
+    // Look up by phone (primary verification channel)
     let bidder = null
-    if (email) {
-      bidder = await prisma.bidder.findUnique({
-        where: { email },
-      })
-    }
-    if (!bidder && phone) {
+    if (phone) {
       bidder = await prisma.bidder.findUnique({
         where: { phone },
       })
@@ -108,7 +103,7 @@ export async function POST(request: NextRequest) {
         )
       }
     } else {
-      // Email-only flow: check code stored in database
+      // Dev fallback: check code stored in database (when Twilio not configured)
       if (!bidder.verificationCode) {
         return NextResponse.json(
           { error: 'No verification pending. Please request a new code.' },

@@ -125,7 +125,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'register' | 'verify'>('register')
-  const [verificationChannel, setVerificationChannel] = useState<'email' | 'sms' | 'console'>('email')
+  const [verificationChannel, setVerificationChannel] = useState<'sms' | 'console'>('sms')
   const [mounted, setMounted] = useState(false)
 
   const [countryCode, setCountryCode] = useState('+852')
@@ -234,8 +234,7 @@ export default function RegisterPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...(formData.phone ? { phone: formData.phone } : {}),
-          ...(formData.email ? { email: formData.email } : {}),
+          phone: `${countryCode}${formData.phone.replace(/^0+/, '')}`,
           code: codeToVerify,
         }),
       })
@@ -336,7 +335,7 @@ export default function RegisterPage() {
                         onChange={(e) =>
                           setFormData({ ...formData, email: e.target.value })
                         }
-                        hint="We'll send a verification code to your email"
+                        hint="For bid confirmations and notifications"
                         required
                       />
                     </div>
@@ -369,7 +368,7 @@ export default function RegisterPage() {
                     </Button>
                     {isLoading && (
                       <p className="text-sm text-gray-500 text-center mt-3 animate-pulse">
-                        Sending verification code...
+                        Sending SMS verification code...
                       </p>
                     )}
                   </div>
@@ -389,10 +388,7 @@ export default function RegisterPage() {
                     Enter Verification Code
                   </h1>
                   <p className="text-gray-600 text-sm">
-                    {verificationChannel === 'email' ? (
-                      <>We&apos;ve sent a 6-digit code to{' '}
-                      <span className="font-medium">{formData.email}</span></>
-                    ) : verificationChannel === 'sms' ? (
+                    {verificationChannel === 'sms' ? (
                       <>We&apos;ve sent a 6-digit code via SMS to{' '}
                       <span className="font-medium">{countryCode} {formData.phone}</span></>
                     ) : (
