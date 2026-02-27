@@ -369,9 +369,9 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
           </div>
 
           <div className="flex items-center gap-3 py-3">
-            {/* Scrollable filter pills */}
-            <div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
-              <div className="flex items-center gap-2">
+            {/* Filter pills — wrap on desktop, scroll on mobile */}
+            <div className="flex-1 min-w-0 overflow-x-auto md:overflow-x-visible scrollbar-hide">
+              <div className="flex items-center gap-2 md:flex-wrap">
                 {/* Category pills */}
                 {CATEGORIES.map(cat => {
                   const Icon = cat.icon
@@ -392,7 +392,7 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
                   )
                 })}
 
-                <div className="h-5 w-px bg-gray-200 flex-shrink-0" />
+                <div className="h-5 w-px bg-gray-200 flex-shrink-0 hidden md:block" />
 
                 {/* Price tier pills */}
                 {PRICE_TIERS.map(tier => {
@@ -416,7 +416,7 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
             </div>
 
             {/* Desktop search — outside scrollable area */}
-            <div className="relative hidden sm:block flex-shrink-0">
+            <div className="relative hidden md:block flex-shrink-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b6b]" />
               <input
                 type="text"
