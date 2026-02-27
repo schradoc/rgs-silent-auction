@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { CATEGORY_LABELS } from '@/lib/constants'
+import { CATEGORY_LABELS, SITE_CONFIG } from '@/lib/constants'
 import { AuctionCountdown } from '@/components/auction-countdown'
 import { Header } from '@/components/layout/header'
 import { useBidder } from '@/hooks/useBidder'
@@ -33,6 +33,14 @@ const CATEGORIES: { id: string; label: string; icon: LucideIcon }[] = [
   { id: 'PLEDGES', label: 'Pledges', icon: Heart },
 ]
 
+type PriceTier = 'UNDER_20K' | '20K_50K' | 'OVER_50K'
+
+const PRICE_TIERS: { id: PriceTier; label: string }[] = [
+  { id: 'UNDER_20K', label: 'Under HK$20K' },
+  { id: '20K_50K', label: 'HK$20K\u201350K' },
+  { id: 'OVER_50K', label: 'HK$50K+' },
+]
+
 type AuctionState = 'DRAFT' | 'TESTING' | 'PRELAUNCH' | 'LIVE' | 'CLOSED'
 
 interface AuctionStatus {
@@ -44,6 +52,7 @@ interface AuctionStatus {
 export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
   const [mounted, setMounted] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('ALL')
+  const [selectedPriceTier, setSelectedPriceTier] = useState<PriceTier | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'popular' | 'price-high' | 'price-low'>('popular')
   const [auctionStatus, setAuctionStatus] = useState<AuctionStatus | null>(null)
@@ -97,6 +106,21 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
       filtered = filtered.filter(p => p.category === selectedCategory)
     }
 
+    if (selectedPriceTier) {
+      filtered = filtered.filter(p => {
+        switch (selectedPriceTier) {
+          case 'UNDER_20K':
+            return p.minimumBid < 20000
+          case '20K_50K':
+            return p.minimumBid >= 20000 && p.minimumBid <= 50000
+          case 'OVER_50K':
+            return p.minimumBid > 50000
+          default:
+            return true
+        }
+      })
+    }
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(p =>
@@ -118,7 +142,7 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
     }
 
     return filtered
-  }, [prizes, selectedCategory, searchQuery, sortBy])
+  }, [prizes, selectedCategory, selectedPriceTier, searchQuery, sortBy])
 
   // Stats
   const stats = useMemo(() => ({
@@ -144,8 +168,8 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
       case 'PRELAUNCH':
         return {
           icon: Eye,
-          bg: 'bg-blue-600',
-          message: 'Browse the lots! Bidding opens at the event.',
+          bg: 'prelaunch',
+          message: 'Bidding opens when the gala begins',
         }
       case 'CLOSED':
         return {
@@ -168,14 +192,36 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
   return (
     <main className="min-h-screen bg-[#f8f8f6]">
       {/* Auction State Banner */}
-      {stateBanner && (
+      {stateBanner && stateBanner.bg === 'prelaunch' ? (
+        <div className="py-4" style={{ background: 'linear-gradient(135deg, #0f1d2d 0%, #1a2e45 50%, #0f1d2d 100%)' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#c9a227' }} />
+              <span className="text-sm sm:text-base font-semibold tracking-wide" style={{ color: '#c9a227' }}>
+                {stateBanner.message}
+              </span>
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#c9a227' }} />
+            </div>
+            <p className="text-white/50 text-xs sm:text-sm">
+              {new Date(SITE_CONFIG.eventDate + 'T12:00:00').toLocaleDateString('en-GB', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+              {' \u00b7 '}
+              {SITE_CONFIG.eventVenue}
+            </p>
+          </div>
+        </div>
+      ) : stateBanner ? (
         <div className={`${stateBanner.bg} text-white py-3`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-center gap-3">
             <stateBanner.icon className="w-5 h-5" />
             <span className="text-sm font-medium">{stateBanner.message}</span>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Auction Countdown Banner (only when LIVE) */}
       {auctionStatus && auctionStatus.auctionState === 'LIVE' && (
@@ -338,7 +384,30 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
               })}
             </div>
 
-            <div className="h-6 w-px bg-gray-200 hidden sm:block" />
+            <div className="h-6 w-px bg-gray-200 flex-shrink-0" />
+
+            {/* Price tier pills */}
+            <div className="flex items-center gap-2">
+              {PRICE_TIERS.map(tier => {
+                const isActive = selectedPriceTier === tier.id
+                return (
+                  <button
+                    key={tier.id}
+                    onClick={() => setSelectedPriceTier(isActive ? null : tier.id)}
+                    className={`flex items-center gap-1.5 px-3.5 py-2.5 min-h-[44px] rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                      isActive
+                        ? 'bg-[#c9a227] text-white shadow-sm'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <Banknote className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>{tier.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="h-6 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
 
             {/* Desktop search */}
             <div className="relative hidden sm:block">
@@ -362,7 +431,7 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
             <div className="text-center py-16">
               <p className="text-[#6b6b6b]">No lots found</p>
               <button
-                onClick={() => { setSelectedCategory('ALL'); setSearchQuery(''); }}
+                onClick={() => { setSelectedCategory('ALL'); setSelectedPriceTier(null); setSearchQuery(''); }}
                 className="mt-4 text-[#a08a1e] font-medium hover:underline"
               >
                 Clear filters

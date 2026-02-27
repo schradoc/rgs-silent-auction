@@ -25,10 +25,10 @@ import {
   X,
   ExternalLink,
   MapPin,
-  Gift,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { RichDescription } from '@/components/prizes/rich-description'
+import { NoImagePlaceholder } from '@/components/prizes/no-image-placeholder'
 import { useBidder } from '@/hooks/useBidder'
 import { Button, Card, CardContent, Badge, toast } from '@/components/ui'
 import { formatCurrency, formatDate, getMinimumNextBid, getMinimumBidIncrement } from '@/lib/utils'
@@ -429,9 +429,13 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
         {/* Image Gallery */}
         <div className={`transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
           {allImages.length === 0 ? (
-            /* No images — gradient placeholder */
-            <div className="w-full h-[400px] bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f] md:rounded-xl flex items-center justify-center">
-              <Gift className="w-16 h-16 text-white/20" />
+            /* No images — branded RGS placeholder */
+            <div className="w-full h-[400px] md:rounded-xl overflow-hidden">
+              <NoImagePlaceholder
+                lotNumber={prize.lotNumber}
+                subLotLetter={prize.subLotLetter}
+                variant="detail"
+              />
             </div>
           ) : (
             <>
@@ -448,9 +452,11 @@ export function PrizeDetail({ prize, pledgeTiers }: PrizeDetailProps) {
                     onError={() => setImgSrc('')}
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#1e3a5f] to-[#2d4a6f] flex items-center justify-center">
-                    <Gift className="w-16 h-16 text-white/20" />
-                  </div>
+                  <NoImagePlaceholder
+                    lotNumber={prize.lotNumber}
+                    subLotLetter={prize.subLotLetter}
+                    variant="detail"
+                  />
                 )}
 
                 {/* Category badge */}
