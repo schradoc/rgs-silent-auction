@@ -87,31 +87,41 @@ export async function POST(request: NextRequest) {
         currentHighestBid: number
         minimumBid: number
         category: string
-      }>>`SELECT id, title, "currentHighestBid", "minimumBid", "category" FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
+        multiWinnerEligible: boolean
+        multiWinnerSlots: number | null
+      }>>`SELECT id, title, "currentHighestBid", "minimumBid", "category", "multiWinnerEligible", "multiWinnerSlots" FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
 
       const prize = prizeRows[0]
       if (!prize) {
         return { error: 'Prize not found', status: 404 }
       }
 
-      // Validate bid amount with locked fresh data using same tiered increment as bidder endpoint
+      // Determine bid path: pledge, multi-winner competitive, or single-winner competitive
       const isPledge = prize.category === 'PLEDGES'
+      const isMultiWinnerCompetitive = prize.multiWinnerEligible && !isPledge
       const minRequired = isPledge ? prize.minimumBid : getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
       if (amount < minRequired) {
         return { error: `Bid must be at least HK$${minRequired.toLocaleString()}`, status: 400, minimumBid: minRequired }
       }
 
+      let previousWinningBidderId: string | undefined
       const hadPreviousBid = prize.currentHighestBid > 0
 
-      // Mark previous winning bids as outbid
-      await tx.bid.updateMany({
-        where: {
-          prizeId,
-          status: 'WINNING',
-          NOT: { bidderId },
-        },
-        data: { status: 'OUTBID' },
-      })
+      if (!isPledge && !isMultiWinnerCompetitive) {
+        // Single-winner competitive: find previous winner and mark as outbid
+        if (hadPreviousBid) {
+          const previousWinningBid = await tx.bid.findFirst({
+            where: { prizeId, status: 'WINNING' },
+            select: { bidderId: true },
+          })
+          previousWinningBidderId = previousWinningBid?.bidderId
+
+          await tx.bid.updateMany({
+            where: { prizeId, status: 'WINNING', NOT: { bidderId } },
+            data: { status: 'OUTBID' },
+          })
+        }
+      }
 
       // Create the winning bid
       const bid = await tx.bid.create({
@@ -124,13 +134,38 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Update prize highest bid
-      await tx.prize.update({
-        where: { id: prizeId },
-        data: { currentHighestBid: amount },
-      })
+      // Multi-winner competitive: outbid the lowest winner only if slots are full
+      if (isMultiWinnerCompetitive && prize.multiWinnerSlots) {
+        const winningBidsCount = await tx.bid.count({
+          where: { prizeId, status: 'WINNING' },
+        })
 
-      return { success: true, bid, prize, hadPreviousBid }
+        if (winningBidsCount > prize.multiWinnerSlots) {
+          const lowestWinningBid = await tx.bid.findFirst({
+            where: { prizeId, status: 'WINNING' },
+            orderBy: { amount: 'asc' },
+            select: { id: true, bidderId: true },
+          })
+
+          if (lowestWinningBid && lowestWinningBid.id !== bid.id) {
+            previousWinningBidderId = lowestWinningBid.bidderId
+            await tx.bid.update({
+              where: { id: lowestWinningBid.id },
+              data: { status: 'OUTBID' },
+            })
+          }
+        }
+      }
+
+      // Update prize highest bid if this bid is higher
+      if (amount > prize.currentHighestBid) {
+        await tx.prize.update({
+          where: { id: prizeId },
+          data: { currentHighestBid: amount },
+        })
+      }
+
+      return { success: true, bid, prize, hadPreviousBid, previousWinningBidderId, isPledge }
     })
 
     // Handle transaction errors
@@ -141,11 +176,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send outbid notifications (async, don't await)
-    if (result.hadPreviousBid) {
-      import('@/lib/notifications').then(({ notifyOutbidBidders }) => {
-        notifyOutbidBidders(prizeId, amount).catch(console.error)
-      })
+    // Send outbid notification to previous winner
+    if (!result.isPledge && result.previousWinningBidderId && result.previousWinningBidderId !== bidderId) {
+      try {
+        const { notifyOutbidBidders } = await import('@/lib/notifications')
+        await notifyOutbidBidders(prizeId, amount, result.previousWinningBidderId)
+      } catch (err) {
+        console.error('Failed to send outbid notification:', err)
+      }
     }
 
     return NextResponse.json({

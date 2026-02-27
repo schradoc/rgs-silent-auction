@@ -54,7 +54,7 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [selectedPriceTier, setSelectedPriceTier] = useState<PriceTier | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'popular' | 'price-high' | 'price-low'>('popular')
+  const [sortBy, setSortBy] = useState<'lot-number' | 'popular' | 'price-high' | 'price-low'>('lot-number')
   const [auctionStatus, setAuctionStatus] = useState<AuctionStatus | null>(null)
   const { bidder, isLoading: bidderLoading } = useBidder()
   const isSignedIn = !!bidder
@@ -130,6 +130,13 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
     }
 
     switch (sortBy) {
+      case 'lot-number':
+        filtered = [...filtered].sort((a, b) => {
+          const aNum = a.lotNumber ?? 9999
+          const bNum = b.lotNumber ?? 9999
+          return aNum - bNum
+        })
+        break
       case 'popular':
         filtered = [...filtered].sort((a, b) => b.currentHighestBid - a.currentHighestBid)
         break
@@ -361,63 +368,62 @@ export function PrizesPageClient({ prizes }: PrizesPageClientProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 py-3 overflow-x-auto scrollbar-hide">
-            {/* Category pills with icons */}
-            <div className="flex items-center gap-2">
-              {CATEGORIES.map(cat => {
-                const Icon = cat.icon
-                const isActive = selectedCategory === cat.id
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                      isActive
-                        ? 'bg-[#0f1d2d] text-white shadow-sm'
-                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    <span>{cat.label}</span>
-                  </button>
-                )
-              })}
+          <div className="flex items-center gap-3 py-3">
+            {/* Scrollable filter pills */}
+            <div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+              <div className="flex items-center gap-2">
+                {/* Category pills */}
+                {CATEGORIES.map(cat => {
+                  const Icon = cat.icon
+                  const isActive = selectedCategory === cat.id
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                        isActive
+                          ? 'bg-[#0f1d2d] text-white shadow-sm'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>{cat.label}</span>
+                    </button>
+                  )
+                })}
+
+                <div className="h-5 w-px bg-gray-200 flex-shrink-0" />
+
+                {/* Price tier pills */}
+                {PRICE_TIERS.map(tier => {
+                  const isActive = selectedPriceTier === tier.id
+                  return (
+                    <button
+                      key={tier.id}
+                      onClick={() => setSelectedPriceTier(isActive ? null : tier.id)}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                        isActive
+                          ? 'bg-[#c9a227] text-white shadow-sm'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <Banknote className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>{tier.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
-            <div className="h-6 w-px bg-gray-200 flex-shrink-0" />
-
-            {/* Price tier pills */}
-            <div className="flex items-center gap-2">
-              {PRICE_TIERS.map(tier => {
-                const isActive = selectedPriceTier === tier.id
-                return (
-                  <button
-                    key={tier.id}
-                    onClick={() => setSelectedPriceTier(isActive ? null : tier.id)}
-                    className={`flex items-center gap-1.5 px-3.5 py-2.5 min-h-[44px] rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                      isActive
-                        ? 'bg-[#c9a227] text-white shadow-sm'
-                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <Banknote className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>{tier.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="h-6 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
-
-            {/* Desktop search */}
-            <div className="relative hidden sm:block">
+            {/* Desktop search — outside scrollable area */}
+            <div className="relative hidden sm:block flex-shrink-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b6b]" />
               <input
                 type="text"
                 placeholder="Search lots..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-1.5 bg-gray-50 rounded-full text-sm w-48 focus:w-64 transition-all focus:outline-none focus:ring-2 focus:ring-[#a08a1e]/20"
+                className="pl-10 pr-4 py-2 bg-gray-50 rounded-full text-sm w-44 focus:w-56 transition-all focus:outline-none focus:ring-2 focus:ring-[#a08a1e]/20"
               />
             </div>
           </div>
