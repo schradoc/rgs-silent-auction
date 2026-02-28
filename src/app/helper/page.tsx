@@ -49,13 +49,20 @@ export default function HelperLoginPage() {
     }
   }
 
+  const submittingRef = useRef(false)
+
   const handleSubmit = async (pinCode?: string) => {
-    const fullPin = pinCode || pin.join('')
+    // Guard against double-submit (auto-submit + button click race)
+    if (submittingRef.current) return
+
+    // If no pinCode passed, read directly from input refs (avoids stale state)
+    const fullPin = pinCode || inputRefs.map(r => r.current?.value || '').join('')
     if (fullPin.length !== 4) {
       setError('Please enter your 4-digit PIN')
       return
     }
 
+    submittingRef.current = true
     setLoading(true)
     setError('')
 
@@ -82,6 +89,7 @@ export default function HelperLoginPage() {
       inputRefs[0].current?.focus()
     } finally {
       setLoading(false)
+      submittingRef.current = false
     }
   }
 
