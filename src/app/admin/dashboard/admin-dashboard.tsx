@@ -530,9 +530,21 @@ function QuickBidTab() {
                 </div>
               </div>
 
+              {/* Missing fields hint */}
+              {(!selectedPrize || !bidderName.trim() || !tableNumber.trim() || !amount.trim()) && (
+                <p className="text-xs text-amber-600 mb-1">
+                  Still needed: {[
+                    !selectedPrize && 'select a prize',
+                    !bidderName.trim() && 'bidder name',
+                    !tableNumber.trim() && 'table number',
+                    !amount.trim() && 'bid amount',
+                  ].filter(Boolean).join(', ')}
+                </p>
+              )}
+
               <Button
                 type="submit"
-                disabled={loading || !selectedPrize || !bidderName || !tableNumber || !amount}
+                disabled={loading || !selectedPrize || !bidderName.trim() || !tableNumber.trim() || !amount.trim()}
                 className="w-full py-4 text-lg font-semibold bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
