@@ -192,6 +192,393 @@ interface AdminDashboardProps {
   }
 }
 
+// ─── Quick Bid Tab Component ─────────────────────────────────────
+function QuickBidTab() {
+  const [prizes, setPrizes] = useState<Array<{ id: string; title: string; slug: string; lotNumber: number | null; subLotLetter: string | null; minimumBid: number; currentHighestBid: number; category: string }>>([])
+  const [selectedPrize, setSelectedPrize] = useState<typeof prizes[0] | null>(null)
+  const [prizeSearch, setPrizeSearch] = useState('')
+  const [showPrizeDropdown, setShowPrizeDropdown] = useState(false)
+  const [bidderName, setBidderName] = useState('')
+  const [tableNumber, setTableNumber] = useState('')
+  const [amount, setAmount] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [recentAdminBids, setRecentAdminBids] = useState<Array<{ bidderName: string; prizeTitle: string; amount: number; tableNumber: string }>>([])
+
+  const [bidderSuggestions, setBidderSuggestions] = useState<Array<{ id: string; name: string; tableNumber: string | null; email: string | null; phone: string | null }>>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [matchedBidder, setMatchedBidder] = useState(false)
+
+  useEffect(() => {
+    fetchPrizes()
+  }, [])
+
+  const fetchPrizes = async () => {
+    try {
+      const res = await fetch('/api/prizes')
+      if (res.ok) {
+        const data = await res.json()
+        setPrizes(data.prizes || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch prizes:', err)
+    }
+  }
+
+  const searchBidders = async (query: string) => {
+    if (query.length < 2) {
+      setBidderSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+    try {
+      const params = new URLSearchParams({ q: query })
+      if (tableNumber) params.set('table', tableNumber)
+      const res = await fetch(`/api/helpers/search-bidders?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setBidderSuggestions(data.bidders || [])
+        setShowSuggestions(data.bidders?.length > 0)
+      }
+    } catch (err) {
+      console.error('Search failed:', err)
+    }
+  }
+
+  const selectBidder = (bidder: typeof bidderSuggestions[0]) => {
+    setBidderName(bidder.name)
+    if (bidder.tableNumber) setTableNumber(bidder.tableNumber)
+    if (bidder.email) setEmail(bidder.email)
+    if (bidder.phone) setPhone(bidder.phone)
+    setMatchedBidder(true)
+    setShowSuggestions(false)
+  }
+
+  const getLotLabel = (prize: typeof prizes[0]) => {
+    if (!prize.lotNumber) return ''
+    return prize.subLotLetter ? `Lot ${prize.lotNumber}${prize.subLotLetter}` : `Lot ${prize.lotNumber}`
+  }
+
+  const filteredPrizes = prizes.filter(p => {
+    const s = prizeSearch.toLowerCase()
+    const lot = getLotLabel(p).toLowerCase()
+    return p.title.toLowerCase().includes(s) || lot.includes(s)
+  })
+
+  const getMinBid = (prize: typeof prizes[0]) => {
+    if (prize.category === 'PLEDGES') return prize.minimumBid
+    return Math.max(prize.minimumBid, prize.currentHighestBid + 100)
+  }
+
+  const minBid = selectedPrize ? getMinBid(selectedPrize) : 0
+
+  const suggestedAmounts = selectedPrize
+    ? [minBid, Math.ceil(minBid * 1.1 / 100) * 100, Math.ceil(minBid * 1.25 / 100) * 100, Math.ceil(minBid * 1.5 / 100) * 100]
+    : []
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedPrize || !bidderName || !tableNumber || !amount) {
+      setError('Please fill in all required fields')
+      return
+    }
+
+    const bidAmount = parseInt(amount.replace(/[^\d]/g, ''))
+    if (bidAmount < minBid) {
+      setError(`Bid must be at least ${formatCurrency(minBid)}`)
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/admin/submit-bid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bidderName,
+          tableNumber,
+          prizeId: selectedPrize.id,
+          amount: bidAmount,
+          email: email || undefined,
+          phone: phone || undefined,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Failed to submit bid')
+        return
+      }
+
+      setSuccess(`${formatCurrency(bidAmount)} bid placed for ${bidderName} on ${selectedPrize.title}!`)
+      setRecentAdminBids(prev => [
+        { bidderName, prizeTitle: selectedPrize.title, amount: bidAmount, tableNumber },
+        ...prev.slice(0, 9),
+      ])
+
+      // Reset form
+      setTimeout(() => {
+        setSuccess(null)
+        setSelectedPrize(null)
+        setBidderName('')
+        setTableNumber('')
+        setAmount('')
+        setEmail('')
+        setPhone('')
+        setPrizeSearch('')
+        setMatchedBidder(false)
+        setBidderSuggestions([])
+        // Refresh prize data for updated currentHighestBid
+        fetchPrizes()
+      }, 1500)
+    } catch (err) {
+      setError('Failed to submit bid')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Bid Form */}
+      <div className="lg:col-span-2">
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2">
+              <Gavel className="w-5 h-5" /> Manual Bid Entry
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">Submit bids on behalf of guests. This bypasses auction-closed restrictions.</p>
+
+            {success && (
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 flex items-center gap-2">
+                <Check className="w-5 h-5" />
+                {success}
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Prize Selection */}
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Prize *</label>
+                <button
+                  type="button"
+                  onClick={() => setShowPrizeDropdown(!showPrizeDropdown)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                >
+                  <span className={selectedPrize ? 'text-gray-900' : 'text-gray-400'}>
+                    {selectedPrize ? `${getLotLabel(selectedPrize)}${getLotLabel(selectedPrize) ? ' — ' : ''}${selectedPrize.title}` : 'Choose a prize...'}
+                  </span>
+                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                </button>
+
+                {showPrizeDropdown && (
+                  <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                    <div className="sticky top-0 bg-white p-2 border-b">
+                      <input
+                        type="text"
+                        placeholder="Search prizes..."
+                        value={prizeSearch}
+                        onChange={(e) => setPrizeSearch(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                      />
+                    </div>
+                    {filteredPrizes.map(prize => (
+                      <button
+                        key={prize.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPrize(prize)
+                          setShowPrizeDropdown(false)
+                          setPrizeSearch('')
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b last:border-b-0"
+                      >
+                        <p className="text-sm font-medium text-gray-900">
+                          {getLotLabel(prize) && <span className="text-[#c9a227] mr-1.5">{getLotLabel(prize)}</span>}
+                          {prize.title}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Current: {formatCurrency(prize.currentHighestBid)} · Min next: {formatCurrency(getMinBid(prize))}
+                        </p>
+                      </button>
+                    ))}
+                    {filteredPrizes.length === 0 && (
+                      <p className="px-4 py-3 text-gray-400 text-sm text-center">No prizes found</p>
+                    )}
+                  </div>
+                )}
+                {selectedPrize && (
+                  <p className="mt-1 text-sm text-[#c9a227]">Min bid: {formatCurrency(minBid)}</p>
+                )}
+              </div>
+
+              {/* Bidder Info Row */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2 relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bidder Name *
+                    {matchedBidder && <span className="ml-2 text-green-600 text-xs font-normal">Matched</span>}
+                  </label>
+                  <input
+                    type="text"
+                    value={bidderName}
+                    onChange={(e) => {
+                      setBidderName(e.target.value)
+                      setMatchedBidder(false)
+                      searchBidders(e.target.value)
+                    }}
+                    onFocus={() => { if (bidderSuggestions.length > 0) setShowSuggestions(true) }}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    placeholder="John Smith"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                    autoComplete="off"
+                  />
+                  {showSuggestions && bidderSuggestions.length > 0 && (
+                    <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      {bidderSuggestions.map(b => (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => selectBidder(b)}
+                          className="w-full px-3 py-2.5 text-left hover:bg-gray-50 border-b last:border-b-0"
+                        >
+                          <p className="text-sm font-medium">{b.name}</p>
+                          <p className="text-xs text-gray-400">{b.tableNumber ? `Table ${b.tableNumber}` : 'No table'}{b.email && ` · ${b.email}`}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Table # *</label>
+                  <input
+                    type="text"
+                    value={tableNumber}
+                    onChange={(e) => setTableNumber(e.target.value.replace(/\D/g, ''))}
+                    placeholder="7"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                  />
+                </div>
+              </div>
+
+              {/* Amount + Quick Picks */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bid Amount (HKD) *</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">HK$</span>
+                  <input
+                    type="text"
+                    value={amount}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^\d]/g, '')
+                      setAmount(val ? parseInt(val).toLocaleString() : '')
+                    }}
+                    placeholder="50,000"
+                    className="w-full pl-14 pr-4 py-3 border border-gray-300 rounded-xl text-xl font-bold focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                  />
+                </div>
+                {selectedPrize && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {suggestedAmounts.map(s => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setAmount(s.toLocaleString())}
+                        className="px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-[#c9a227]/10 hover:border-[#c9a227]/50 transition-colors"
+                      >
+                        {formatCurrency(s)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Optional contact */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Email (optional)</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="john@example.com"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Phone (optional)</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+852 9123 4567"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227]"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading || !selectedPrize || !bidderName || !tableNumber || !amount}
+                className="w-full py-4 text-lg font-semibold bg-gradient-to-r from-[#b8941f] to-[#d4af37] text-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" /> Submitting...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <Gavel className="w-5 h-5" /> Submit Bid
+                  </span>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Admin Bids sidebar */}
+      <div>
+        <Card>
+          <CardContent className="p-4">
+            <h4 className="font-semibold text-[#1e3a5f] mb-3 text-sm">Recent Manual Bids</h4>
+            {recentAdminBids.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">No manual bids yet this session</p>
+            ) : (
+              <div className="space-y-2">
+                {recentAdminBids.map((b, i) => (
+                  <div key={i} className="p-3 bg-gray-50 rounded-lg text-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-[#1e3a5f]">{b.bidderName}</span>
+                      <span className="font-semibold text-[#c9a227]">{formatCurrency(b.amount)}</span>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      T{b.tableNumber} → {b.prizeTitle}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
 // ─── Monitor Tab Component ───────────────────────────────────────
 interface MonitorData {
   health: { auctionState: string; endTime: string | null; dbLatencyMs: number }
@@ -531,7 +918,7 @@ function MonitorTab() {
 function AdminDashboardContent({ initialData }: AdminDashboardProps) {
   const confirm = useConfirm()
   const [data, setData] = useState(initialData)
-  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'pledges' | 'bidders' | 'winners' | 'helpers' | 'monitor' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'pledges' | 'bidders' | 'winners' | 'helpers' | 'quickbid' | 'monitor' | 'settings'>('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const { showOnboarding, completeOnboarding, startOnboarding } = useOnboarding()
   const [helpers, setHelpers] = useState<Helper[]>([])
@@ -1596,6 +1983,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
               { id: 'bidders', label: 'Bidders', icon: Users },
               { id: 'winners', label: 'Winners', icon: Award },
               { id: 'helpers', label: 'Helpers', icon: UserCheck },
+              { id: 'quickbid', label: 'Quick Bid', icon: Gavel },
               { id: 'monitor', label: 'Monitor', icon: Activity },
               { id: 'settings', label: 'Settings', icon: Settings },
             ].map(({ id, label, icon: Icon }) => (
@@ -2863,6 +3251,10 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {activeTab === 'quickbid' && (
+          <QuickBidTab />
         )}
 
         {activeTab === 'monitor' && (
