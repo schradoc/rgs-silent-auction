@@ -176,14 +176,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send outbid notification to previous winner
+    // Fire-and-forget outbid notification — don't block the bid response
     if (!result.isPledge && result.previousWinningBidderId && result.previousWinningBidderId !== bidderId) {
-      try {
-        const { notifyOutbidBidders } = await import('@/lib/notifications')
-        await notifyOutbidBidders(prizeId, amount, result.previousWinningBidderId)
-      } catch (err) {
-        console.error('Failed to send outbid notification:', err)
-      }
+      import('@/lib/notifications')
+        .then(({ notifyOutbidBidders }) =>
+          notifyOutbidBidders(prizeId, amount, result.previousWinningBidderId!)
+        )
+        .catch((err) => console.error('Failed to send outbid notification:', err))
     }
 
     return NextResponse.json({

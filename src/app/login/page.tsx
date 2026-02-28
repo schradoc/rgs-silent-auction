@@ -209,7 +209,9 @@ function LoginPageContent() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Invalid code')
+        setError(data.error === 'Verification failed'
+          ? 'SMS verification failed — try signing in with email instead'
+          : data.error || 'Invalid code — please try again')
         setOtpValue('')
         hiddenOtpRef.current?.focus()
         return
@@ -349,7 +351,7 @@ function LoginPageContent() {
               )}
             </button>
 
-            {/* Resend code + different number */}
+            {/* Resend code + fallback options */}
             <div className="text-center mt-4 space-y-2">
               <p className="text-white/40 text-xs">
                 Codes typically arrive within 30 seconds
@@ -367,9 +369,23 @@ function LoginPageContent() {
                   {resendLoading ? 'Sending...' : "Didn't receive a code? Resend"}
                 </button>
               )}
+
+              {/* Email fallback — prominent when there's an error */}
+              <button
+                onClick={() => { setMethod('email'); setStep('input'); setOtpValue(''); setError(''); }}
+                className={`block w-full text-sm font-medium ${
+                  error
+                    ? 'text-[#b8941f] bg-[#b8941f]/10 py-2 px-4 rounded-lg hover:bg-[#b8941f]/20'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                <Mail className="w-4 h-4 inline mr-1" />
+                {error ? 'Having trouble? Sign in with email instead' : 'Sign in with email instead'}
+              </button>
+
               <button
                 onClick={() => { setStep('input'); setOtpValue(''); setError(''); }}
-                className="block w-full text-white/50 text-sm hover:text-white"
+                className="block w-full text-white/40 text-xs hover:text-white/60"
               >
                 Use a different number
               </button>
@@ -449,9 +465,10 @@ function LoginPageContent() {
           {method === 'phone' && step === 'input' && (
             <button
               onClick={() => { setMethod('email'); setError(''); }}
-              className="block w-full text-white/40 text-sm hover:text-white/60"
+              className="block w-full text-white/60 text-sm hover:text-white font-medium"
             >
-              Sign in with email instead
+              <Mail className="w-4 h-4 inline mr-1" />
+              Or sign in with email
             </button>
           )}
           <Link href="/register" className="block text-[#b8941f] text-sm hover:underline">

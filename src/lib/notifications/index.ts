@@ -124,11 +124,14 @@ function buildMessage(payload: NotificationPayload, bidderName: string): { subje
   const { type, prizeTitle, prizeSlug, amount, currentHighestBid, minutesRemaining } = payload
   const prizeUrl = prizeSlug ? `${APP_URL}/prizes/${prizeSlug}` : `${APP_URL}/prizes`
   const bidUrl = prizeSlug ? `${APP_URL}/prizes/${prizeSlug}?bid=true` : `${APP_URL}/prizes`
+  // Short URLs for SMS — keeps links under 40 chars so they don't break across lines
+  const smsBidUrl = prizeSlug ? `${APP_URL}/b/${prizeSlug}` : `${APP_URL}/prizes`
+  const smsPrizeUrl = prizeSlug ? `${APP_URL}/prizes/${prizeSlug}` : `${APP_URL}/prizes`
 
   switch (type) {
     case 'OUTBID': {
       const subject = `You've been outbid on ${prizeTitle}!`
-      const body = `Hi ${bidderName}, someone has outbid you on "${prizeTitle}".\n\nNew highest bid: ${formatCurrency(currentHighestBid || 0)}\n\nPlace a higher bid now: ${bidUrl}`
+      const body = `Hi ${bidderName}, you've been outbid on "${prizeTitle}"!\n\nNew highest bid: ${formatCurrency(currentHighestBid || 0)}\n\nBid again: ${smsBidUrl}`
       const htmlContent = `
         <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">Hi ${bidderName},</p>
         <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">Someone has outbid you on <strong>"${prizeTitle}"</strong>!</p>
@@ -147,7 +150,7 @@ function buildMessage(payload: NotificationPayload, bidderName: string): { subje
     case 'WINNING':
       return {
         subject: `You're winning ${prizeTitle}!`,
-        body: `Great news ${bidderName}! You're currently winning "${prizeTitle}" with a bid of ${formatCurrency(amount || 0)}.\n\nKeep an eye on your bid: ${prizeUrl}`,
+        body: `Great news ${bidderName}! You're winning "${prizeTitle}" with a bid of ${formatCurrency(amount || 0)}.\n\nView: ${smsPrizeUrl}`,
         htmlBody: wrapEmailContent(`
           <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">Great news ${bidderName}!</p>
           <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">You're currently winning <strong>"${prizeTitle}"</strong> with a bid of <strong>${formatCurrency(amount || 0)}</strong>.</p>
@@ -157,7 +160,7 @@ function buildMessage(payload: NotificationPayload, bidderName: string): { subje
     case 'AUCTION_CLOSING':
       return {
         subject: `Auction closing in ${minutesRemaining} minutes!`,
-        body: `${bidderName}, the RGS-HK auction is closing in ${minutesRemaining} minutes!\n\nMake sure you've placed your final bids: ${APP_URL}/prizes`,
+        body: `${bidderName}, the auction is closing in ${minutesRemaining} minutes! Place your final bids: ${APP_URL}/prizes`,
         htmlBody: wrapEmailContent(`
           <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">${bidderName},</p>
           <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">The RGS-HK auction is closing in <strong>${minutesRemaining} minutes</strong>!</p>
@@ -166,7 +169,7 @@ function buildMessage(payload: NotificationPayload, bidderName: string): { subje
       }
     case 'WON': {
       const subject = `Congratulations! You won ${prizeTitle}!`
-      const body = `Congratulations ${bidderName}! You've won "${prizeTitle}" with a winning bid of ${formatCurrency(amount || 0)}.\n\nA member of our team will be in touch shortly. Thank you for supporting RGS-HK!\n\nView your wins: ${APP_URL}/my-bids`
+      const body = `Congratulations ${bidderName}! You won "${prizeTitle}" with a bid of ${formatCurrency(amount || 0)}. Our team will be in touch shortly. Thank you!\n\nView: ${APP_URL}/my-bids`
       const htmlContent = `
         <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.6;">Congratulations ${bidderName}!</p>
         <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 0 0 24px;">
