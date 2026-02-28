@@ -33,16 +33,30 @@ export async function POST(request: NextRequest) {
     })
 
     if (!bidder) {
-      const generatedEmail = email || `${bidderName.toLowerCase().replace(/\s+/g, '.')}.table${normalizedTable}@guest.rgs-auction.hk`
-      bidder = await prisma.bidder.create({
-        data: {
-          name: bidderName,
-          tableNumber: normalizedTable,
-          email: generatedEmail,
-          phone: phone || null,
-          emailVerified: false,
-        },
-      })
+      // Generate unique email — append timestamp to avoid collisions
+      const baseName = bidderName.trim().toLowerCase().replace(/\s+/g, '.')
+      const generatedEmail = email || `${baseName}.table${normalizedTable}.${Date.now()}@guest.rgs-auction.hk`
+      try {
+        bidder = await prisma.bidder.create({
+          data: {
+            name: bidderName.trim(),
+            tableNumber: normalizedTable,
+            email: generatedEmail,
+            phone: phone || null,
+            emailVerified: false,
+          },
+        })
+      } catch (createErr: unknown) {
+        // If unique constraint fails (phone already exists), try to find by phone
+        if (phone && typeof createErr === 'object' && createErr !== null && 'code' in createErr && (createErr as { code: string }).code === 'P2002') {
+          bidder = await prisma.bidder.findFirst({
+            where: { phone },
+          })
+          if (!bidder) throw createErr
+        } else {
+          throw createErr
+        }
+      }
     } else if (phone && !bidder.phone) {
       await prisma.bidder.update({
         where: { id: bidder.id },
@@ -177,7 +191,8 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Admin submit bid error:', error)
-    return NextResponse.json({ error: 'Failed to submit bid' }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Admin submit bid error:', message, error)
+    return NextResponse.json({ error: `Failed to submit bid: ${message}` }, { status: 500 })
   }
 }
