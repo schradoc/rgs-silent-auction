@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const normalizedTable = normalizeTableNumber(tableNumber)
 
-    // Find or create bidder
+    // Find or create bidder (outside transaction — safe for admin)
     let bidder = await prisma.bidder.findFirst({
       where: {
         name: { equals: bidderName, mode: 'insensitive' },
@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     })
 
     if (!bidder) {
-      // Generate unique email — append timestamp to avoid collisions
       const baseName = bidderName.trim().toLowerCase().replace(/\s+/g, '.')
       const generatedEmail = email || `${baseName}.table${normalizedTable}.${Date.now()}@guest.rgs-auction.hk`
       try {
@@ -47,7 +46,6 @@ export async function POST(request: NextRequest) {
           },
         })
       } catch (createErr: unknown) {
-        // If unique constraint fails (phone already exists), try to find by phone
         if (phone && typeof createErr === 'object' && createErr !== null && 'code' in createErr && (createErr as { code: string }).code === 'P2002') {
           bidder = await prisma.bidder.findFirst({
             where: { phone },
@@ -66,116 +64,108 @@ export async function POST(request: NextRequest) {
 
     const bidderId = bidder.id
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Check auction state
-      const settingsRows = await tx.$queryRaw<Array<{ isAuctionOpen: boolean }>>`
-        SELECT "isAuctionOpen" FROM "AuctionSettings" WHERE id = 'settings' FOR UPDATE`
-      const settings = settingsRows[0]
+    // Admin bids bypass auction-closed restrictions entirely.
+    // Use regular Prisma queries (no raw SQL FOR UPDATE) for PgBouncer compatibility.
+    const prize = await prisma.prize.findUnique({
+      where: { id: prizeId },
+      select: {
+        id: true,
+        title: true,
+        currentHighestBid: true,
+        minimumBid: true,
+        category: true,
+        multiWinnerEligible: true,
+        multiWinnerSlots: true,
+      },
+    })
 
-      // Admin can override closed auction — skip the check
-      // (This is the backstop purpose of admin manual bids)
+    if (!prize) {
+      return NextResponse.json({ error: 'Prize not found' }, { status: 404 })
+    }
 
-      // Lock prize row
-      const prizeRows = await tx.$queryRaw<Array<{
-        id: string; title: string; currentHighestBid: number; minimumBid: number
-        category: string; multiWinnerEligible: boolean; multiWinnerSlots: number | null
-      }>>`SELECT id, title, "currentHighestBid", "minimumBid", "category", "multiWinnerEligible", "multiWinnerSlots" FROM "Prize" WHERE id = ${prizeId} FOR UPDATE`
+    const isPledge = prize.category === 'PLEDGES'
+    const isMultiWinnerCompetitive = prize.multiWinnerEligible && !isPledge
+    const minRequired = isPledge ? prize.minimumBid : getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
 
-      const prize = prizeRows[0]
-      if (!prize) {
-        return { error: 'Prize not found', status: 404 }
+    if (amount < minRequired) {
+      return NextResponse.json(
+        { error: `Bid must be at least HK$${minRequired.toLocaleString()}`, minimumBid: minRequired },
+        { status: 400 }
+      )
+    }
+
+    // Use a simple transaction for the bid operations (no raw SQL needed)
+    let previousWinningBidderId: string | undefined
+    const hadPreviousBid = prize.currentHighestBid > 0
+
+    if (!isPledge && !isMultiWinnerCompetitive) {
+      // Single-winner: outbid ALL previous winning bids
+      if (hadPreviousBid) {
+        const previousWinningBid = await prisma.bid.findFirst({
+          where: { prizeId, status: 'WINNING' },
+          select: { bidderId: true },
+        })
+        previousWinningBidderId = previousWinningBid?.bidderId
+
+        await prisma.bid.updateMany({
+          where: { prizeId, status: 'WINNING' },
+          data: { status: 'OUTBID' },
+        })
       }
+    }
 
-      const isPledge = prize.category === 'PLEDGES'
-      const isMultiWinnerCompetitive = prize.multiWinnerEligible && !isPledge
-      const minRequired = isPledge ? prize.minimumBid : getMinimumNextBid(prize.currentHighestBid, prize.minimumBid)
+    // For multi-winner: outbid any existing WINNING bid from the SAME bidder
+    if (isMultiWinnerCompetitive) {
+      await prisma.bid.updateMany({
+        where: { prizeId, status: 'WINNING', bidderId },
+        data: { status: 'OUTBID' },
+      })
+    }
 
-      if (amount < minRequired) {
-        return { error: `Bid must be at least HK$${minRequired.toLocaleString()}`, status: 400, minimumBid: minRequired }
-      }
+    const bid = await prisma.bid.create({
+      data: {
+        amount,
+        bidderId,
+        prizeId,
+        helperId: null,
+        status: 'WINNING',
+      },
+    })
 
-      let previousWinningBidderId: string | undefined
-      const hadPreviousBid = prize.currentHighestBid > 0
+    if (isMultiWinnerCompetitive && prize.multiWinnerSlots) {
+      const winningBidsCount = await prisma.bid.count({
+        where: { prizeId, status: 'WINNING' },
+      })
 
-      if (!isPledge && !isMultiWinnerCompetitive) {
-        // Single-winner: outbid ALL previous winning bids (including same bidder's old bid)
-        if (hadPreviousBid) {
-          const previousWinningBid = await tx.bid.findFirst({
-            where: { prizeId, status: 'WINNING' },
-            select: { bidderId: true },
-          })
-          previousWinningBidderId = previousWinningBid?.bidderId
+      if (winningBidsCount > prize.multiWinnerSlots) {
+        const lowestWinningBid = await prisma.bid.findFirst({
+          where: { prizeId, status: 'WINNING' },
+          orderBy: { amount: 'asc' },
+          select: { id: true, bidderId: true },
+        })
 
-          await tx.bid.updateMany({
-            where: { prizeId, status: 'WINNING' },
+        if (lowestWinningBid && lowestWinningBid.id !== bid.id) {
+          previousWinningBidderId = lowestWinningBid.bidderId
+          await prisma.bid.update({
+            where: { id: lowestWinningBid.id },
             data: { status: 'OUTBID' },
           })
         }
       }
+    }
 
-      // For multi-winner: outbid any existing WINNING bid from the SAME bidder
-      // (one person can only hold one winning slot per prize)
-      if (isMultiWinnerCompetitive) {
-        await tx.bid.updateMany({
-          where: { prizeId, status: 'WINNING', bidderId },
-          data: { status: 'OUTBID' },
-        })
-      }
-
-      const bid = await tx.bid.create({
-        data: {
-          amount,
-          bidderId,
-          prizeId,
-          helperId: null, // admin-submitted, no helper
-          status: 'WINNING',
-        },
+    if (amount > prize.currentHighestBid) {
+      await prisma.prize.update({
+        where: { id: prizeId },
+        data: { currentHighestBid: amount },
       })
-
-      if (isMultiWinnerCompetitive && prize.multiWinnerSlots) {
-        const winningBidsCount = await tx.bid.count({
-          where: { prizeId, status: 'WINNING' },
-        })
-
-        if (winningBidsCount > prize.multiWinnerSlots) {
-          const lowestWinningBid = await tx.bid.findFirst({
-            where: { prizeId, status: 'WINNING' },
-            orderBy: { amount: 'asc' },
-            select: { id: true, bidderId: true },
-          })
-
-          if (lowestWinningBid && lowestWinningBid.id !== bid.id) {
-            previousWinningBidderId = lowestWinningBid.bidderId
-            await tx.bid.update({
-              where: { id: lowestWinningBid.id },
-              data: { status: 'OUTBID' },
-            })
-          }
-        }
-      }
-
-      if (amount > prize.currentHighestBid) {
-        await tx.prize.update({
-          where: { id: prizeId },
-          data: { currentHighestBid: amount },
-        })
-      }
-
-      return { success: true, bid, prize, hadPreviousBid, previousWinningBidderId, isPledge }
-    })
-
-    if ('error' in result) {
-      return NextResponse.json(
-        { error: result.error, ...(result.minimumBid && { minimumBid: result.minimumBid }) },
-        { status: result.status }
-      )
     }
 
     // Fire-and-forget outbid notification
-    if (!result.isPledge && result.previousWinningBidderId && result.previousWinningBidderId !== bidderId) {
+    if (!isPledge && previousWinningBidderId && previousWinningBidderId !== bidderId) {
       import('@/lib/notifications')
         .then(({ notifyOutbidBidders }) =>
-          notifyOutbidBidders(prizeId, amount, result.previousWinningBidderId!)
+          notifyOutbidBidders(prizeId, amount, previousWinningBidderId!)
         )
         .catch((err) => console.error('Failed to send outbid notification:', err))
     }
@@ -183,11 +173,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       bid: {
-        id: result.bid.id,
-        amount: result.bid.amount,
+        id: bid.id,
+        amount: bid.amount,
         bidderName: bidder.name,
         tableNumber: bidder.tableNumber,
-        prizeTitle: result.prize.title,
+        prizeTitle: prize.title,
       },
     })
   } catch (error) {
