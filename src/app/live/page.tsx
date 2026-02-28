@@ -8,9 +8,9 @@ import {
   Clock,
   TrendingUp,
   Flame,
-  Crown,
   Sparkles,
   Zap,
+  Swords,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import QRCode from 'react-qr-code'
@@ -45,13 +45,12 @@ interface LiveData {
   topTables: Array<{
     tableNumber: string
     totalValue: number
+    bidCount: number
   }>
-  helperLeaderboard: Array<{
-    id: string
-    name: string
-    avatarColor: string
-    totalBids: number
+  tableBattle: Array<{
+    tableNumber: string
     totalValue: number
+    bidCount: number
   }>
   featuredPrize: {
     id: string
@@ -64,8 +63,8 @@ interface LiveData {
   } | null
 }
 
-type DisplayMode = 'bids' | 'hot' | 'tables' | 'featured' | 'helpers'
-const DISPLAY_MODES: DisplayMode[] = ['bids', 'hot', 'tables', 'featured', 'helpers']
+type DisplayMode = 'bids' | 'hot' | 'tables' | 'featured' | 'battle'
+const DISPLAY_MODES: DisplayMode[] = ['bids', 'hot', 'tables', 'featured', 'battle']
 const MODE_DURATION = 8000 // 8 seconds per mode
 
 export default function LiveDisplayPage() {
@@ -257,8 +256,8 @@ export default function LiveDisplayPage() {
             {displayMode === 'featured' && data.featuredPrize && (
               <FeaturedPrizeDisplay prize={data.featuredPrize} />
             )}
-            {displayMode === 'helpers' && (
-              <HelperLeaderboardDisplay helpers={data.helperLeaderboard} />
+            {displayMode === 'battle' && (
+              <TableBattleDisplay tables={data.tableBattle} />
             )}
           </div>
 
@@ -564,42 +563,84 @@ function FeaturedPrizeDisplay({ prize }: { prize: NonNullable<LiveData['featured
   )
 }
 
-function HelperLeaderboardDisplay({ helpers }: { helpers: LiveData['helperLeaderboard'] }) {
+function TableBattleDisplay({ tables }: { tables: LiveData['tableBattle'] }) {
+  if (tables.length < 2) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-white/50 text-2xl">Waiting for more tables to join the battle...</p>
+      </div>
+    )
+  }
+
+  const top1 = tables[0]
+  const top2 = tables[1]
+  const maxValue = Math.max(top1.totalValue, top2.totalValue)
+  const rest = tables.slice(2)
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-          <Crown className="w-6 h-6 text-yellow-400" />
+        <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+          <Swords className="w-6 h-6 text-red-400" />
         </div>
         <div>
-          <h2 className="text-2xl font-light">Helper Champions</h2>
-          <p className="text-white/50 text-sm">Our amazing volunteers driving the auction</p>
+          <h2 className="text-2xl font-light">Table vs Table</h2>
+          <p className="text-white/50 text-sm">Which table will take the crown tonight?</p>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col justify-center space-y-4">
-        {helpers.map((helper, i) => (
-          <div
-            key={helper.id}
-            className={`flex items-center gap-4 p-4 rounded-xl transition-all ${
-              i === 0 ? 'bg-yellow-500/20 scale-105' : 'bg-white/5'
-            }`}
-          >
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl ${
-              i === 0 ? 'ring-4 ring-yellow-400' : ''
-            }`} style={{ backgroundColor: helper.avatarColor }}>
-              {helper.name.charAt(0)}
-            </div>
-            <div className="flex-1">
-              <p className="text-xl font-medium">{helper.name}</p>
-              <p className="text-white/50 text-sm">{helper.totalBids} bids facilitated</p>
-            </div>
-            <p className={`text-2xl font-bold ${i === 0 ? 'text-yellow-400' : 'text-white'}`}>
-              {formatCurrency(helper.totalValue)}
-            </p>
+      {/* Head-to-head: Top 2 tables */}
+      <div className="flex items-center gap-6 mb-8">
+        {/* Table 1 (Leader) */}
+        <div className="flex-1 bg-[#b8941f]/15 border border-[#b8941f]/40 rounded-2xl p-6 text-center relative overflow-hidden">
+          <div className="absolute top-2 right-3 text-[#b8941f] text-xs font-bold uppercase tracking-widest">Leading</div>
+          <p className="text-white/50 text-sm mb-1">Table</p>
+          <p className="text-6xl font-black text-[#b8941f] mb-2">{top1.tableNumber}</p>
+          <p className="text-3xl font-bold text-white mb-1">{formatCurrency(top1.totalValue)}</p>
+          <p className="text-white/40 text-sm">{top1.bidCount} bid{top1.bidCount !== 1 ? 's' : ''}</p>
+          {/* Progress bar */}
+          <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-[#b8941f] rounded-full transition-all duration-1000" style={{ width: '100%' }} />
           </div>
-        ))}
+        </div>
+
+        {/* VS */}
+        <div className="flex flex-col items-center">
+          <div className="w-16 h-16 rounded-full bg-red-500/20 border-2 border-red-500/50 flex items-center justify-center">
+            <span className="text-red-400 font-black text-xl">VS</span>
+          </div>
+        </div>
+
+        {/* Table 2 (Challenger) */}
+        <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-6 text-center relative overflow-hidden">
+          <div className="absolute top-2 right-3 text-red-400 text-xs font-bold uppercase tracking-widest">Challenger</div>
+          <p className="text-white/50 text-sm mb-1">Table</p>
+          <p className="text-6xl font-black text-white mb-2">{top2.tableNumber}</p>
+          <p className="text-3xl font-bold text-white mb-1">{formatCurrency(top2.totalValue)}</p>
+          <p className="text-white/40 text-sm">{top2.bidCount} bid{top2.bidCount !== 1 ? 's' : ''}</p>
+          {/* Progress bar */}
+          <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-white/40 rounded-full transition-all duration-1000" style={{ width: maxValue > 0 ? `${(top2.totalValue / maxValue) * 100}%` : '0%' }} />
+          </div>
+        </div>
       </div>
+
+      {/* Rest of the tables */}
+      {rest.length > 0 && (
+        <div className="flex-1 overflow-hidden">
+          <p className="text-white/40 text-sm mb-3 uppercase tracking-wider">Chasing the pack</p>
+          <div className="grid grid-cols-2 gap-3">
+            {rest.slice(0, 8).map((table, i) => (
+              <div key={table.tableNumber} className="flex items-center gap-3 bg-white/5 rounded-lg px-4 py-2.5">
+                <span className="text-white/30 text-sm font-mono w-5">{i + 3}</span>
+                <span className="text-lg font-bold flex-1">Table {table.tableNumber}</span>
+                <span className="text-white/60 text-sm">{table.bidCount} bid{table.bidCount !== 1 ? 's' : ''}</span>
+                <span className="text-[#b8941f] font-bold">{formatCurrency(table.totalValue)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

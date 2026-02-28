@@ -67,11 +67,12 @@ export async function GET(request: NextRequest) {
       return aIndex - bIndex
     })
 
-    // Get top tables by total bid value
+    // Get table stats: total value + bid count per table
     const tableStats = await prisma.bid.groupBy({
       by: ['bidderId'],
       where: { status: { in: ['WINNING', 'WON'] } },
       _sum: { amount: true },
+      _count: { id: true },
     })
 
     const bidderIds = tableStats.map((t) => t.bidderId)
@@ -80,39 +81,25 @@ export async function GET(request: NextRequest) {
       select: { id: true, tableNumber: true },
     })
 
-    // Group by table
-    const tableMap = new Map<string, number>()
+    // Group by table (value + count)
+    const tableMap = new Map<string, { totalValue: number; bidCount: number }>()
     for (const stat of tableStats) {
       const bidder = bidders.find((b) => b.id === stat.bidderId)
       if (bidder && bidder.tableNumber) {
-        const current = tableMap.get(bidder.tableNumber) || 0
-        tableMap.set(bidder.tableNumber, current + (stat._sum.amount || 0))
+        const current = tableMap.get(bidder.tableNumber) || { totalValue: 0, bidCount: 0 }
+        tableMap.set(bidder.tableNumber, {
+          totalValue: current.totalValue + (stat._sum.amount || 0),
+          bidCount: current.bidCount + (stat._count.id || 0),
+        })
       }
     }
 
-    const topTables = [...tableMap.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([tableNumber, totalValue]) => ({ tableNumber, totalValue }))
+    const tableRanking = [...tableMap.entries()]
+      .sort((a, b) => b[1].totalValue - a[1].totalValue)
+      .map(([tableNumber, stats]) => ({ tableNumber, ...stats }))
 
-    // Get helper leaderboard
-    const helpers = await prisma.helper.findMany({
-      where: { isActive: true },
-      include: {
-        bidsPrompted: { select: { amount: true } },
-      },
-    })
-
-    const helperLeaderboard = helpers
-      .map((h) => ({
-        id: h.id,
-        name: h.name,
-        avatarColor: h.avatarColor,
-        totalBids: h.bidsPrompted.length,
-        totalValue: h.bidsPrompted.reduce((sum, b) => sum + b.amount, 0),
-      }))
-      .sort((a, b) => b.totalValue - a.totalValue)
-      .slice(0, 5)
+    const topTables = tableRanking.slice(0, 5)
+    const tableBattle = tableRanking.slice(0, 10)
 
     // Get featured prize (highest value currently)
     const featuredPrize = await prisma.prize.findFirst({
@@ -144,7 +131,7 @@ export async function GET(request: NextRequest) {
       recentBids,
       hotItems: sortedHotItems,
       topTables,
-      helperLeaderboard,
+      tableBattle,
       featuredPrize,
     })
   } catch (error) {
