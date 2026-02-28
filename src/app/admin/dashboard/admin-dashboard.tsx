@@ -1027,11 +1027,11 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       amount: number
       createdAt: string
       status: string
-      bidder: { id: string; name: string; tableNumber: string | null; email: string | null }
+      bidder: { id: string; name: string; tableNumber: string | null; email: string | null; phone: string | null }
     }>
     winners: Array<{
       id: string
-      bidder: { id: string; name: string; tableNumber: string | null }
+      bidder: { id: string; name: string; tableNumber: string | null; email: string | null; phone: string | null }
       bid: { amount: number }
     }>
   } | null>(null)
@@ -4072,6 +4072,49 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                   </div>
                 )}
 
+                {/* Contract Contact Info — winning/top bids */}
+                {(() => {
+                  const winningBids = selectedPrize.bids.filter((b: { status?: string }) => b.status === 'WINNING')
+                  if (winningBids.length === 0) return null
+                  return (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileEdit className="w-5 h-5 text-blue-600" />
+                        <h4 className="font-semibold text-blue-800">Contract Details — Currently Winning</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {winningBids.map((bid: { id: string; amount: number; bidder: { id: string; name: string; phone?: string | null; email?: string | null; tableNumber?: string | null }; createdAt: string | Date }, i: number) => (
+                          <div key={bid.id} className={`p-3 bg-white rounded-lg border ${i === 0 ? 'border-blue-300 ring-1 ring-blue-200' : 'border-gray-200'}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-[#c9a227] text-white' : 'bg-gray-200 text-gray-600'}`}>
+                                  {i + 1}
+                                </div>
+                                <span className="font-semibold text-gray-900">{bid.bidder.name}</span>
+                              </div>
+                              <span className="text-lg font-bold text-[#c9a227]">{formatCurrency(bid.amount)}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3 text-sm">
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Table</p>
+                                <p className="text-gray-900 font-medium">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : '—'}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Phone</p>
+                                <p className="text-gray-900 font-medium">{bid.bidder.phone || '—'}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Email</p>
+                                <p className="text-gray-900 font-medium truncate">{bid.bidder.email && !bid.bidder.email.includes('@guest.rgs-auction') ? bid.bidder.email : '—'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 {/* Bid History */}
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -4088,18 +4131,19 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                       <table className="w-full">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Rank</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Bidder</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Table</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Time</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase w-12"></th>
+                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
+                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Bidder</th>
+                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Contact</th>
+                            <th className="px-3 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                            <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+                            <th className="px-3 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Time</th>
+                            <th className="px-3 py-3 text-right text-xs font-semibold text-gray-500 uppercase w-10"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
                           {selectedPrize.bids.map((bid, index) => (
-                            <tr key={bid.id} className={index === 0 ? 'bg-[#c9a227]/5' : ''}>
-                              <td className="px-4 py-3">
+                            <tr key={bid.id} className={bid.status === 'WINNING' ? 'bg-[#c9a227]/5' : ''}>
+                              <td className="px-3 py-3">
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                                   index === 0 ? 'bg-[#c9a227] text-white' :
                                   index === 1 ? 'bg-gray-300 text-gray-700' :
@@ -4109,17 +4153,36 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                                   {index + 1}
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
-                                <p className="font-medium text-gray-900">{bid.bidder.name}</p>
-                                <p className="text-xs text-gray-500">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : bid.bidder.email}</p>
+                              <td className="px-3 py-3">
+                                <p className="font-medium text-gray-900 text-sm">{bid.bidder.name}</p>
+                                <p className="text-xs text-gray-500">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : '—'}</p>
                               </td>
-                              <td className="px-4 py-3 text-gray-600">{bid.bidder.tableNumber ? `Table ${bid.bidder.tableNumber}` : '—'}</td>
-                              <td className="px-4 py-3 text-right">
-                                <span className={`font-bold ${index === 0 ? 'text-[#c9a227]' : 'text-gray-900'}`}>
+                              <td className="px-3 py-3">
+                                {bid.bidder.phone && (
+                                  <p className="text-xs text-gray-700">{bid.bidder.phone}</p>
+                                )}
+                                {bid.bidder.email && !bid.bidder.email.includes('@guest.rgs-auction') && (
+                                  <p className="text-xs text-gray-500 truncate max-w-[160px]">{bid.bidder.email}</p>
+                                )}
+                                {!bid.bidder.phone && (!bid.bidder.email || bid.bidder.email.includes('@guest.rgs-auction')) && (
+                                  <p className="text-xs text-gray-400">—</p>
+                                )}
+                              </td>
+                              <td className="px-3 py-3 text-right">
+                                <span className={`font-bold ${bid.status === 'WINNING' ? 'text-[#c9a227]' : 'text-gray-900'}`}>
                                   {formatCurrency(bid.amount)}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-right text-sm text-gray-500">
+                              <td className="px-3 py-3 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                                  bid.status === 'WINNING' ? 'bg-green-100 text-green-700' :
+                                  bid.status === 'OUTBID' ? 'bg-gray-100 text-gray-500' :
+                                  'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {bid.status || 'PENDING'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 text-right text-xs text-gray-500">
                                 {new Date(bid.createdAt).toLocaleString(undefined, {
                                   month: 'short',
                                   day: 'numeric',
@@ -4127,7 +4190,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                                   minute: '2-digit',
                                 })}
                               </td>
-                              <td className="px-4 py-3 text-right">
+                              <td className="px-3 py-3 text-right">
                                 <Button
                                   variant="ghost"
                                   size="sm"

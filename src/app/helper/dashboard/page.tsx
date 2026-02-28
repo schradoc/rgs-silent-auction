@@ -23,6 +23,9 @@ import {
   CheckCircle2,
   XCircle,
   Activity,
+  Gift,
+  Phone,
+  Mail,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -85,6 +88,36 @@ interface LiveFeedEntry {
   currentHighestBid: number
 }
 
+interface PrizeBidder {
+  id: string
+  name: string
+  tableNumber: string | null
+  phone: string | null
+  email: string | null
+}
+
+interface PrizeBidEntry {
+  id: string
+  amount: number
+  createdAt: string
+  bidder: PrizeBidder
+}
+
+interface PrizeEntry {
+  id: string
+  title: string
+  lotNumber: number | null
+  subLotLetter: string | null
+  category: string
+  minimumBid: number
+  currentHighestBid: number
+  multiWinnerEligible: boolean
+  multiWinnerSlots: number | null
+  totalBids: number
+  winningBids: PrizeBidEntry[]
+  recentOutbid: PrizeBidEntry[]
+}
+
 interface DashboardData {
   helper: { id: string; name: string; avatarColor: string; assignedTables: string | null }
   stats: HelperStats
@@ -118,7 +151,10 @@ export default function HelperDashboardPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set())
-  const [activeTab, setActiveTab] = useState<'tables' | 'feed' | 'stats'>('tables')
+  const [activeTab, setActiveTab] = useState<'tables' | 'feed' | 'prizes' | 'stats'>('tables')
+  const [prizes, setPrizes] = useState<PrizeEntry[]>([])
+  const [expandedPrizes, setExpandedPrizes] = useState<Set<string>>(new Set())
+  const [prizesLoaded, setPrizesLoaded] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -154,6 +190,26 @@ export default function HelperDashboardPage() {
       setRefreshing(false)
     }
   }
+
+  const fetchPrizes = async () => {
+    try {
+      const res = await fetch('/api/helpers/prizes')
+      if (res.ok) {
+        const data = await res.json()
+        setPrizes(data.prizes || [])
+        setPrizesLoaded(true)
+      }
+    } catch (error) {
+      console.error('Failed to fetch prizes:', error)
+    }
+  }
+
+  // Load prizes when tab is activated
+  useEffect(() => {
+    if (activeTab === 'prizes' && !prizesLoaded) {
+      fetchPrizes()
+    }
+  }, [activeTab, prizesLoaded])
 
   const handleRefresh = () => {
     setRefreshing(true)
@@ -281,8 +337,9 @@ export default function HelperDashboardPage() {
         {/* ── Tab Navigation ── */}
         <div className="flex gap-1 bg-white/5 rounded-xl p-1">
           {[
-            { id: 'tables' as const, label: 'My Tables', icon: Hash },
-            { id: 'feed' as const, label: 'Live Feed', icon: Activity },
+            { id: 'tables' as const, label: 'Tables', icon: Hash },
+            { id: 'feed' as const, label: 'Feed', icon: Activity },
+            { id: 'prizes' as const, label: 'Prizes', icon: Gift },
             { id: 'stats' as const, label: 'Stats', icon: Trophy },
           ].map((tab) => {
             const Icon = tab.icon
@@ -436,6 +493,119 @@ export default function HelperDashboardPage() {
                 <Activity className="w-8 h-8 text-white/20 mx-auto mb-2" />
                 <p className="text-white/40 text-sm">No bids yet</p>
                 <p className="text-white/30 text-xs">Live bid activity will appear here</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── TAB: Prizes ── */}
+        {activeTab === 'prizes' && (
+          <section className={`space-y-2 transition-all duration-300 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
+            {!prizesLoaded ? (
+              <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                <RefreshCw className="w-6 h-6 text-white/30 mx-auto mb-2 animate-spin" />
+                <p className="text-white/40 text-sm">Loading prizes...</p>
+              </div>
+            ) : prizes.length === 0 ? (
+              <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                <Gift className="w-8 h-8 text-white/20 mx-auto mb-2" />
+                <p className="text-white/40 text-sm">No prizes yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  onClick={() => { setPrizesLoaded(false); fetchPrizes() }}
+                  className="text-xs text-white/40 hover:text-white/60 flex items-center gap-1 ml-auto"
+                >
+                  <RefreshCw className="w-3 h-3" /> Refresh
+                </button>
+                {prizes.map((prize) => {
+                  const isExpanded = expandedPrizes.has(prize.id)
+                  const hasBids = prize.totalBids > 0
+                  const lotStr = prize.lotNumber ? `Lot ${prize.lotNumber}${prize.subLotLetter || ''}` : ''
+                  return (
+                    <div key={prize.id} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+                      {/* Prize header — always visible */}
+                      <button
+                        onClick={() => {
+                          setExpandedPrizes(prev => {
+                            const next = new Set(prev)
+                            if (next.has(prize.id)) next.delete(prize.id)
+                            else next.add(prize.id)
+                            return next
+                          })
+                        }}
+                        className="w-full flex items-center gap-3 p-3 text-left"
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                          hasBids ? 'bg-[#b8941f]/20 text-[#b8941f]' : 'bg-white/10 text-white/30'
+                        }`}>
+                          {prize.totalBids}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            {lotStr && <span className="text-white/40 text-[10px] font-medium">{lotStr}</span>}
+                            <p className="text-white text-sm font-medium truncate">{prize.title}</p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[#b8941f] text-xs font-semibold">
+                              {prize.currentHighestBid > 0 ? formatCurrency(prize.currentHighestBid) : formatCurrency(prize.minimumBid)}
+                            </span>
+                            {prize.currentHighestBid === 0 && <span className="text-white/30 text-[10px]">min</span>}
+                            {prize.multiWinnerEligible && (
+                              <span className="text-purple-300 text-[10px] bg-purple-500/20 px-1.5 py-0.5 rounded-full">
+                                {prize.multiWinnerSlots} slots
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4 text-white/30 flex-shrink-0" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-white/30 flex-shrink-0" />
+                        )}
+                      </button>
+
+                      {/* Expanded: bidder details */}
+                      {isExpanded && (
+                        <div className="border-t border-white/10 p-3 space-y-2">
+                          {prize.winningBids.length === 0 && prize.recentOutbid.length === 0 ? (
+                            <p className="text-white/30 text-xs text-center py-2">No bids on this prize yet</p>
+                          ) : (
+                            <>
+                              {/* Winning bids */}
+                              {prize.winningBids.length > 0 && (
+                                <div>
+                                  <p className="text-green-400 text-[10px] font-semibold uppercase mb-1.5 flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3" /> Currently Winning
+                                  </p>
+                                  <div className="space-y-1.5">
+                                    {prize.winningBids.map((bid) => (
+                                      <BidderCard key={bid.id} bid={bid} status="winning" />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {/* Recent outbid */}
+                              {prize.recentOutbid.length > 0 && (
+                                <div>
+                                  <p className="text-orange-400 text-[10px] font-semibold uppercase mb-1.5 flex items-center gap-1">
+                                    <XCircle className="w-3 h-3" /> Outbid
+                                  </p>
+                                  <div className="space-y-1.5">
+                                    {prize.recentOutbid.map((bid) => (
+                                      <BidderCard key={bid.id} bid={bid} status="outbid" />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </section>
@@ -688,4 +858,41 @@ function getRankIcon(rank: number) {
     default:
       return <span className="w-5 text-center text-white/40 text-sm">#{rank}</span>
   }
+}
+
+function BidderCard({ bid, status }: { bid: PrizeBidEntry; status: 'winning' | 'outbid' }) {
+  const borderColor = status === 'winning' ? 'border-green-500/30 bg-green-500/5' : 'border-white/10 bg-white/5'
+  const isGuestEmail = bid.bidder.email?.includes('@guest.rgs-auction')
+  return (
+    <div className={`rounded-lg border ${borderColor} p-2.5`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-white text-sm font-medium truncate">{bid.bidder.name}</p>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            {bid.bidder.tableNumber && (
+              <span className="text-white/50 text-xs">Table {bid.bidder.tableNumber}</span>
+            )}
+            {bid.bidder.phone && (
+              <span className="text-blue-300 text-xs flex items-center gap-0.5">
+                <Phone className="w-2.5 h-2.5" />
+                {bid.bidder.phone}
+              </span>
+            )}
+            {bid.bidder.email && !isGuestEmail && (
+              <span className="text-blue-300 text-xs flex items-center gap-0.5 truncate max-w-[150px]">
+                <Mail className="w-2.5 h-2.5" />
+                {bid.bidder.email}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className={`font-bold text-sm ${status === 'winning' ? 'text-[#b8941f]' : 'text-white/50 line-through'}`}>
+            {formatCurrency(bid.amount)}
+          </p>
+          <p className="text-white/30 text-[10px]">{timeAgo(bid.createdAt)}</p>
+        </div>
+      </div>
+    </div>
+  )
 }
