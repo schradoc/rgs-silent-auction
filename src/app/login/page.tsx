@@ -47,6 +47,8 @@ function LoginPageContent() {
   const [resendLoading, setResendLoading] = useState(false)
 
   const hiddenOtpRef = useRef<HTMLInputElement>(null)
+  const phoneRef = useRef('')
+  const countryCodeRef = useRef('+852')
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -71,7 +73,11 @@ function LoginPageContent() {
     return () => clearTimeout(timer)
   }, [resendCooldown])
 
-  const getFullPhone = () => `${countryCode}${phone.replace(/^0+/, '').replace(/\s/g, '')}`
+  // Keep refs in sync so callbacks with stale closures always read current values
+  useEffect(() => { phoneRef.current = phone }, [phone])
+  useEffect(() => { countryCodeRef.current = countryCode }, [countryCode])
+
+  const getFullPhone = () => `${countryCodeRef.current}${phoneRef.current.replace(/^0+/, '').replace(/\s/g, '')}`
 
   const handleSendMagicLink = async () => {
     if (!email) {
