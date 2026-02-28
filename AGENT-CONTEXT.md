@@ -1,7 +1,7 @@
 # RGS Silent Auction - Agent Context File
 
-> **Last Updated**: 2026-02-28
-> **Last Commit**: a55bd51 - Restructure helper dashboard for table intelligence
+> **Last Updated**: 2026-02-28 (event night)
+> **Last Commit**: 41df2a6 - Fix helper login button: read PIN from refs, prevent double-submit
 > **NOTE**: This file should be updated after every push/commit to keep agents in sync.
 
 ---
@@ -160,6 +160,7 @@ rgs-auction/
   - `password/` - Password management (bcrypt)
 - `src/app/api/auth/` - Bidder authentication
   - `verify/` - SMS OTP verification via Twilio Verify (rate-limited, 15-min expiry)
+- `src/app/api/admin/bids/` - Admin bid deletion with winner recalculation
 - `src/app/api/helpers/` - Helper portal APIs
   - `login/` - PIN login (rate-limited)
   - `submit-bid/` - Helper bid submission (SELECT FOR UPDATE)
@@ -175,7 +176,7 @@ rgs-auction/
 - `src/lib/prisma.ts` - Prisma client singleton
 - `src/lib/supabase.ts` - Supabase client
 - `src/lib/admin-auth.ts` - Admin session verification
-- `src/lib/notifications/index.ts` - Email/SMS sending
+- `src/lib/notifications/index.ts` - Email/SMS sending (uses short `/b/[slug]` URLs for SMS)
 - `src/lib/utils.ts` - formatCurrency, classNames, etc.
 - `src/lib/constants.ts` - Categories, colors, site config
 - `src/lib/rate-limit.ts` - Sliding-window rate limiter
@@ -306,6 +307,11 @@ NotificationType: OUTBID | WINNING | AUCTION_CLOSING | WON
 |-------|---------|
 | `/committee` | PIN login (PIN: 2026) |
 | `/committee/dashboard` | Live analytics dashboard |
+
+### Redirects
+| Route | Purpose |
+|-------|---------|
+| `/b/[slug]` | Short SMS redirect → `/prizes/[slug]?bid=true` (302) |
 
 ### Display
 | Route | Purpose |
@@ -483,7 +489,18 @@ TWILIO_VERIFY_SERVICE_SID=VAxxx  # Twilio Verify service for OTP
 - Structured JSON logging
 - About and Impact content pages
 
-### Recently Added (2026-02-28) — Event Day
+### Recently Added (2026-02-28) — Event Night Live Fixes
+- **Login stale closure fix** — OTP auto-submit was capturing mount-time state via `useCallback([])`, sending `+852` instead of full phone number. Fixed with `useRef` to keep phone values accessible from stale closures
+- **Email login fallback** — prominent "Sign in with email instead" option on OTP step, highlighted when SMS verification fails
+- **Short SMS redirect URLs** — created `/b/[slug]` route that 302 redirects to `/prizes/[slug]?bid=true`, keeping SMS notification links under 40 chars so they don't break across lines
+- **Non-blocking notifications (C5)** — outbid notifications changed from `await` to fire-and-forget (`.then().catch()`) in both `/api/bids` and `/api/helpers/submit-bid`, reducing bid response time by 3-10s
+- **Helper login button fix** — added `submittingRef` to prevent double-submit race between auto-submit and button click; button now reads PIN from input refs instead of React state
+- **Admin helper edit UI** — inline edit mode for helpers in admin dashboard (name, PIN, tables)
+- **Admin bid deletion** — delete bids from bidder/prize modals with automatic winner recalculation and promotion of next-highest bid
+- **Vercel Analytics** — added `@vercel/analytics/next` to root layout
+- **Phone normalization** — `normalizeHKPhone()` applied in OTP send/verify routes
+
+### Previously Added (2026-02-28) — Event Day Setup
 - **Visual overhaul** — shared site header, "lots" terminology, hero sections, image gallery on detail pages
 - **SMS-only verification** — phone verified via Twilio Verify OTP; email collected but not verified
 - **Visual block editor** — rich description editor for admin lot management (headings, paragraphs, lists, highlights)

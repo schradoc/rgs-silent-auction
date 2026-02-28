@@ -59,11 +59,12 @@ src/
 │   │   ├── login/            # Admin password login
 │   │   └── print-winners/    # Printable winner sheets
 │   ├── api/
-│   │   ├── admin/            # Admin APIs (prizes, settings, upload, users, invitations, etc.)
+│   │   ├── admin/            # Admin APIs (prizes, settings, upload, users, invitations, bids, etc.)
 │   │   ├── auth/             # Bidder auth (SMS OTP via Twilio Verify)
 │   │   ├── committee/        # Committee analytics APIs
 │   │   ├── helpers/          # Helper portal APIs
 │   │   └── ...               # Prizes, bids, favorites, health, etc.
+│   ├── b/[slug]/             # Short SMS redirect → /prizes/[slug]?bid=true
 │   ├── committee/            # Committee analytics dashboard (PIN: 2026)
 │   ├── helper/
 │   │   ├── dashboard/        # Helper dashboard (table intelligence)
@@ -118,10 +119,11 @@ src/
 ### Bidder Routes
 - `/` - Landing page (QR destination)
 - `/register` - Bidder registration (name, phone, email, table)
-- `/login` - SMS OTP login
+- `/login` - SMS OTP login (with email fallback)
 - `/welcome` - Post-registration welcome
 - `/prizes` - Lot listing with category + price tier filters
 - `/prizes/[slug]` - Lot detail + bidding (gallery, rich descriptions)
+- `/b/[slug]` - Short SMS redirect → `/prizes/[slug]?bid=true` (302)
 - `/my-bids` - Personal bid history
 - `/about` - About RGS
 - `/impact` - Impact & outreach
@@ -367,6 +369,19 @@ npx prisma db push
 - Push notifications (web push API)
 - Offline support / PWA
 
+## Event Night Fixes (2026-02-28)
+
+Critical bugs found and fixed during the live event:
+
+- **Login stale closure** — OTP auto-submit sent `+852` instead of full phone. Fixed with `useRef` for phone values
+- **Email login fallback** — added prominent "Sign in with email instead" when SMS OTP fails
+- **SMS link breaking** — notification URLs too long for SMS. Created `/b/[slug]` short redirect route
+- **Non-blocking notifications** — outbid notifications no longer block bid response (fire-and-forget)
+- **Helper login button** — double-submit guard + read PIN from input refs instead of React state
+- **Admin bid deletion** — new API at `/api/admin/bids` with winner recalculation
+- **Admin helper edit** — inline edit mode in dashboard
+- **Vercel Analytics** — added `@vercel/analytics/next` to root layout
+
 ## Current Status
 
 **LIVE — Event is tonight**: Full platform operational. Bidders register via SMS OTP, browse lots, place bids with real-time updates. Admins manage everything via dashboard. Helpers submit bids with table intelligence. Committee monitors live analytics.
@@ -376,7 +391,7 @@ npx prisma db push
 
 ---
 
-**Last Updated**: 2026-02-28
+**Last Updated**: 2026-02-28 (event night)
 
 ---
 
