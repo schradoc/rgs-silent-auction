@@ -143,6 +143,15 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // For multi-winner: outbid any existing WINNING bid from the SAME bidder
+      // (one person can only hold one winning slot per prize)
+      if (isMultiWinnerCompetitive) {
+        await tx.bid.updateMany({
+          where: { prizeId, status: 'WINNING', bidderId },
+          data: { status: 'OUTBID' },
+        })
+      }
+
       // Create the new winning bid
       const bid = await tx.bid.create({
         data: {

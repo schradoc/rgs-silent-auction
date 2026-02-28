@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
       const hadPreviousBid = prize.currentHighestBid > 0
 
       if (!isPledge && !isMultiWinnerCompetitive) {
+        // Single-winner: outbid ALL previous winning bids (including same bidder's old bid)
         if (hadPreviousBid) {
           const previousWinningBid = await tx.bid.findFirst({
             where: { prizeId, status: 'WINNING' },
@@ -92,10 +93,19 @@ export async function POST(request: NextRequest) {
           previousWinningBidderId = previousWinningBid?.bidderId
 
           await tx.bid.updateMany({
-            where: { prizeId, status: 'WINNING', NOT: { bidderId } },
+            where: { prizeId, status: 'WINNING' },
             data: { status: 'OUTBID' },
           })
         }
+      }
+
+      // For multi-winner: outbid any existing WINNING bid from the SAME bidder
+      // (one person can only hold one winning slot per prize)
+      if (isMultiWinnerCompetitive) {
+        await tx.bid.updateMany({
+          where: { prizeId, status: 'WINNING', bidderId },
+          data: { status: 'OUTBID' },
+        })
       }
 
       const bid = await tx.bid.create({
