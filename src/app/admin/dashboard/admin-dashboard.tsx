@@ -237,7 +237,7 @@ function QuickBidTab() {
     try {
       const params = new URLSearchParams({ q: query })
       if (tableNumber) params.set('table', tableNumber)
-      const res = await fetch(`/api/helpers/search-bidders?${params}`)
+      const res = await fetch(`/api/admin/search-bidders?${params}`)
       if (res.ok) {
         const data = await res.json()
         setBidderSuggestions(data.bidders || [])
