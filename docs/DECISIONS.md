@@ -2,7 +2,7 @@
 
 ## ADR-001: Real-Time Technology
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Context
@@ -30,7 +30,7 @@ The auction requires real-time bid updates visible to all users simultaneously. 
 
 ## ADR-002: Database Choice
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Context
@@ -57,39 +57,50 @@ Need a database that works well with Vercel, supports real-time subscriptions, a
 
 ## ADR-003: Authentication Strategy
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Context
 Bidders need a frictionless onboarding (no passwords), while admins need secure access.
 
-### Design
+### Design (Evolved)
 
 **Bidders:**
-- Simple registration form (name, email, table)
-- Store bidder ID in localStorage + HTTP-only cookie
-- No password, no email verification
-- "Anonymous auth" - device-bound session
+- Registration form (name, phone, email optional, table)
+- Phone verified via SMS OTP (Twilio Verify)
+- Email collected but not verified
+- Session stored in localStorage + HTTP-only cookie
+- Country code selector defaulting to HK (+852)
 
 **Admins:**
-- Single shared password (env variable)
-- Password checked server-side
-- Session cookie set on successful auth
-- 24-hour expiry
+- Individual accounts with bcrypt-hashed passwords (12 rounds)
+- Role-based access (OWNER/ADMIN/EMPLOYEE)
+- Token-based sessions with 24-hour expiry
+- Rate-limited login (5 per 30 min per IP)
+
+**Helpers:**
+- 4-digit PIN authentication
+- Rate-limited login (5 per 15 min per IP)
+- Assigned to specific tables
+
+**Committee:**
+- Shared PIN (2026) for analytics dashboard
+- Rate-limited (5 per 15 min per IP)
 
 ### Decision
-Custom lightweight auth - Supabase Auth is overkill for this use case. Bidders don't need accounts, just identification.
+Custom lightweight auth with SMS OTP for bidders, bcrypt passwords for admins, PINs for helpers/committee. Supabase Auth remains unused — custom auth fits the event-specific needs better.
 
 ### Consequences
-- Bidder "account" is device-bound (can't switch phones)
-- Admin password shared among helpers (acceptable for event)
-- No password reset flow needed
+- Bidders verify via their phone number (more reliable than email at an event)
+- Admin accounts are individual with proper role separation
+- Legacy SHA256 hashes auto-migrate to bcrypt on login
+- All auth endpoints are rate-limited
 
 ---
 
 ## ADR-004: State Management
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Context
@@ -112,7 +123,7 @@ Need to manage: current user, real-time prize data, bid state, notifications.
 
 ## ADR-005: Bid Increment Strategy
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Context
@@ -137,7 +148,7 @@ Need to determine minimum bid increments to prevent $1 bid wars.
 
 ## ADR-006: Multi-Winner Implementation
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Context
@@ -159,37 +170,31 @@ Some prizes (e.g., Tuscany villa with 7 rooms) can have multiple winners. Bidder
 
 ## ADR-007: Image Strategy
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Context
 Need high-quality images for ~29 prizes. Using placeholder/stock images for demo.
 
-### Decision
-- Store images in `/public/images/prizes/`
-- Use Unsplash for placeholder travel/expedition imagery
-- Optimize images (WebP, responsive sizes)
+### Decision (Evolved)
+- Store images in **Supabase Storage** (`prize-images` bucket, public access)
+- Multi-image upload per prize via admin dashboard (drag-drop)
+- Primary image flag (`isPrimary`) for listing views
+- Branded no-image placeholder for lots without uploads
+- Unsplash for any remaining placeholder imagery
 - Fallback gradient if image fails to load
 
-### Image Categories Needed
-- Historic maps (antique paper texture)
-- Luxury experiences (champagne, sailing, dining)
-- Safari/wildlife
-- Mountain/glacier landscapes
-- Asian destinations (Great Wall, Japan, Mongolia)
-- European destinations (Tuscany, Madrid, Swiss Alps)
-- Arctic/northern lights
-
 ### Consequences
-- Images bundled with app (fast loading)
-- No external image service needed
-- Easy to swap with real images later
+- Images stored in cloud (Supabase Storage), not bundled with app
+- Admin can upload/manage images directly via dashboard
+- `PrizeImage` model supports multiple images per prize with ordering
+- `SUPABASE_SECRET_KEY` env var required for uploads
 
 ---
 
 ## ADR-008: Deployment Architecture
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Context
@@ -222,7 +227,7 @@ Single-event application, needs to be reliable for 4-hour window.
 
 ## ADR-009: Error Handling for Bids
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Context
@@ -250,7 +255,7 @@ CHECK (amount > (SELECT current_highest_bid FROM prizes WHERE id = prize_id))
 
 ## ADR-010: URL Structure
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-28
 
 ### Bidder Routes
@@ -282,29 +287,94 @@ CHECK (amount > (SELECT current_highest_bid FROM prizes WHERE id = prize_id))
 
 ---
 
-## Open Questions
+## Resolved Questions
 
 ### Q1: Bid Confirmation UX
-Should we require a two-step confirmation (tap bid → confirm amount → submit) or one-tap with undo?
-
-**Proposed**: Two-step for bids over $10,000, one-tap for lower amounts.
+**Resolved**: Two-step confirmation for all bids (bid sheet → confirm). Pre-submit validation re-fetches current price to catch outbids.
 
 ### Q2: Auction End Time
-Is there a hard cutoff time, or does admin manually close bidding?
-
-**Proposed**: Admin manually closes (marks auction as "ended"), but show countdown if end time is set.
+**Resolved**: Admin manually controls via state machine (DRAFT → TESTING → PRELAUNCH → LIVE → CLOSED). All transitions allowed. Optional end time for countdown display.
 
 ### Q3: Tie-Breaking
-If two bids are identical amount, who wins?
-
-**Proposed**: Earlier timestamp wins (first-come-first-served).
+**Resolved**: Earlier timestamp wins (first-come-first-served). `SELECT FOR UPDATE` serializes concurrent bids.
 
 ### Q4: Table Number Validation
-Should we validate table numbers against a known list?
-
-**Proposed**: No validation - free text entry. Admins can see and filter by table.
+**Resolved**: Free text entry. Helpers can be assigned to specific tables via `assignedTables` field.
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2026-01-28
+## ADR-011: SMS-Only Verification
+
+**Status**: Accepted
+**Date**: 2026-02-27
+
+### Context
+At a gala dinner, guests checking email on their phones is friction. SMS OTP is faster and more reliable in the venue.
+
+### Decision
+Phone number is the primary identity. Verified via Twilio Verify SMS OTP. Email is collected but not verified — used only for post-event follow-up notifications.
+
+### Consequences
+- Registration requires phone number with country code (defaults to HK +852)
+- OTP sent via SMS, not email
+- Email is optional field, not verified
+- Twilio Verify Service SID required in env vars
+
+---
+
+## ADR-012: Visual Block Editor for Descriptions
+
+**Status**: Accepted
+**Date**: 2026-02-27
+
+### Context
+Admin lot descriptions needed rich formatting (headings, lists, highlights) but a full WYSIWYG editor is overkill for this use case.
+
+### Decision
+Custom block-based editor in admin (`description-editor.tsx`) with a companion renderer (`rich-description.tsx`). Descriptions stored as structured text with section tags. Insert toolbar provides templates for common blocks.
+
+### Consequences
+- Descriptions support headings, paragraphs, bullet lists, highlights
+- Rendered on lot detail pages with consistent styling
+- No external rich text editor dependency
+
+---
+
+## ADR-013: Helper Table Intelligence
+
+**Status**: Accepted
+**Date**: 2026-02-28
+
+### Context
+Helpers (table runners) need to focus on their assigned tables, not wade through all bids.
+
+### Decision
+`Helper` model has `assignedTables` field (comma-separated table numbers). Helper dashboard restructured around table awareness — shows bids and activity for their tables first.
+
+### Consequences
+- Helpers see their tables' activity prominently
+- Admin assigns tables when creating helpers
+- Dashboard filters and sorts by assigned tables
+
+---
+
+## ADR-014: Lot Numbering System
+
+**Status**: Accepted
+**Date**: 2026-02-27
+
+### Context
+Prizes needed a display ordering system that matches the printed brochure. Some prizes have sub-lots (e.g., "Lot 3a", "Lot 3b").
+
+### Decision
+Added `lotNumber` (Int?) and `subLotLetter` (String?) to Prize model. Lots sorted by lotNumber with nulls last. Sub-lot letters for variants under a parent prize.
+
+### Consequences
+- Display order matches brochure
+- Prizes without lot numbers sort to end
+- Supports parent/variant grouping (e.g., map collection as Lot 3a-3g)
+
+---
+
+**Document Version**: 2.0
+**Last Updated**: 2026-02-28

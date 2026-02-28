@@ -11,9 +11,8 @@
 ### Accessing the Admin Panel
 
 1. Go to **https://rgsauction.com/admin/login**
-2. Enter your admin email address
-3. Click the magic link sent to your inbox (check spam if needed)
-4. You'll be taken to the admin dashboard
+2. Enter your admin email and password
+3. You'll be taken to the admin dashboard
 
 > **Important:** Always use **rgsauction.com** — not rgs-auction.vercel.app. The Vercel URL is for development only.
 
@@ -174,7 +173,7 @@ Go to **Settings > Data & Export** to download:
 
 | Issue | Solution |
 |-------|---------|
-| Can't log in | Check spam folder for magic link. Links expire after 15 minutes. |
+| Can't log in | Check email and password are correct. Contact Chris if locked out. |
 | Guest can't bid | Verify auction state is **LIVE** in Settings. |
 | Prize not showing | Check the prize is **Active** in the Prizes tab. |
 | Helper can't log in | Verify their PIN in the Helpers tab. Make sure they're at /helper. |

@@ -1,7 +1,7 @@
 # RGS Silent Auction - Agent Context File
 
-> **Last Updated**: 2026-02-24
-> **Last Commit**: b2a1be1 - Polish: responsive committee dashboard, fix bidder auth flash, add committee link
+> **Last Updated**: 2026-02-28
+> **Last Commit**: a55bd51 - Restructure helper dashboard for table intelligence
 > **NOTE**: This file should be updated after every push/commit to keep agents in sync.
 
 ---
@@ -12,8 +12,8 @@ A **live silent auction platform** for the Royal Geographical Society Hong Kong'
 
 - **Event**: 28 February 2026 at Hong Kong Club
 - **Users**: 150-200 affluent guests bidding via mobile phones
-- **Prizes**: ~29 items ranging HKD $3,000 - $85,000
-- **Status**: Production-hardened, security-audited, load-tested
+- **Prizes**: 32 items (lots) ranging HKD $3,000 - $100,000
+- **Status**: Production-live, security-audited, load-tested — EVENT IS TONIGHT
 
 ---
 
@@ -21,18 +21,20 @@ A **live silent auction platform** for the Royal Geographical Society Hong Kong'
 
 | Layer | Technology |
 |-------|------------|
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 16.1.6 (App Router) |
+| UI Library | React 19.2.3 |
 | Language | TypeScript |
-| Styling | Tailwind CSS |
-| Database | PostgreSQL via Supabase |
-| ORM | Prisma |
+| Styling | Tailwind CSS v4 |
+| Database | PostgreSQL via Supabase (ap-northeast-1) |
+| ORM | Prisma 6.19.2 |
 | Real-time | Supabase Realtime |
 | Storage | Supabase Storage (`prize-images` bucket) |
 | Email | Resend |
-| SMS/WhatsApp | Twilio (optional) |
+| SMS/OTP | Twilio Verify (SMS channel) |
 | Auth Hashing | bcryptjs (12 rounds) |
 | Testing | Vitest |
 | Deployment | Vercel |
+| Domain | rgsauction.com (production) |
 | Repo | github.com/schradoc/rgs-silent-auction |
 
 ---
@@ -49,6 +51,8 @@ rgs-auction/
 ├── docs/
 │   ├── PRD.md             # Product requirements
 │   ├── DECISIONS.md       # Architecture decisions
+│   ├── ADMIN-SETUP-GUIDE.md # Admin/committee setup guide
+│   ├── COMMITTEE-UPDATE-FEB24.md # Committee update note
 │   └── PHASE2-PLAN.md     # Historical planning doc
 ├── scripts/
 │   ├── load-test.ts       # Generic concurrent bid load tester
@@ -61,20 +65,36 @@ rgs-auction/
     │   ├── error.tsx      # Root error boundary
     │   ├── global-error.tsx # Global error boundary (own HTML shell)
     │   ├── globals.css    # Tailwind + custom styles
+    │   ├── (bidder)/      # Route group for bidder-facing pages
+    │   ├── about/         # About RGS page
+    │   ├── impact/        # Impact & outreach page
     │   ├── admin/         # Admin pages (+ error.tsx)
+    │   ├── committee/     # Committee analytics dashboard
     │   ├── helper/        # Helper portal pages (+ error.tsx)
     │   ├── prizes/        # Prize listing & detail (+ error.tsx per level)
+    │   ├── docs/          # In-app documentation
+    │   ├── help/          # Help page
+    │   ├── live/          # Projector display
+    │   ├── welcome/       # Post-registration welcome
     │   ├── api/           # API routes
     │   └── ...
     ├── components/
-    │   ├── ui/            # Base components (Button, Card, Input, etc.)
-    │   ├── admin/         # Admin-specific components
-    │   ├── prizes/        # Prize cards and grids
-    │   └── connection-status.tsx  # Realtime reconnection banner
+    │   ├── ui/            # Base components (Button, Card, Input, CountryCodeSelect, etc.)
+    │   ├── admin/         # Admin-specific (analytics, description-editor, image-upload, etc.)
+    │   ├── bidder/        # Bidder-specific components
+    │   ├── layout/        # Shared header component
+    │   ├── prizes/        # Prize cards, grid, rich-description renderer, no-image placeholder
+    │   ├── providers.tsx  # Global React providers
+    │   ├── connection-status.tsx  # Realtime reconnection banner
+    │   ├── realtime-notifications.tsx # Push notification handler
+    │   └── auction-countdown.tsx  # Countdown timer component
     ├── hooks/             # React hooks
     ├── lib/               # Utilities and services
     │   ├── rate-limit.ts  # In-memory sliding-window rate limiter
     │   ├── logger.ts      # Structured JSON logger
+    │   ├── db.ts          # Database helpers
+    │   ├── mock-data.ts   # Mock data generation
+    │   ├── types.ts       # Shared TypeScript types
     │   └── ...
     └── __tests__/         # Vitest test suites
         └── api/           # API integration tests
@@ -96,7 +116,14 @@ rgs-auction/
 - `src/components/ui/card.tsx` - Card, CardHeader, CardContent
 - `src/components/ui/toast.tsx` - Custom toast system (wraps Sonner)
 - `src/components/ui/confirm-dialog.tsx` - Confirmation modals
+- `src/components/ui/country-code-select.tsx` - Phone country code picker (defaults to HK +852)
+- `src/components/layout/header.tsx` - Shared site header across all pages
+- `src/components/prizes/rich-description.tsx` - Block-based rich description renderer
+- `src/components/prizes/no-image-placeholder.tsx` - Branded placeholder for prizes without images
+- `src/components/admin/description-editor.tsx` - Visual block editor for lot descriptions
+- `src/components/admin/password-management.tsx` - Admin password management UI
 - `src/components/connection-status.tsx` - Realtime disconnection banner
+- `src/components/auction-countdown.tsx` - Auction countdown timer
 
 ### Error Boundaries
 - `src/app/global-error.tsx` - Root-level (provides own HTML shell)
@@ -107,12 +134,15 @@ rgs-auction/
 - `src/app/helper/error.tsx` - Helper portal errors
 
 ### Main Pages
-- `src/app/page.tsx` - Landing page
-- `src/app/prizes/page.tsx` - Prize listing
-- `src/app/prizes/[slug]/page.tsx` - Prize detail + bidding
+- `src/app/page.tsx` - Landing page (hero with CTA)
+- `src/app/prizes/page.tsx` - Prize listing (renamed "Lots", with category + price tier filters)
+- `src/app/prizes/[slug]/page.tsx` - Prize detail + bidding (image gallery, rich descriptions)
+- `src/app/about/page.tsx` - About RGS page
+- `src/app/impact/page.tsx` - Impact & outreach page
 - `src/app/admin/dashboard/admin-dashboard.tsx` - Full admin dashboard (~2900 lines)
-- `src/app/admin/login/page.tsx` - Admin magic link login
+- `src/app/admin/login/page.tsx` - Admin password login
 - `src/app/helper/page.tsx` - Helper PIN login
+- `src/app/helper/dashboard/page.tsx` - Helper dashboard (table intelligence, leaderboard)
 - `src/app/committee/page.tsx` - Committee PIN login
 - `src/app/committee/dashboard/page.tsx` - Committee analytics dashboard
 - `src/app/live/page.tsx` - Projector display
@@ -129,7 +159,7 @@ rgs-auction/
   - `login/` - Admin login (bcrypt + legacy SHA256 migration)
   - `password/` - Password management (bcrypt)
 - `src/app/api/auth/` - Bidder authentication
-  - `verify/` - Email verification (rate-limited, 15-min expiry)
+  - `verify/` - SMS OTP verification via Twilio Verify (rate-limited, 15-min expiry)
 - `src/app/api/helpers/` - Helper portal APIs
   - `login/` - PIN login (rate-limited)
   - `submit-bid/` - Helper bid submission (SELECT FOR UPDATE)
@@ -189,10 +219,10 @@ rgs-auction/
 
 ### Core Models
 ```
-Bidder          - Guest registration (name, email, table, auth tokens)
-Prize           - Auction items (title, descriptions, images, bids)
+Bidder          - Guest registration (name, phone, email, table, SMS OTP auth, notification prefs)
+Prize           - Auction lots (title, descriptions, images, bids, lotNumber, subLotLetter, donorUrl, location)
 PrizeImage      - Multiple images per prize
-Bid             - Bid records (amount, status, timestamps)
+Bid             - Bid records (amount, status, timestamps, isMockData flag)
 Winner          - Confirmed winners
 Favorite        - Bidder watchlist
 ```
@@ -207,7 +237,7 @@ AuditLog        - Action tracking
 
 ### Helper System
 ```
-Helper          - Event helpers (name, PIN, avatar color)
+Helper          - Event helpers (name, PIN, avatar color, assignedTables)
 ```
 
 ### Settings
@@ -218,11 +248,14 @@ DisplaySettings  - Live page toggles (donor names, bidder names, etc.)
 
 ### Key Indexes
 ```
-Bid:            (prizeId, status), (prizeId, amount), (bidderId), (status), (helperId)
+Bid:            (prizeId, status), (prizeId, amount), (bidderId), (status), (helperId), (createdAt), (status, createdAt)
 Prize:          (isActive, parentPrizeId)
+Winner:         (prizeId)
 Helper:         (pin, isActive)
 AdminSession:   (expiresAt)
 PrizeImage:     (prizeId)
+AdminInvitation: (email), (token)
+AuditLog:       (adminUserId), (entityType, entityId), (createdAt)
 ```
 
 ### Key Enums
@@ -240,19 +273,24 @@ NotificationType: OUTBID | WINNING | AUCTION_CLOSING | WON
 ### Public (Bidders)
 | Route | Purpose |
 |-------|---------|
-| `/` | Landing page (QR destination) |
-| `/register` | Bidder registration |
-| `/login` | Magic link / OTP login |
-| `/prizes` | Browse all prizes |
-| `/prizes/[slug]` | Prize detail + place bid |
+| `/` | Landing page with hero (QR destination) |
+| `/register` | Bidder registration (name, phone, email, table) |
+| `/login` | SMS OTP login |
+| `/welcome` | Post-registration welcome page |
+| `/prizes` | Browse all lots (category + price tier filters) |
+| `/prizes/[slug]` | Lot detail + place bid (image gallery, rich descriptions) |
 | `/my-bids` | Personal bid history |
 | `/favorites` | Watchlist |
 | `/profile` | Edit profile |
+| `/about` | About RGS page |
+| `/impact` | Impact & outreach page |
+| `/docs` | In-app documentation |
+| `/help` | Help page |
 
 ### Admin
 | Route | Purpose |
 |-------|---------|
-| `/admin/login` | Magic link login |
+| `/admin/login` | Admin password login |
 | `/admin/dashboard` | Main dashboard (tabbed) |
 | `/admin/print-winners` | Printable winner sheets |
 
@@ -400,10 +438,11 @@ FROM_EMAIL=auction@example.com
 NEXT_PUBLIC_APP_URL=https://rgs-auction.vercel.app
 ADMIN_PASSWORD=xxx  # Required for initial admin setup (no default)
 
-# Optional: Twilio
+# Twilio (SMS OTP + notifications)
 TWILIO_ACCOUNT_SID=ACxxx
 TWILIO_AUTH_TOKEN=xxx
 TWILIO_PHONE_NUMBER=+1xxx
+TWILIO_VERIFY_SERVICE_SID=VAxxx  # Twilio Verify service for OTP
 ```
 
 ---
@@ -426,38 +465,44 @@ TWILIO_PHONE_NUMBER=+1xxx
 ## Current State & Known Issues
 
 ### Working Features
-- Full bidder flow (register, browse, bid, notifications)
+- Full bidder flow (register via SMS OTP, browse lots, bid, notifications)
 - Admin dashboard with all tabs
-- Helper portal for bid entry
+- Helper portal with table intelligence and bid entry
+- Committee analytics dashboard (live stats, leaderboards, cold prize alerts)
 - Real-time bid updates with reconnection handling
-- Email notifications (outbid, winner)
+- SMS notifications via Twilio Verify (outbid, winner)
+- Email notifications via Resend
 - Image upload to Supabase Storage
-- Auction state machine
+- Visual block editor for lot descriptions
+- Auction state machine (all transitions allowed)
 - Team management (invitations, roles)
 - Error boundaries on all major routes
 - Rate limiting on sensitive endpoints
 - Security headers (CSP, HSTS, etc.)
 - Health check endpoint
 - Structured JSON logging
+- About and Impact content pages
 
-### Recently Added (2026-02-24)
+### Recently Added (2026-02-28) — Event Day
+- **Visual overhaul** — shared site header, "lots" terminology, hero sections, image gallery on detail pages
+- **SMS-only verification** — phone verified via Twilio Verify OTP; email collected but not verified
+- **Visual block editor** — rich description editor for admin lot management (headings, paragraphs, lists, highlights)
+- **Rich description renderer** — block-based descriptions on lot detail pages
+- **Helper table intelligence** — helpers assigned to specific tables, dashboard restructured around table awareness
+- **Lot numbering** — `lotNumber` + `subLotLetter` fields for display ordering (e.g., "Lot 3a")
+- **Price tier filters** — bidders can filter lots by price range
+- **PRELAUNCH banner** — visual indicator when auction is in prelaunch state
+- **Branded no-image placeholder** — consistent placeholder for lots without uploaded images
+- **Pledges tab** — dedicated pledges section in bidder UI
+- **Multi-winner bug fix** — critical fix for helper-submitted bids on multi-winner prizes
+- **Filter bar improvements** — pill wrapping on desktop, hidden scrollbar on mobile
+- **About & Impact pages** — new content pages for RGS information
+- **Country code selector** — phone input defaults to HK (+852) with search
+
+### Previously Added (2026-02-24)
 - **Committee analytics dashboard** — PIN-protected live analytics at `/committee`
-  - Hero stats with animated counters, live bid feed, prize/table leaderboards
-  - Cold prizes section (zero-bid alerts for MC promotion)
-  - Category breakdown, bid timeline chart
-  - Responsive: desktop 3-column grid + mobile tab navigation
-  - Auto-refreshes every 5 seconds
-- **Admin UX improvements (Sprint 4/4b)**
-  - All auction state transitions now allowed (never get stuck)
-  - Smart helper deletion (hard delete if no activity, soft delete if has bids)
-  - Prize detail modal fix (was hidden behind wrong tab)
-  - Docs link in admin header, committee analytics link in Settings > Support
-  - Optimized admin data loading (primary images only, bounded queries)
-  - Fixed totalBids stat (was capped at 50, now uses actual count)
-- **Bidder UX polish**
-  - Fixed auth state flash ("Register" showing briefly before session loads)
-  - Table number now persists correctly after profile save
-  - Admin onboarding tutorial improvements
+- **Admin UX improvements (Sprint 4/4b)** — flexible state transitions, smart helper deletion, optimized loading
+- **Bidder UX polish** — auth state flash fix, table number persistence
 
 ### Previously Added (2026-02-18)
 - **Production security hardening** — full audit and fixes
@@ -482,7 +527,6 @@ TWILIO_PHONE_NUMBER=+1xxx
 - Test SMS/WhatsApp buttons in admin settings
 
 ### Pending/Optional
-- Twilio env vars need to be configured in Vercel (code is ready)
 - Confetti on successful bid
 - PWA / offline support
 
@@ -537,10 +581,11 @@ npx tsx scripts/load-test-live.ts
 
 ## Deployment Info
 
-- **Production**: https://rgs-auction.vercel.app
+- **Production**: https://rgsauction.com (custom domain)
+- **Vercel URL**: https://rgs-auction.vercel.app (development only)
 - **GitHub**: https://github.com/schradoc/rgs-silent-auction
-- **Vercel Project**: rgs-auction
-- **Supabase Project**: tartdrhbhbumzfrbqabt
+- **Vercel Project**: rgs-auction (single project, `main` branch auto-deploys)
+- **Supabase Project**: tartdrhbhbumzfrbqabt (ap-northeast-1, PostgreSQL 17)
 
 ---
 
