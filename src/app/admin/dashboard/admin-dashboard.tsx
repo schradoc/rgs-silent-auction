@@ -279,14 +279,34 @@ function QuickBidTab() {
     ? [minBid, Math.ceil(minBid * 1.1 / 100) * 100, Math.ceil(minBid * 1.25 / 100) * 100, Math.ceil(minBid * 1.5 / 100) * 100]
     : []
 
+  const resetForm = () => {
+    setSelectedPrize(null)
+    setBidderName('')
+    setTableNumber('')
+    setAmount('')
+    setEmail('')
+    setPhone('')
+    setPrizeSearch('')
+    setMatchedBidder(false)
+    setBidderSuggestions([])
+    setShowSuggestions(false)
+    setError('')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedPrize || !bidderName || !tableNumber || !amount) {
+    e.stopPropagation()
+
+    if (!selectedPrize || !bidderName.trim() || !tableNumber.trim() || !amount.trim()) {
       setError('Please fill in all required fields')
       return
     }
 
     const bidAmount = parseInt(amount.replace(/[^\d]/g, ''))
+    if (isNaN(bidAmount) || bidAmount <= 0) {
+      setError('Please enter a valid bid amount')
+      return
+    }
     if (bidAmount < minBid) {
       setError(`Bid must be at least ${formatCurrency(minBid)}`)
       return
@@ -300,42 +320,35 @@ function QuickBidTab() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bidderName,
-          tableNumber,
+          bidderName: bidderName.trim(),
+          tableNumber: tableNumber.trim(),
           prizeId: selectedPrize.id,
           amount: bidAmount,
-          email: email || undefined,
-          phone: phone || undefined,
+          email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
         }),
       })
 
       const data = await res.json()
       if (!res.ok) {
         setError(data.error || 'Failed to submit bid')
+        setLoading(false)
         return
       }
 
-      setSuccess(`${formatCurrency(bidAmount)} bid placed for ${bidderName} on ${selectedPrize.title}!`)
+      // Store for sidebar before resetting
       setRecentAdminBids(prev => [
-        { bidderName, prizeTitle: selectedPrize.title, amount: bidAmount, tableNumber },
+        { bidderName: bidderName.trim(), prizeTitle: selectedPrize.title, amount: bidAmount, tableNumber: tableNumber.trim() },
         ...prev.slice(0, 9),
       ])
 
-      // Reset form
-      setTimeout(() => {
-        setSuccess(null)
-        setSelectedPrize(null)
-        setBidderName('')
-        setTableNumber('')
-        setAmount('')
-        setEmail('')
-        setPhone('')
-        setPrizeSearch('')
-        setMatchedBidder(false)
-        setBidderSuggestions([])
-        // Refresh prize data for updated currentHighestBid
-        fetchPrizes()
-      }, 1500)
+      // Show success, reset form immediately, keep success visible
+      setSuccess(`${formatCurrency(bidAmount)} bid placed for ${bidderName.trim()} on ${selectedPrize.title}!`)
+      resetForm()
+      fetchPrizes() // refresh prize currentHighestBid values
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
       setError('Failed to submit bid')
     } finally {
@@ -530,8 +543,8 @@ function QuickBidTab() {
                 </div>
               </div>
 
-              {/* Missing fields hint */}
-              {(!selectedPrize || !bidderName.trim() || !tableNumber.trim() || !amount.trim()) && (
+              {/* Missing fields hint — only show when user has partially filled form */}
+              {!success && (bidderName || tableNumber || amount || selectedPrize) && (!selectedPrize || !bidderName.trim() || !tableNumber.trim() || !amount.trim()) && (
                 <p className="text-xs text-amber-600 mb-1">
                   Still needed: {[
                     !selectedPrize && 'select a prize',
