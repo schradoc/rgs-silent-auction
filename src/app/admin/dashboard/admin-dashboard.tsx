@@ -192,10 +192,346 @@ interface AdminDashboardProps {
   }
 }
 
+// ─── Monitor Tab Component ───────────────────────────────────────
+interface MonitorData {
+  health: { auctionState: string; endTime: string | null; dbLatencyMs: number }
+  activity: {
+    totalBidders: number; activeBiddersLast15m: number
+    totalBids: number; bidsLast15m: number
+    totalRaised: number; avgBidAmount: number; engagementRate: number
+  }
+  recentBids: Array<{
+    id: string; amount: number; status: string; createdAt: string
+    bidderName: string; tableNumber: string | null; prizeTitle: string; prizeSlug: string
+  }>
+  topPrizes: Array<{ id: string; title: string; currentBid: number; bidCount: number }>
+  coldPrizes: Array<{ id: string; title: string; slug: string; minimumBid: number; currentBid: number; bidCount: number }>
+  timeline: Array<{ hour: string; bids: number; value: number }>
+  notifications: {
+    total: number
+    byType: Record<string, number>
+    byChannel: Record<string, number>
+    recent: Array<{ id: string; type: string; channel: string | null; sentAt: string }>
+  }
+  helperActivity: Array<{ id: string; name: string; assignedTables: string | null; bidsSubmitted: number }>
+  funnel: { registered: number; verified: number; bid: number; won: number }
+}
+
+function MonitorTab() {
+  const [monitorData, setMonitorData] = useState<MonitorData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+
+  const fetchMonitorData = async () => {
+    try {
+      const res = await fetch('/api/admin/monitor')
+      if (res.ok) {
+        const data = await res.json()
+        setMonitorData(data)
+        setLastRefresh(new Date())
+      }
+    } catch (err) {
+      console.error('Monitor fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchMonitorData()
+    const interval = setInterval(fetchMonitorData, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
+  if (loading || !monitorData) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-32 animate-pulse bg-gray-100 rounded-xl" />
+        ))}
+      </div>
+    )
+  }
+
+  const { health, activity, recentBids, topPrizes, coldPrizes, timeline, notifications, helperActivity, funnel } = monitorData
+  const stateInfo = AUCTION_STATES[health.auctionState as keyof typeof AUCTION_STATES] || AUCTION_STATES.DRAFT
+  const StateIcon = stateInfo.icon
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    return `${Math.floor(mins / 60)}h ${mins % 60}m ago`
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Last refresh indicator */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          Auto-refreshing every 10s — last update {lastRefresh.toLocaleTimeString()}
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchMonitorData}>
+          <RefreshCw className="w-3 h-3 mr-1" /> Refresh Now
+        </Button>
+      </div>
+
+      {/* Health Status Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className={`w-3 h-3 rounded-full ${stateInfo.color}`} />
+              <span className="text-xs font-medium text-gray-500 uppercase">Auction State</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <StateIcon className="w-5 h-5 text-[#1e3a5f]" />
+              <span className="text-lg font-bold text-[#1e3a5f]">{stateInfo.label}</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs font-medium text-gray-500 uppercase mb-1">DB Latency</div>
+            <div className="text-lg font-bold text-[#1e3a5f]">
+              {health.dbLatencyMs}ms
+              {health.dbLatencyMs > 200 && <AlertTriangle className="inline w-4 h-4 ml-1 text-amber-500" />}
+            </div>
+            <div className="text-xs text-gray-400">{health.dbLatencyMs < 100 ? 'Healthy' : health.dbLatencyMs < 200 ? 'OK' : 'Slow'}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs font-medium text-gray-500 uppercase mb-1">Bidders (15m)</div>
+            <div className="text-lg font-bold text-[#1e3a5f]">
+              {activity.activeBiddersLast15m} <span className="text-sm font-normal text-gray-400">/ {activity.totalBidders}</span>
+            </div>
+            <div className="text-xs text-gray-400">{activity.engagementRate}% engagement</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs font-medium text-gray-500 uppercase mb-1">Bids (15m)</div>
+            <div className="text-lg font-bold text-[#1e3a5f]">
+              {activity.bidsLast15m} <span className="text-sm font-normal text-gray-400">/ {activity.totalBids}</span>
+            </div>
+            <div className="text-xs text-gray-400">Avg {formatCurrency(activity.avgBidAmount)}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Revenue Banner */}
+      <Card className="bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f]">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-white/70 text-sm font-medium">Total Raised</div>
+              <div className="text-3xl font-bold text-[#c9a227]">{formatCurrency(activity.totalRaised)}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-white/70 text-sm">Prizes with bids</div>
+              <div className="text-white text-xl font-semibold">
+                {topPrizes.length > 0 ? topPrizes.reduce((sum, p) => sum + (p.bidCount > 0 ? 1 : 0), 0) : 0}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Live Bid Feed */}
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-[#1e3a5f] mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4" /> Live Bid Feed
+            </h3>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {recentBids.length === 0 ? (
+                <div className="text-sm text-gray-400 py-4 text-center">No bids yet</div>
+              ) : (
+                recentBids.map(bid => (
+                  <div key={bid.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 text-sm">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-[#1e3a5f]">{bid.bidderName}</span>
+                      {bid.tableNumber && <span className="text-gray-400 ml-1">T{bid.tableNumber}</span>}
+                      <span className="text-gray-400 mx-1">→</span>
+                      <span className="text-gray-600 truncate">{bid.prizeTitle}</span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                      <span className="font-semibold text-[#c9a227]">{formatCurrency(bid.amount)}</span>
+                      <Badge className={bid.status === 'WINNING' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
+                        {bid.status}
+                      </Badge>
+                      <span className="text-xs text-gray-400 w-16 text-right">{timeAgo(bid.createdAt)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bid Timeline (last 4 hours) */}
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-[#1e3a5f] mb-3 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" /> Bid Activity (Last 4 Hours)
+            </h3>
+            <div className="space-y-3">
+              {timeline.map((t, i) => {
+                const maxBids = Math.max(...timeline.map(x => x.bids), 1)
+                const pct = (t.bids / maxBids) * 100
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 w-14 text-right font-mono">{t.hour}</span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-6 relative overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#1e3a5f] to-[#c9a227] rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-medium">
+                        {t.bids} bids — {formatCurrency(t.value)}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Prizes */}
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-[#1e3a5f] mb-3 flex items-center gap-2">
+              <Trophy className="w-4 h-4" /> Top 5 Most Active Prizes
+            </h3>
+            <div className="space-y-2">
+              {topPrizes.map((p, i) => (
+                <div key={p.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                    <span className="text-gray-700 truncate">{p.title}</span>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-xs text-gray-400">{p.bidCount} bids</span>
+                    <span className="font-semibold text-[#c9a227]">{formatCurrency(p.currentBid)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cold Prizes */}
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-[#1e3a5f] mb-3 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" /> Cold Prizes (Need Attention)
+            </h3>
+            <div className="space-y-2">
+              {coldPrizes.length === 0 ? (
+                <div className="text-sm text-gray-400 py-4 text-center">All prizes have bids!</div>
+              ) : (
+                coldPrizes.map(p => (
+                  <div key={p.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-amber-50 text-sm">
+                    <span className="text-gray-700 truncate">{p.title}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge className="bg-amber-100 text-amber-700">{p.bidCount} bids</Badge>
+                      <span className="text-xs text-gray-400">Min: {formatCurrency(p.minimumBid)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bidder Funnel */}
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-[#1e3a5f] mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4" /> Bidder Funnel
+            </h3>
+            <div className="space-y-3">
+              {[
+                { label: 'Registered', value: funnel.registered, color: 'bg-blue-500' },
+                { label: 'Phone Verified', value: funnel.verified, color: 'bg-indigo-500' },
+                { label: 'Placed a Bid', value: funnel.bid, color: 'bg-[#c9a227]' },
+                { label: 'Won a Prize', value: funnel.won, color: 'bg-green-500' },
+              ].map((step, i) => {
+                const pct = funnel.registered > 0 ? (step.value / funnel.registered) * 100 : 0
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 w-28 text-right">{step.label}</span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
+                      <div className={`h-full ${step.color} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-sm font-semibold text-[#1e3a5f] w-12 text-right">{step.value}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notification Log */}
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-[#1e3a5f] mb-3 flex items-center gap-2">
+              <Send className="w-4 h-4" /> Notification Delivery
+            </h3>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              {Object.entries(notifications.byType).map(([type, count]) => (
+                <div key={type} className="bg-gray-50 rounded-lg p-2 text-center">
+                  <div className="text-lg font-bold text-[#1e3a5f]">{count}</div>
+                  <div className="text-xs text-gray-500">{type.replace('_', ' ')}</div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-4 text-xs text-gray-400 border-t pt-2">
+              {Object.entries(notifications.byChannel).map(([channel, count]) => (
+                <span key={channel}>{channel}: {count}</span>
+              ))}
+              <span className="ml-auto">Total: {notifications.total}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Helper Activity */}
+        <Card className="lg:col-span-2">
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-[#1e3a5f] mb-3 flex items-center gap-2">
+              <UserCheck className="w-4 h-4" /> Helper Activity
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {helperActivity.length === 0 ? (
+                <div className="text-sm text-gray-400 col-span-full text-center py-4">No active helpers</div>
+              ) : (
+                helperActivity.map(h => (
+                  <div key={h.id} className={`rounded-lg p-3 text-center ${h.bidsSubmitted === 0 ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50'}`}>
+                    <div className="font-medium text-[#1e3a5f] text-sm">{h.name}</div>
+                    <div className="text-2xl font-bold text-[#1e3a5f]">{h.bidsSubmitted}</div>
+                    <div className="text-xs text-gray-400">bids submitted</div>
+                    {h.assignedTables && <div className="text-xs text-gray-400 mt-1">Tables: {h.assignedTables}</div>}
+                    {h.bidsSubmitted === 0 && <div className="text-xs text-amber-600 mt-1">No activity</div>}
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
 function AdminDashboardContent({ initialData }: AdminDashboardProps) {
   const confirm = useConfirm()
   const [data, setData] = useState(initialData)
-  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'pledges' | 'bidders' | 'winners' | 'helpers' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'prizes' | 'pledges' | 'bidders' | 'winners' | 'helpers' | 'monitor' | 'settings'>('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const { showOnboarding, completeOnboarding, startOnboarding } = useOnboarding()
   const [helpers, setHelpers] = useState<Helper[]>([])
@@ -1260,6 +1596,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
               { id: 'bidders', label: 'Bidders', icon: Users },
               { id: 'winners', label: 'Winners', icon: Award },
               { id: 'helpers', label: 'Helpers', icon: UserCheck },
+              { id: 'monitor', label: 'Monitor', icon: Activity },
               { id: 'settings', label: 'Settings', icon: Settings },
             ].map(({ id, label, icon: Icon }) => (
               <button
@@ -2526,6 +2863,10 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {activeTab === 'monitor' && (
+          <MonitorTab />
         )}
 
         {activeTab === 'settings' && (
