@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import {
   Trophy,
@@ -69,41 +69,51 @@ const MODE_DURATION = 8000 // 8 seconds per mode
 
 export default function LiveDisplayPage() {
   const [data, setData] = useState<LiveData | null>(null)
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('bids')
   const [modeIndex, setModeIndex] = useState(0)
   const [animatedTotal, setAnimatedTotal] = useState(0)
   const [newBid, setNewBid] = useState<string | null>(null)
 
+  // Use refs to avoid stale closures in intervals
+  const latestBidIdRef = useRef<string | null>(null)
+  const newBidTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const animatedTotalRef = useRef(0)
+
+  const displayMode = DISPLAY_MODES[modeIndex]
+
+  // Stable fetch function using ref for latest bid comparison
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch('/api/live')
-      if (res.ok) {
-        const newData = await res.json()
+      if (!res.ok) return
+      const newData = await res.json()
 
-        // Check for new bids
-        if (data?.recentBids && newData.recentBids) {
-          const latestOld = data.recentBids[0]?.id
-          const latestNew = newData.recentBids[0]?.id
-          if (latestNew && latestNew !== latestOld) {
-            setNewBid(latestNew)
-            setTimeout(() => setNewBid(null), 3000)
-          }
-        }
-
-        setData(newData)
+      // Check for new bids using ref (no stale closure)
+      const latestNew = newData.recentBids?.[0]?.id
+      if (latestNew && latestNew !== latestBidIdRef.current) {
+        latestBidIdRef.current = latestNew
+        setNewBid(latestNew)
+        // Clear previous timer to avoid accumulation
+        if (newBidTimerRef.current) clearTimeout(newBidTimerRef.current)
+        newBidTimerRef.current = setTimeout(() => setNewBid(null), 3000)
       }
+
+      setData(newData)
     } catch (error) {
       console.error('Failed to fetch live data:', error)
     }
-  }, [data?.recentBids])
+  }, []) // No dependencies — uses refs
 
+  // Single interval for data fetching
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 3000) // Refresh every 3 seconds
-    return () => clearInterval(interval)
-  }, [])
+    const interval = setInterval(fetchData, 3000)
+    return () => {
+      clearInterval(interval)
+      if (newBidTimerRef.current) clearTimeout(newBidTimerRef.current)
+    }
+  }, [fetchData])
 
-  // Rotate display modes
+  // Single interval for mode rotation
   useEffect(() => {
     const interval = setInterval(() => {
       setModeIndex((prev) => (prev + 1) % DISPLAY_MODES.length)
@@ -111,26 +121,32 @@ export default function LiveDisplayPage() {
     return () => clearInterval(interval)
   }, [])
 
-  useEffect(() => {
-    setDisplayMode(DISPLAY_MODES[modeIndex])
-  }, [modeIndex])
-
-  // Animate total counter
+  // Animate total counter — using ref to avoid stale closure
   useEffect(() => {
     if (!data) return
     const target = data.stats.totalRaised
+    const start = animatedTotalRef.current
+    const diff = target - start
+
+    // Skip animation if no change
+    if (diff === 0) return
+
     const duration = 1000
     const steps = 30
-    const increment = (target - animatedTotal) / steps
-    let current = animatedTotal
+    const increment = diff / steps
+    let step = 0
 
     const timer = setInterval(() => {
-      current += increment
-      if ((increment > 0 && current >= target) || (increment < 0 && current <= target)) {
-        current = target
+      step++
+      if (step >= steps) {
+        animatedTotalRef.current = target
+        setAnimatedTotal(target)
         clearInterval(timer)
+      } else {
+        const val = Math.round(start + increment * step)
+        animatedTotalRef.current = val
+        setAnimatedTotal(val)
       }
-      setAnimatedTotal(Math.round(current))
     }, duration / steps)
 
     return () => clearInterval(timer)
