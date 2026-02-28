@@ -121,12 +121,13 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
 }
 
 function buildMessage(payload: NotificationPayload, bidderName: string): { subject: string; body: string; htmlBody?: string } {
-  const { type, prizeTitle, prizeSlug, amount, currentHighestBid, minutesRemaining } = payload
+  const { type, prizeId, prizeTitle, prizeSlug, amount, currentHighestBid, minutesRemaining } = payload
   const prizeUrl = prizeSlug ? `${APP_URL}/prizes/${prizeSlug}` : `${APP_URL}/prizes`
   const bidUrl = prizeSlug ? `${APP_URL}/prizes/${prizeSlug}?bid=true` : `${APP_URL}/prizes`
-  // Short URLs for SMS — keeps links under 40 chars so they don't break across lines
-  const smsBidUrl = prizeSlug ? `${APP_URL}/b/${prizeSlug}` : `${APP_URL}/prizes`
-  const smsPrizeUrl = prizeSlug ? `${APP_URL}/prizes/${prizeSlug}` : `${APP_URL}/prizes`
+  // Short URLs for SMS — use prize ID for compact links that won't break across lines
+  // e.g. rgsauction.com/b/cm7abc123 (~40 chars) vs rgsauction.com/b/6-three-night-stay-in-the-mandarin-oriental-vienna-including-breakfast (~90 chars)
+  const smsBidUrl = prizeId ? `${APP_URL}/b/${prizeId}` : (prizeSlug ? `${APP_URL}/b/${prizeSlug}` : `${APP_URL}/prizes`)
+  const smsPrizeUrl = prizeId ? `${APP_URL}/b/${prizeId}` : (prizeSlug ? `${APP_URL}/b/${prizeSlug}` : `${APP_URL}/prizes`)
 
   switch (type) {
     case 'OUTBID': {
