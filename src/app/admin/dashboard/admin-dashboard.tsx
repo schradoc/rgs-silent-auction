@@ -221,7 +221,13 @@ function QuickBidTab() {
       const res = await fetch('/api/prizes')
       if (res.ok) {
         const data = await res.json()
-        setPrizes(data.prizes || [])
+        const freshPrizes = data.prizes || []
+        setPrizes(freshPrizes)
+        // If a prize is selected, update it with fresh data (e.g. new currentHighestBid)
+        setSelectedPrize(prev => {
+          if (!prev) return null
+          return freshPrizes.find((p: { id: string }) => p.id === prev.id) || prev
+        })
       }
     } catch (err) {
       console.error('Failed to fetch prizes:', err)
@@ -332,6 +338,12 @@ function QuickBidTab() {
       const data = await res.json()
       if (!res.ok) {
         setError(data.error || 'Failed to submit bid')
+        // If price increased since form was loaded, refresh prizes so
+        // suggested amounts update, and pre-fill the new minimum
+        if (data.minimumBid) {
+          fetchPrizes()
+          setAmount(data.minimumBid.toLocaleString())
+        }
         setLoading(false)
         return
       }
