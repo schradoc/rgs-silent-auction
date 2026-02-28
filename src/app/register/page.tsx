@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button, Input, Card, CardContent } from '@/components/ui'
 import { CountryCodeSelect } from '@/components/ui/country-code-select'
 import { ArrowLeft, MessageCircle } from 'lucide-react'
+import { useBidder } from '@/hooks/useBidder'
 
 function StepIndicator({ currentStep }: { currentStep: 1 | 2 }) {
   return (
@@ -122,6 +123,7 @@ function OTPInput({ value, onChange, onComplete }: {
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { refreshBidder } = useBidder()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'register' | 'verify'>('register')
@@ -175,7 +177,8 @@ export default function RegisterPage() {
       }
 
       if (!data.requiresVerification) {
-        // Already verified — check onboarding
+        // Already verified — refresh bidder context so nav updates, then redirect
+        await refreshBidder()
         const onboarded = typeof window !== 'undefined' && localStorage.getItem('rgs_onboarded')
         router.push(onboarded ? '/prizes' : '/welcome')
         return
@@ -245,6 +248,8 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Verification failed')
       }
 
+      // Refresh bidder context so nav updates immediately
+      await refreshBidder()
       const onboarded = typeof window !== 'undefined' && localStorage.getItem('rgs_onboarded')
       router.push(onboarded ? '/prizes' : '/welcome')
     } catch (err) {

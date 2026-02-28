@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { normalizeHKPhone } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { phone, channel = 'WHATSAPP' } = await request.json()
+    const { phone: rawPhone, channel = 'SMS' } = await request.json()
 
-    if (!phone) {
+    if (!rawPhone) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 })
     }
+
+    // Normalize phone number to match registration format
+    const phone = normalizeHKPhone(rawPhone)
 
     const { prisma } = await import('@/lib/prisma')
 

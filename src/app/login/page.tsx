@@ -13,6 +13,7 @@ import {
   MessageCircle,
 } from 'lucide-react'
 import { CountryCodeSelect } from '@/components/ui/country-code-select'
+import { useBidder } from '@/hooks/useBidder'
 
 type LoginMethod = 'phone' | 'email'
 
@@ -42,11 +43,14 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [resendLoading, setResendLoading] = useState(false)
 
   const hiddenOtpRef = useRef<HTMLInputElement>(null)
 
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { refreshBidder } = useBidder()
 
   useEffect(() => {
     setMounted(true)
@@ -59,6 +63,15 @@ function LoginPageContent() {
       setError('Login link has expired. Please request a new one.')
     }
   }, [searchParams])
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
+
+  const getFullPhone = () => `${countryCode}${phone.replace(/^0+/, '').replace(/\s/g, '')}`
 
   const handleSendMagicLink = async () => {
     if (!email) {
@@ -108,7 +121,7 @@ function LoginPageContent() {
       const res = await fetch('/api/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: `${countryCode}${phone.replace(/^0+/, '')}`, channel: 'SMS' }),
+        body: JSON.stringify({ phone: getFullPhone(), channel: 'SMS' }),
       })
 
       const data = await res.json()
@@ -119,11 +132,38 @@ function LoginPageContent() {
       }
 
       setStep('otp')
+      setResendCooldown(60)
       setTimeout(() => hiddenOtpRef.current?.focus(), 100)
     } catch (err) {
       setError('Failed to send OTP')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    setResendLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: getFullPhone(), channel: 'SMS' }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Failed to resend code')
+        return
+      }
+
+      setResendCooldown(60)
+      setOtpValue('')
+    } catch (err) {
+      setError('Failed to resend code')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -157,7 +197,7 @@ function LoginPageContent() {
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: `${countryCode}${phone.replace(/^0+/, '')}`, otp: code }),
+        body: JSON.stringify({ phone: getFullPhone(), otp: code }),
       })
 
       const data = await res.json()
@@ -169,6 +209,8 @@ function LoginPageContent() {
         return
       }
 
+      // Refresh bidder context so nav updates immediately
+      await refreshBidder()
       router.push('/prizes')
     } catch (err) {
       setError('Verification failed')
@@ -239,7 +281,7 @@ function LoginPageContent() {
             <div className="text-center mb-6">
               <h2 className="text-white text-lg font-medium mb-1">Enter Verification Code</h2>
               <p className="text-white/50 text-sm">
-                Sent to {phone} via SMS
+                Sent to {countryCode} {phone} via SMS
               </p>
             </div>
 
@@ -301,12 +343,31 @@ function LoginPageContent() {
               )}
             </button>
 
-            <button
-              onClick={() => { setStep('input'); setOtpValue(''); }}
-              className="w-full text-white/50 text-sm mt-4 hover:text-white"
-            >
-              Use a different number
-            </button>
+            {/* Resend code + different number */}
+            <div className="text-center mt-4 space-y-2">
+              <p className="text-white/40 text-xs">
+                Codes typically arrive within 30 seconds
+              </p>
+              {resendCooldown > 0 ? (
+                <p className="text-white/40 text-xs">
+                  Resend code in {resendCooldown}s
+                </p>
+              ) : (
+                <button
+                  onClick={handleResendOtp}
+                  disabled={resendLoading}
+                  className="text-[#b8941f] text-xs hover:underline font-medium disabled:opacity-50"
+                >
+                  {resendLoading ? 'Sending...' : "Didn't receive a code? Resend"}
+                </button>
+              )}
+              <button
+                onClick={() => { setStep('input'); setOtpValue(''); setError(''); }}
+                className="block w-full text-white/50 text-sm hover:text-white"
+              >
+                Use a different number
+              </button>
+            </div>
           </div>
         )}
 

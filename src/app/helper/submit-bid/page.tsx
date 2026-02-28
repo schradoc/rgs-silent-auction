@@ -17,6 +17,8 @@ interface Prize {
   id: string
   title: string
   slug: string
+  lotNumber: number | null
+  subLotLetter: string | null
   minimumBid: number
   currentHighestBid: number
   category: string
@@ -101,9 +103,16 @@ export default function HelperSubmitBidPage() {
     setBidderSuggestions([])
   }
 
-  const filteredPrizes = prizes.filter((prize) =>
-    prize.title.toLowerCase().includes(prizeSearch.toLowerCase())
-  )
+  const getLotLabel = (prize: Prize) => {
+    if (!prize.lotNumber) return ''
+    return prize.subLotLetter ? `Lot ${prize.lotNumber}${prize.subLotLetter}` : `Lot ${prize.lotNumber}`
+  }
+
+  const filteredPrizes = prizes.filter((prize) => {
+    const search = prizeSearch.toLowerCase()
+    const lotLabel = getLotLabel(prize).toLowerCase()
+    return prize.title.toLowerCase().includes(search) || lotLabel.includes(search)
+  })
 
   const minBid = selectedPrize
     ? Math.max(selectedPrize.minimumBid, selectedPrize.currentHighestBid + 100)
@@ -224,7 +233,7 @@ export default function HelperSubmitBidPage() {
                 className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-left text-white flex items-center justify-between focus:outline-none focus:border-[#b8941f]"
               >
                 <span className={selectedPrize ? 'text-white' : 'text-white/50'}>
-                  {selectedPrize ? selectedPrize.title : 'Choose a prize...'}
+                  {selectedPrize ? `${getLotLabel(selectedPrize)}${getLotLabel(selectedPrize) ? ' — ' : ''}${selectedPrize.title}` : 'Choose a prize...'}
                 </span>
                 <ChevronDown className="w-5 h-5 text-white/50" />
               </button>
@@ -254,7 +263,10 @@ export default function HelperSubmitBidPage() {
                       }}
                       className="w-full px-4 py-3 text-left hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"
                     >
-                      <p className="text-white text-sm font-medium">{prize.title}</p>
+                      <p className="text-white text-sm font-medium">
+                        {getLotLabel(prize) && <span className="text-[#b8941f] mr-1.5">{getLotLabel(prize)}</span>}
+                        {prize.title}
+                      </p>
                       <p className="text-white/50 text-xs">
                         Current: {formatCurrency(prize.currentHighestBid)} · Min: {formatCurrency(prize.minimumBid)}
                       </p>

@@ -233,6 +233,12 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
   const [deletingPrize, setDeletingPrize] = useState<string | null>(null)
   const [savingHelper, setSavingHelper] = useState(false)
   const [deletingHelper, setDeletingHelper] = useState<string | null>(null)
+  const [editingHelperId, setEditingHelperId] = useState<string | null>(null)
+  const [editHelperName, setEditHelperName] = useState('')
+  const [editHelperPin, setEditHelperPin] = useState('')
+  const [editHelperTables, setEditHelperTables] = useState('')
+  const [savingEditHelper, setSavingEditHelper] = useState(false)
+  const [deletingBidId, setDeletingBidId] = useState<string | null>(null)
   const [confirmingAllWinners, setConfirmingAllWinners] = useState(false)
 
   // Bidder modal state
@@ -1000,6 +1006,102 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
       toast.error('Failed to deactivate helper')
     } finally {
       setDeletingHelper(null)
+    }
+  }
+
+  const startEditingHelper = (helper: Helper) => {
+    setEditingHelperId(helper.id)
+    setEditHelperName(helper.name)
+    setEditHelperPin(helper.pin)
+    setEditHelperTables(helper.assignedTables || '')
+  }
+
+  const cancelEditingHelper = () => {
+    setEditingHelperId(null)
+    setEditHelperName('')
+    setEditHelperPin('')
+    setEditHelperTables('')
+  }
+
+  const handleSaveEditHelper = async () => {
+    if (!editingHelperId || !editHelperName || !editHelperPin) return
+    if (editHelperPin.length !== 4) {
+      toast.error('PIN must be exactly 4 digits')
+      return
+    }
+    setSavingEditHelper(true)
+    try {
+      const res = await fetch('/api/admin/helpers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingHelperId,
+          name: editHelperName,
+          pin: editHelperPin,
+          assignedTables: editHelperTables || null,
+        }),
+        credentials: 'include',
+      })
+      if (res.ok) {
+        cancelEditingHelper()
+        fetchHelpers()
+        toast.success('Helper updated successfully')
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to update helper')
+      }
+    } catch (error) {
+      console.error('Failed to update helper:', error)
+      toast.error('Failed to update helper')
+    } finally {
+      setSavingEditHelper(false)
+    }
+  }
+
+  const handleDeleteBid = async (bidId: string, prizeTitle: string, bidAmount: number) => {
+    const confirmed = await confirm.confirm({
+      title: 'Delete Bid',
+      description: `Are you sure you want to delete this ${formatCurrency(bidAmount)} bid on "${prizeTitle}"? This will recalculate winners automatically.`,
+      confirmLabel: 'Delete Bid',
+      variant: 'danger',
+    })
+    if (!confirmed) return
+
+    setDeletingBidId(bidId)
+    try {
+      const res = await fetch(`/api/admin/bids?bidId=${bidId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message || 'Bid deleted successfully')
+        // Refresh the bidder detail modal to show updated bids
+        if (selectedBidder) {
+          const bidderRes = await fetch(`/api/admin/bidders/${selectedBidder.id}`, { credentials: 'include' })
+          if (bidderRes.ok) {
+            const bidderData = await bidderRes.json()
+            setSelectedBidder(bidderData.bidder)
+          }
+        }
+        // Refresh prize detail modal if open
+        if (selectedPrize) {
+          const prizeRes = await fetch(`/api/admin/prizes/${selectedPrize.id}`, { credentials: 'include' })
+          if (prizeRes.ok) {
+            const prizeData = await prizeRes.json()
+            setSelectedPrize(prizeData.prize)
+          }
+        }
+        // Also refresh main data
+        handleRefresh()
+      } else {
+        toast.error(data.error || 'Failed to delete bid')
+      }
+    } catch (error) {
+      console.error('Failed to delete bid:', error)
+      toast.error('Failed to delete bid')
+    } finally {
+      setDeletingBidId(null)
     }
   }
 
@@ -1942,23 +2044,38 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                                   {new Date(bid.createdAt).toLocaleString()}
                                 </p>
                               </div>
-                              <div className="text-right">
-                                <p className="font-bold text-[#c9a227]">
-                                  {formatCurrency(bid.amount)}
-                                </p>
-                                <Badge
-                                  variant="navy"
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <p className="font-bold text-[#c9a227]">
+                                    {formatCurrency(bid.amount)}
+                                  </p>
+                                  <Badge
+                                    variant="navy"
+                                    size="sm"
+                                    className={
+                                      bid.status === 'WINNING' || bid.status === 'WON'
+                                        ? 'bg-green-100 text-green-700'
+                                        : bid.status === 'OUTBID' || bid.status === 'LOST'
+                                        ? 'bg-red-100 text-red-700'
+                                        : ''
+                                    }
+                                  >
+                                    {bid.status}
+                                  </Badge>
+                                </div>
+                                <Button
+                                  variant="ghost"
                                   size="sm"
-                                  className={
-                                    bid.status === 'WINNING' || bid.status === 'WON'
-                                      ? 'bg-green-100 text-green-700'
-                                      : bid.status === 'OUTBID' || bid.status === 'LOST'
-                                      ? 'bg-red-100 text-red-700'
-                                      : ''
-                                  }
+                                  onClick={() => handleDeleteBid(bid.id, bid.prize.title, bid.amount)}
+                                  className="text-red-600 hover:bg-red-50 flex-shrink-0"
+                                  disabled={deletingBidId === bid.id}
                                 >
-                                  {bid.status}
-                                </Badge>
+                                  {deletingBidId === bid.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
                               </div>
                             </div>
                           ))}
@@ -2265,54 +2382,120 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                   </div>
                 ) : (
                   helpers.map((helper) => (
-                    <div key={helper.id} className={`p-4 flex items-center justify-between ${!helper.isActive ? 'opacity-50' : ''}`}>
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
-                          style={{ backgroundColor: helper.avatarColor }}
-                        >
-                          {helper.name.charAt(0)}
+                    <div key={helper.id} className={`p-4 ${!helper.isActive ? 'opacity-50' : ''}`}>
+                      {editingHelperId === helper.id ? (
+                        /* Edit mode */
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+                              style={{ backgroundColor: helper.avatarColor }}
+                            >
+                              {editHelperName.charAt(0) || helper.name.charAt(0)}
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editHelperName}
+                                  onChange={(e) => setEditHelperName(e.target.value)}
+                                  placeholder="Helper Name"
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] text-sm"
+                                  disabled={savingEditHelper}
+                                />
+                                <input
+                                  type="text"
+                                  value={editHelperPin}
+                                  onChange={(e) => setEditHelperPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                  placeholder="PIN"
+                                  maxLength={4}
+                                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] text-center font-mono text-sm"
+                                  disabled={savingEditHelper}
+                                />
+                              </div>
+                              <div className="flex gap-2 items-center">
+                                <input
+                                  type="text"
+                                  value={editHelperTables}
+                                  onChange={(e) => setEditHelperTables(e.target.value)}
+                                  placeholder="Assigned tables (e.g. 1, 2, 3)"
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a227] text-sm"
+                                  disabled={savingEditHelper}
+                                />
+                                <Button variant="gold" size="sm" onClick={handleSaveEditHelper} disabled={savingEditHelper || !editHelperName || !editHelperPin}>
+                                  {savingEditHelper ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={cancelEditingHelper} disabled={savingEditHelper}>
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900">{helper.name}</p>
-                            {!helper.isActive && (
-                              <Badge variant="navy" size="sm">Inactive</Badge>
+                      ) : (
+                        /* Display mode */
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                              style={{ backgroundColor: helper.avatarColor }}
+                            >
+                              {helper.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-gray-900">{helper.name}</p>
+                                {!helper.isActive && (
+                                  <Badge variant="navy" size="sm">Inactive</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500">PIN: {helper.pin}</p>
+                              {helper.assignedTables ? (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <span className="text-xs text-gray-400">Tables:</span>
+                                  {helper.assignedTables.split(',').map((t) => (
+                                    <span key={t.trim()} className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded font-medium">
+                                      {t.trim()}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-amber-500 mt-1">No tables assigned</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="font-medium">{helper._count.bidsPrompted} bids</p>
+                            </div>
+                            {helper.isActive && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => startEditingHelper(helper)}
+                                  className="text-gray-600 hover:bg-gray-100"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteHelper(helper.id)}
+                                  className="text-red-600 hover:bg-red-50"
+                                  disabled={deletingHelper === helper.id}
+                                >
+                                  {deletingHelper === helper.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </>
                             )}
                           </div>
-                          <p className="text-sm text-gray-500">PIN: {helper.pin}</p>
-                          {helper.assignedTables && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <span className="text-xs text-gray-400">Tables:</span>
-                              {helper.assignedTables.split(',').map((t) => (
-                                <span key={t.trim()} className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded font-medium">
-                                  {t.trim()}
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="font-medium">{helper._count.bidsPrompted} bids</p>
-                        </div>
-                        {helper.isActive && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteHelper(helper.id)}
-                            className="text-red-600 hover:bg-red-50"
-                            disabled={deletingHelper === helper.id}
-                          >
-                            {deletingHelper === helper.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </Button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -3140,6 +3323,7 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Table</th>
                             <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
                             <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Time</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase w-12"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -3172,6 +3356,21 @@ function AdminDashboardContent({ initialData }: AdminDashboardProps) {
                                   hour: '2-digit',
                                   minute: '2-digit',
                                 })}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteBid(bid.id, selectedPrize.title, bid.amount)}
+                                  className="text-red-600 hover:bg-red-50"
+                                  disabled={deletingBidId === bid.id}
+                                >
+                                  {deletingBidId === bid.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-3 h-3" />
+                                  )}
+                                </Button>
                               </td>
                             </tr>
                           ))}

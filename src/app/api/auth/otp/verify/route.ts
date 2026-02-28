@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { COOKIE_NAMES } from '@/lib/constants'
+import { normalizeHKPhone } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { phone, otp } = await request.json()
+    const { phone: rawPhone, otp } = await request.json()
+
+    // Normalize phone number to match registration format
+    const phone = rawPhone ? normalizeHKPhone(rawPhone) : null
 
     if (!phone || !otp) {
       return NextResponse.json({ error: 'Phone and OTP are required' }, { status: 400 })
