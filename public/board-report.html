@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RGS-HK 30th Anniversary Gala — Silent Auction Board Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --bg-card: #111111;
+    --bg-card-hover: #1a1a1a;
+    --border: #222222;
+    --border-subtle: #1a1a1a;
+    --text-primary: #ededed;
+    --text-secondary: #888888;
+    --text-tertiary: #666666;
+    --accent-blue: #0070f3;
+    --accent-purple: #7928ca;
+    --accent-pink: #ff0080;
+    --accent-cyan: #50e3c2;
+    --accent-orange: #f5a623;
+    --accent-green: #0cce6b;
+    --accent-red: #ee0000;
+    --accent-gold: #d4a843;
+    --gradient-hero: linear-gradient(135deg, #0070f3, #7928ca, #ff0080);
+    --gradient-gold: linear-gradient(135deg, #d4a843, #f5e6b8, #d4a843);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+    --shadow: 0 4px 14px 0 rgba(0,0,0,0.5);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ─── Navigation ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0 24px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  nav .logo { font-weight: 700; font-size: 14px; letter-spacing: -0.02em; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+  nav .logo .badge { font-size: 10px; font-weight: 600; background: var(--gradient-gold); color: #000; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
+  nav .nav-links { display: flex; gap: 4px; }
+  nav .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: var(--radius-sm); transition: all 0.15s ease; }
+  nav .nav-links a:hover, nav .nav-links a.active { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+
+  /* ─── Hero ─── */
+  .hero { padding: 120px 24px 80px; text-align: center; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%); width: 800px; height: 800px; background: radial-gradient(circle, rgba(212,168,67,0.08) 0%, transparent 60%); pointer-events: none; }
+  .hero .overline { font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-gold); margin-bottom: 16px; }
+  .hero h1 { font-size: clamp(36px, 6vw, 64px); font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 16px; background: linear-gradient(to bottom, #ffffff, #999999); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero .subtitle { font-size: 18px; color: var(--text-secondary); max-width: 600px; margin: 0 auto 40px; font-weight: 400; line-height: 1.6; }
+  .hero .date-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border); padding: 8px 20px; border-radius: 100px; font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+  .hero .date-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); }
+
+  /* ─── Headline stat ─── */
+  .headline-stat { text-align: center; padding: 20px 24px 60px; }
+  .headline-stat .number { font-size: clamp(48px, 10vw, 96px); font-weight: 900; letter-spacing: -0.04em; background: var(--gradient-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; margin-bottom: 8px; }
+  .headline-stat .label { font-size: 16px; color: var(--text-secondary); font-weight: 500; }
+
+  /* ─── Sections ─── */
+  section { max-width: 1200px; margin: 0 auto; padding: 0 24px; margin-bottom: 80px; }
+  .section-header { margin-bottom: 32px; }
+  .section-header .section-label { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-blue); margin-bottom: 8px; }
+  .section-header h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; color: var(--text-primary); margin-bottom: 8px; }
+  .section-header p { font-size: 15px; color: var(--text-secondary); max-width: 640px; line-height: 1.6; }
+
+  /* ─── Stat Cards ─── */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; transition: border-color 0.2s ease; }
+  .stat-card:hover { border-color: #333; }
+  .stat-card .stat-label { font-size: 12px; font-weight: 500; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .stat-card .stat-value { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; color: var(--text-primary); line-height: 1; margin-bottom: 6px; }
+  .stat-card .stat-detail { font-size: 13px; color: var(--text-secondary); font-weight: 400; }
+  .stat-card .stat-value.gold { background: var(--gradient-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .stat-card .stat-value.green { color: var(--accent-green); }
+  .stat-card .stat-value.blue { color: var(--accent-blue); }
+
+  /* ─── Commentary ─── */
+  .commentary { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--accent-blue); border-radius: var(--radius); padding: 24px 28px; margin: 32px 0; }
+  .commentary .commentary-author { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-blue); margin-bottom: 8px; }
+  .commentary p { font-size: 15px; color: var(--text-secondary); line-height: 1.7; }
+  .commentary p + p { margin-top: 12px; }
+  .commentary.gold { border-left-color: var(--accent-gold); }
+  .commentary.gold .commentary-author { color: var(--accent-gold); }
+  .commentary.green { border-left-color: var(--accent-green); }
+  .commentary.green .commentary-author { color: var(--accent-green); }
+  .commentary.red { border-left-color: var(--accent-red); }
+  .commentary.red .commentary-author { color: var(--accent-red); }
+
+  /* ─── Table ─── */
+  .data-table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table td { padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); white-space: nowrap; }
+  table tr:last-child td { border-bottom: none; }
+  table tr:hover td { background: rgba(255,255,255,0.02); }
+  table .prize-name { color: var(--text-primary); font-weight: 500; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .badge-travel { background: rgba(0,112,243,0.15); color: #3291ff; }
+  .badge-experiences { background: rgba(121,40,202,0.15); color: #a855f7; }
+  .badge-historic { background: rgba(212,168,67,0.15); color: var(--accent-gold); }
+  .badge-dining { background: rgba(255,0,128,0.15); color: #ff0080; }
+  .badge-pledges { background: rgba(12,206,107,0.15); color: var(--accent-green); }
+
+  /* ─── Chart ─── */
+  .chart-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
+  .chart-container h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 20px; letter-spacing: -0.01em; }
+
+  /* ─── Timeline ─── */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 1px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border-subtle); }
+  .timeline-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .timeline-item::before { content: ''; position: absolute; left: -24px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-blue); border: 2px solid var(--bg-primary); }
+  .timeline-item.milestone::before { background: var(--accent-gold); }
+  .timeline-time { font-size: 12px; font-weight: 600; color: var(--text-tertiary); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .timeline-content { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+  .timeline-content strong { color: var(--text-primary); }
+  .timeline-amount { color: var(--accent-gold); font-weight: 600; }
+
+  /* ─── Funnel ─── */
+  .funnel { display: flex; flex-direction: column; gap: 8px; margin: 24px 0; }
+  .funnel-step { display: flex; align-items: center; gap: 16px; }
+  .funnel-bar-container { flex: 1; height: 40px; background: var(--bg-secondary); border-radius: var(--radius-sm); position: relative; overflow: hidden; }
+  .funnel-bar { height: 100%; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: flex-end; padding-right: 12px; font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.9); transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+  .funnel-label { width: 120px; flex-shrink: 0; font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: right; }
+  .funnel-pct { width: 60px; font-size: 13px; font-weight: 600; color: var(--text-tertiary); text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ─── Bar chart ─── */
+  .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding-bottom: 28px; position: relative; }
+  .bar-chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; max-width: 40px; border-radius: 4px 4px 0 0; transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1); position: relative; min-height: 2px; }
+  .bar:hover { opacity: 0.85; }
+  .bar-label { font-size: 10px; color: var(--text-tertiary); margin-top: 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar-value { font-size: 10px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ─── Prize showcase cards ─── */
+  .prize-showcase { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin: 24px 0; }
+  .prize-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: all 0.2s ease; position: relative; overflow: hidden; }
+  .prize-card:hover { border-color: #333; transform: translateY(-2px); }
+  .prize-card .prize-card-category { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .prize-card .prize-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .prize-card .prize-card-stats { display: flex; justify-content: space-between; align-items: flex-end; }
+  .prize-card .prize-card-amount { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .prize-card .prize-card-meta { font-size: 11px; color: var(--text-tertiary); text-align: right; }
+  .prize-card .prize-card-bar { position: absolute; bottom: 0; left: 0; height: 3px; border-radius: 0 0 var(--radius) var(--radius); }
+  .prize-card.no-bids { opacity: 0.5; }
+  .prize-card.no-bids .prize-card-amount { color: var(--text-tertiary); }
+
+  /* ─── Comparison card ─── */
+  .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; }
+  .comparison-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; text-align: center; }
+  .comparison-card h4 { font-size: 13px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px; }
+  .comparison-card .big-num { font-size: 48px; font-weight: 900; letter-spacing: -0.04em; line-height: 1; margin-bottom: 8px; }
+  .comparison-card .sub-detail { font-size: 13px; color: var(--text-secondary); }
+
+  /* ─── Price point chart ─── */
+  .price-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .price-bar-label { width: 110px; font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: right; flex-shrink: 0; }
+  .price-bar-track { flex: 1; height: 32px; background: var(--bg-secondary); border-radius: var(--radius-sm); overflow: hidden; position: relative; }
+  .price-bar-fill { height: 100%; border-radius: var(--radius-sm); display: flex; align-items: center; padding-left: 10px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.9); }
+  .price-bar-detail { width: 100px; font-size: 12px; color: var(--text-tertiary); text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ─── Divider ─── */
+  .divider { height: 1px; background: var(--border); margin: 60px 0; max-width: 1200px; margin-left: auto; margin-right: auto; }
+
+  /* ─── Footer ─── */
+  footer { text-align: center; padding: 40px 24px 60px; color: var(--text-tertiary); font-size: 13px; }
+
+  /* ─── Bug fix cards ─── */
+  .bug-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; display: flex; gap: 16px; align-items: flex-start; }
+  .bug-card .bug-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .bug-card .bug-content h4 { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .bug-card .bug-content p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .bug-card .bug-time { font-size: 11px; color: var(--text-tertiary); font-weight: 500; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 768px) {
+    nav { padding: 0 16px; }
+    nav .nav-links { display: none; }
+    section { padding: 0 16px; }
+    .hero { padding: 100px 16px 60px; }
+    .hero h1 { font-size: 32px; }
+    .hero .subtitle { font-size: 15px; }
+    .headline-stat .number { font-size: 48px; }
+    .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-card { padding: 16px; }
+    .stat-card .stat-value { font-size: 24px; }
+    .comparison-grid { grid-template-columns: 1fr; }
+    .comparison-card .big-num { font-size: 36px; }
+    .prize-showcase { grid-template-columns: 1fr; }
+    .prize-card .prize-card-amount { font-size: 18px; }
+    .data-table-wrapper { font-size: 12px; }
+    table td, table th { padding: 8px 10px; }
+    .commentary { padding: 18px 20px; }
+    .commentary p { font-size: 14px; }
+    .bug-card { flex-direction: column; gap: 10px; }
+    .bug-card .bug-time { margin-left: 0; }
+    .price-bar-label { width: 80px; font-size: 11px; }
+    .price-bar-detail { width: 80px; font-size: 11px; }
+    .funnel-label { width: 80px; font-size: 12px; }
+    .timeline { padding-left: 20px; }
+    .timeline-item::before { left: -16px; }
+    .section-header h2 { font-size: 22px; }
+    .chart-container { padding: 16px; }
+    .bar-chart { height: 120px; }
+  }
+  @media (max-width: 480px) {
+    .stat-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 28px; }
+    .comparison-card { padding: 20px; }
+    .comparison-card .big-num { font-size: 32px; }
+    .price-bar-row { flex-wrap: wrap; }
+    .price-bar-label { width: 100%; text-align: left; margin-bottom: 4px; }
+    .price-bar-detail { width: 100%; text-align: left; margin-top: 4px; }
+  }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-in { opacity: 0; animation: fadeUp 0.6s ease forwards; }
+  .animate-in:nth-child(2) { animation-delay: 0.1s; }
+  .animate-in:nth-child(3) { animation-delay: 0.2s; }
+  .animate-in:nth-child(4) { animation-delay: 0.3s; }
+</style>
+</head>
+<body>
+
+<!-- ─── Navigation ─── -->
+<nav>
+  <div class="logo">
+    RGS-HK Silent Auction
+    <span class="badge">Board Report</span>
+  </div>
+  <div class="nav-links">
+    <a href="#overview" class="active">Overview</a>
+    <a href="#timeline">Timeline</a>
+    <a href="#prizes">Prizes</a>
+    <a href="#competition">Competition</a>
+    <a href="#engagement">Engagement</a>
+    <a href="#prize-analysis">Analysis</a>
+    <a href="#operations">Operations</a>
+    <a href="#recommendations">Next Steps</a>
+  </div>
+</nav>
+
+<!-- ─── Hero ─── -->
+<div class="hero">
+  <div class="overline">Royal Geographical Society — Hong Kong</div>
+  <h1>30th Anniversary Gala<br>Silent Auction Report</h1>
+  <p class="subtitle">A comprehensive analysis of our inaugural digital silent auction, covering bidder engagement, prize performance, and strategic recommendations for future events.</p>
+  <div class="date-badge">
+    <span class="dot"></span>
+    28 February 2026 — Hong Kong
+  </div>
+</div>
+
+<div class="headline-stat">
+  <div class="number">HK$643,500</div>
+  <div class="label">Total Revenue from Winning Bids</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION: Overview -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="overview">
+  <div class="section-header">
+    <div class="section-label">Overview</div>
+    <h2>The Evening at a Glance</h2>
+    <p>Our first-ever digital silent auction ran for approximately 3 hours 20 minutes during the gala dinner, with bidding from 7:48 PM to 11:08 PM HKT.</p>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card animate-in">
+      <div class="stat-label">Total Raised</div>
+      <div class="stat-value gold">HK$643.5K</div>
+      <div class="stat-detail">Across 30 winning bids</div>
+    </div>
+    <div class="stat-card animate-in">
+      <div class="stat-label">Highest Bid</div>
+      <div class="stat-value gold">HK$95K</div>
+      <div class="stat-detail">Lower Zambezi Safari</div>
+    </div>
+    <div class="stat-card animate-in">
+      <div class="stat-label">Registered Bidders</div>
+      <div class="stat-value blue">44</div>
+      <div class="stat-detail">From 15 tables</div>
+    </div>
+    <div class="stat-card animate-in">
+      <div class="stat-label">Active Bidders</div>
+      <div class="stat-value green">28</div>
+      <div class="stat-detail">63.6% placed a bid</div>
+    </div>
+    <div class="stat-card animate-in">
+      <div class="stat-label">Total Bids</div>
+      <div class="stat-value">49</div>
+      <div class="stat-detail">1.75 bids per active bidder</div>
+    </div>
+    <div class="stat-card animate-in">
+      <div class="stat-label">Prize Engagement</div>
+      <div class="stat-value">23/32</div>
+      <div class="stat-detail">71.9% of prizes received bids</div>
+    </div>
+    <div class="stat-card animate-in">
+      <div class="stat-label">Outbid Notifications</div>
+      <div class="stat-value">19</div>
+      <div class="stat-detail">100% SMS delivery rate</div>
+    </div>
+    <div class="stat-card animate-in">
+      <div class="stat-label">Average Winning Bid</div>
+      <div class="stat-value">HK$21.4K</div>
+      <div class="stat-detail">Across 30 winning positions</div>
+    </div>
+  </div>
+
+  <div class="commentary gold">
+    <div class="commentary-author">Commentary</div>
+    <p>This was the Society's first digitally-powered silent auction. We built and deployed a custom bidding platform in under two weeks — from database schema to production deployment on Vercel's edge network. The platform handled real-time SMS outbid notifications, supported 5 table helpers with dedicated dashboards, and maintained 100% uptime throughout the evening. For a v1 product built at startup speed, the technology enabled an entirely new fundraising format for the Society — guests bid from their phones during dinner, received instant outbid alerts, and helpers had live dashboards to assist. The total of HK$643,500 establishes a strong baseline for future digital auctions.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION: Bid Timeline -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="timeline">
+  <div class="section-header">
+    <div class="section-label">Activity</div>
+    <h2>Bid Timeline</h2>
+    <p>Bids placed throughout the evening (HKT), grouped into 15-minute intervals. Two distinct activity peaks emerged.</p>
+  </div>
+
+  <div class="chart-container">
+    <h3>Bids per 15-Minute Window (HKT)</h3>
+    <div class="bar-chart" id="timelineChart"></div>
+  </div>
+
+  <div class="commentary">
+    <div class="commentary-author">Commentary</div>
+    <p>Bidding kicked off immediately at 7:48 PM with strong early momentum — 14 bids in the first 15 minutes as guests registered and explored prizes on their phones. Activity naturally slowed during dinner service around 8:30–9:00 PM, then surged again between 9:30–10:00 PM as competition heated up on the big-ticket travel prizes. The final bid — HK$35,000 for the Tuscany Vineyard — arrived at 11:08 PM, right before the close. The outbid SMS notifications were a clear driver of re-engagement: guests who received an alert frequently returned to the platform and placed a higher bid within minutes.</p>
+  </div>
+
+  <!-- Key Moments -->
+  <h3 style="font-size:16px;font-weight:600;margin:32px 0 20px;color:var(--text-primary)">Key Moments</h3>
+  <div class="timeline">
+    <div class="timeline-item milestone">
+      <div class="timeline-time">7:48 PM HKT</div>
+      <div class="timeline-content"><strong>First bid of the evening:</strong> Alec Tracy (Table 7) opens with <span class="timeline-amount">HK$4,500</span> on the Map of Arabia — setting the tone for a competitive night on the historic maps.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-time">7:57 – 8:05 PM</div>
+      <div class="timeline-content"><strong>Early rush:</strong> 14 bids placed in 18 minutes. The Mandarin Oriental Vienna ignites the first bidding war — Margot Dutilleux, Chris Botsford, and Pascale trade bids from HK$20K to HK$26K in rapid succession. Georgina Riley (Table 3) places back-to-back bids on the Great Wall trip and Stanley Lunch.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-time">8:11 PM</div>
+      <div class="timeline-content"><strong>Rare Books heats up:</strong> Three different bidders compete — Janet Yuen (Table 10), Lori Shaw, and Caroline Burns (Table 14), pushing it to <span class="timeline-amount">HK$12,000</span>, 50% above minimum.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-time">8:26 PM</div>
+      <div class="timeline-content"><strong>Map collector duel:</strong> Alec Tracy goes head-to-head with Luke Richdale and Chris Botsford across multiple historic maps. Alec bids on the Arabia, Burma, and Himalayan maps within minutes.</div>
+    </div>
+    <div class="timeline-item milestone">
+      <div class="timeline-time">9:42 PM</div>
+      <div class="timeline-content"><strong>Headline moment:</strong> Charlie Manzoni (Table 3) places <span class="timeline-amount">HK$95,000</span> on the Lower Zambezi Safari — the evening's single highest bid and one of its defining moments.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-time">9:43 – 9:50 PM</div>
+      <div class="timeline-content"><strong>Evening surge:</strong> Richard Sutton (Table 13) bids HK$32K on Bangkok MO, then pivots to secure the Kruger Safari at <span class="timeline-amount">HK$70,000</span>. Five bids in 8 minutes total HK$194K.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-time">10:14 PM</div>
+      <div class="timeline-content"><strong>Vienna resolved:</strong> After 6 bids and 4 bidders, Janana Pasha (Table 7) claims the Mandarin Oriental Vienna at <span class="timeline-amount">HK$30,000</span> — 50% above minimum.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-time">10:25 PM</div>
+      <div class="timeline-content"><strong>Arabia map finale:</strong> Luke Richdale (Table 3) places the final bid of <span class="timeline-amount">HK$9,000</span> on the Map of Arabia — 3x its minimum bid after 6 rounds of competition.</div>
+    </div>
+    <div class="timeline-item milestone">
+      <div class="timeline-time">11:08 PM</div>
+      <div class="timeline-content"><strong>Final bid:</strong> Mervyn Jacob (Table 1) places the evening's last bid — <span class="timeline-amount">HK$35,000</span> on the Tuscany Vineyard Holiday. The auction closes shortly after.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION: Prize Performance -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="prizes">
+  <div class="section-header">
+    <div class="section-label">Prizes</div>
+    <h2>Prize Performance by Category</h2>
+    <p>How every prize performed, organised by category. Gold bars show the winning bid as a percentage of the minimum.</p>
+  </div>
+
+  <!-- ── TRAVEL ── -->
+  <div class="chart-container" style="border-left:3px solid #3291ff">
+    <h3><span class="badge badge-travel" style="margin-right:8px">Travel</span> 9 of 13 prizes sold · HK$352,000 raised</h3>
+    <div class="prize-showcase">
+      <div class="prize-card"><div class="prize-card-category" style="color:#3291ff">Lot 1</div><div class="prize-card-title">Lower Zambezi Safari for Two</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$95,000</div><div class="prize-card-meta">1 bid · min HK$55K<br><span style="color:var(--accent-green)">+73%</span></div></div><div class="prize-card-bar" style="width:100%;background:var(--accent-gold)"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#3291ff">Lot 17</div><div class="prize-card-title">Kruger National Park & Sabi Sand Safari</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$70,000</div><div class="prize-card-meta">1 bid · min HK$68K<br><span style="color:var(--accent-green)">+3%</span></div></div><div class="prize-card-bar" style="width:74%;background:#3291ff"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#3291ff">Lot 19</div><div class="prize-card-title">Chianti Vineyard & San Gimignano Tuscany</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$35,000</div><div class="prize-card-meta">1 bid · min HK$32K<br><span style="color:var(--accent-green)">+9%</span></div></div><div class="prize-card-bar" style="width:37%;background:#3291ff"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#3291ff">Lot 7 · 3 bids · 3 bidders</div><div class="prize-card-title">Mandarin Oriental Bangkok Deluxe Suite</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$34,000</div><div class="prize-card-meta">min HK$20K<br><span style="color:var(--accent-green)">+70%</span></div></div><div class="prize-card-bar" style="width:36%;background:var(--accent-orange)"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#3291ff">Lot 18 · 2 bidders</div><div class="prize-card-title">Great Wall of China & Beijing Hutong</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$34,000</div><div class="prize-card-meta">min HK$30K<br><span style="color:var(--accent-green)">+13%</span></div></div><div class="prize-card-bar" style="width:36%;background:#3291ff"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#3291ff">Lot 6 · 6 bids · 4 bidders 🔥</div><div class="prize-card-title">Mandarin Oriental Vienna incl. Breakfast</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$30,000</div><div class="prize-card-meta">min HK$20K<br><span style="color:var(--accent-green)">+50%</span></div></div><div class="prize-card-bar" style="width:32%;background:var(--accent-orange)"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#3291ff">Lot 3</div><div class="prize-card-title">Clare Valley Wine Country Retreat (up to 6)</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$20,000</div><div class="prize-card-meta">1 bid · min HK$20K<br>At min</div></div><div class="prize-card-bar" style="width:21%;background:#333"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#3291ff">Lot 23 · 2 bidders</div><div class="prize-card-title">Phuket Resort + Khao Sok Jungle Safari</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$19,000</div><div class="prize-card-meta">min HK$18K<br><span style="color:var(--accent-green)">+6%</span></div></div><div class="prize-card-bar" style="width:20%;background:#3291ff"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#3291ff">Lot 4</div><div class="prize-card-title">Langmeil Winery Barossa Valley for 4</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$15,000</div><div class="prize-card-meta">1 bid · min HK$15K<br>At min</div></div><div class="prize-card-bar" style="width:16%;background:#333"></div></div>
+      <div class="prize-card no-bids"><div class="prize-card-category" style="color:var(--text-tertiary)">Lot 21 · No bids</div><div class="prize-card-title">Arctic Retreat in Lapland for 2</div><div class="prize-card-stats"><div class="prize-card-amount">HK$85K min</div></div></div>
+      <div class="prize-card no-bids"><div class="prize-card-category" style="color:var(--text-tertiary)">Lot 22 · No bids</div><div class="prize-card-title">Alpine Glacier Excursion with Dr Cheung</div><div class="prize-card-stats"><div class="prize-card-amount">HK$60K min</div></div></div>
+      <div class="prize-card no-bids"><div class="prize-card-category" style="color:var(--text-tertiary)">Lot 24 · No bids</div><div class="prize-card-title">Eagle Hunters Expedition Mongolia</div><div class="prize-card-stats"><div class="prize-card-amount">HK$60K min</div></div></div>
+      <div class="prize-card no-bids"><div class="prize-card-category" style="color:var(--text-tertiary)">Lot 20 · No bids</div><div class="prize-card-title">Lake Turkana "Jade Sea" Expedition</div><div class="prize-card-stats"><div class="prize-card-amount">HK$35K min</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── EXPERIENCES ── -->
+  <div class="chart-container" style="border-left:3px solid #a855f7">
+    <h3><span class="badge badge-experiences" style="margin-right:8px">Experiences</span> 7 of 8 prizes sold · HK$99,000 raised</h3>
+    <div class="prize-showcase">
+      <div class="prize-card"><div class="prize-card-category" style="color:#a855f7">Lot 16</div><div class="prize-card-title">Private Tour of RGS London Archives + Champagne</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$25,000</div><div class="prize-card-meta">1 bid · min HK$25K<br>At min</div></div><div class="prize-card-bar" style="width:100%;background:#a855f7"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#a855f7">Lot 14 · 2 bidders</div><div class="prize-card-title">Sailing on Yacht Jadalinkir for 12</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$17,000</div><div class="prize-card-meta">min HK$15K<br><span style="color:var(--accent-green)">+13%</span></div></div><div class="prize-card-bar" style="width:68%;background:#a855f7"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#a855f7">Lot 15</div><div class="prize-card-title">Stanley Lunch + WWII Archaeological Dig Visit</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$16,000</div><div class="prize-card-meta">1 bid · min HK$15K<br><span style="color:var(--accent-green)">+7%</span></div></div><div class="prize-card-bar" style="width:64%;background:#a855f7"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#a855f7">Lot 5 · 3 bids · 2 bidders</div><div class="prize-card-title">Guided Battlefield Walk by Philip Cracknell</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$12,000</div><div class="prize-card-meta">min HK$9K<br><span style="color:var(--accent-green)">+33%</span></div></div><div class="prize-card-bar" style="width:48%;background:var(--accent-orange)"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#a855f7">Lot 13 · 3 unique bidders</div><div class="prize-card-title">Rare Books Seminar with Fine Wines</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$12,000</div><div class="prize-card-meta">Multi-winner · min HK$8K<br><span style="color:var(--accent-green)">+50%</span></div></div><div class="prize-card-bar" style="width:48%;background:var(--accent-orange)"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#a855f7">Lot 9 · 3 bids · 2 bidders</div><div class="prize-card-title">Private Cocktail Making Course</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$9,000</div><div class="prize-card-meta">min HK$8K<br><span style="color:var(--accent-green)">+13%</span></div></div><div class="prize-card-bar" style="width:36%;background:var(--accent-orange)"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:#a855f7">Lot 12</div><div class="prize-card-title">Historic Maps & Prints Seminar with Wines</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$8,000</div><div class="prize-card-meta">1 bid · min HK$8K<br>At min</div></div><div class="prize-card-bar" style="width:32%;background:#333"></div></div>
+      <div class="prize-card no-bids"><div class="prize-card-category" style="color:var(--text-tertiary)">Lot 2 · No bids</div><div class="prize-card-title">Photography Workshop in Portugal for Two</div><div class="prize-card-stats"><div class="prize-card-amount">HK$95K min</div></div></div>
+      <div class="prize-card no-bids"><div class="prize-card-category" style="color:var(--text-tertiary)">Lot 10 · No bids</div><div class="prize-card-title">Firing the Noon-Day Gun + Champagne for 40</div><div class="prize-card-stats"><div class="prize-card-amount">HK$48K min</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── HISTORIC ITEMS ── -->
+  <div class="chart-container" style="border-left:3px solid var(--accent-gold)">
+    <h3><span class="badge badge-historic" style="margin-right:8px">Historic Items</span> 4 of 5 maps sold · HK$21,000 raised · 140% avg above minimum</h3>
+    <div class="prize-showcase">
+      <div class="prize-card"><div class="prize-card-category" style="color:var(--accent-gold)">Lot 8a · 6 bids · 4 bidders 🔥</div><div class="prize-card-title">Map of Arabia by G. A. Wallin (1850)</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$9,000</div><div class="prize-card-meta">min HK$3K<br><span style="color:var(--accent-green)">+200%</span></div></div><div class="prize-card-bar" style="width:100%;background:var(--accent-gold)"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:var(--accent-gold)">Lot 8b · 3 bids · 2 bidders</div><div class="prize-card-title">Map of Burma by Henry Yule (1856)</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$4,500</div><div class="prize-card-meta">min HK$3K<br><span style="color:var(--accent-green)">+50%</span></div></div><div class="prize-card-bar" style="width:50%;background:var(--accent-gold)"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:var(--accent-gold)">Lot 8d · 2 bids · 2 bidders</div><div class="prize-card-title">Himalayan Valleys Map (1891)</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$4,500</div><div class="prize-card-meta">min HK$3K<br><span style="color:var(--accent-green)">+50%</span></div></div><div class="prize-card-bar" style="width:50%;background:var(--accent-gold)"></div></div>
+      <div class="prize-card"><div class="prize-card-category" style="color:var(--accent-gold)">Lot 8e</div><div class="prize-card-title">Russian Geographical Society Expedition Map (1910)</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$3,000</div><div class="prize-card-meta">1 bid · min HK$3K<br>At min</div></div><div class="prize-card-bar" style="width:33%;background:#333"></div></div>
+      <div class="prize-card no-bids"><div class="prize-card-category" style="color:var(--text-tertiary)">Lot 8c · No bids</div><div class="prize-card-title">River Kong of Cassia Map (1869)</div><div class="prize-card-stats"><div class="prize-card-amount">HK$3K min</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── DINING & PLEDGES ── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="chart-container" style="border-left:3px solid #ff0080">
+      <h3><span class="badge badge-dining" style="margin-right:8px">Dining</span> 1 of 1 · HK$30,000</h3>
+      <div class="prize-card" style="margin-top:12px"><div class="prize-card-category" style="color:#ff0080">Lot 11</div><div class="prize-card-title">Dinner for 12 at Hong Kong Club with RGS Speaker</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$30,000</div><div class="prize-card-meta">1 bid · At min</div></div></div>
+    </div>
+    <div class="chart-container" style="border-left:3px solid var(--accent-green)">
+      <h3><span class="badge badge-pledges" style="margin-right:8px">Pledges</span> 2 of 4 tiers · HK$30,000</h3>
+      <div class="prize-card" style="margin-top:12px"><div class="prize-card-category" style="color:var(--accent-green)">Silver Patron</div><div class="prize-card-title">Paul Over (Table 8)</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$20,000</div></div></div>
+      <div class="prize-card" style="margin-top:8px"><div class="prize-card-category" style="color:var(--accent-green)">Bronze Patron (×2)</div><div class="prize-card-title">Ella Wong (T11) & Simon Beeson (T12)</div><div class="prize-card-stats"><div class="prize-card-amount" style="color:var(--accent-gold)">HK$10,000 each</div></div></div>
+    </div>
+  </div>
+
+  <div class="commentary">
+    <div class="commentary-author">Commentary</div>
+    <p>Historic items delivered the best return vs. minimum bid at 140% — the antique maps sparked genuine bidding wars, with the Map of Arabia attracting 6 bids from 4 different bidders and tripling its starting price. Travel prizes dominated in absolute revenue (HK$352K, 66% of total) but four high-value expedition lots received zero bids, suggesting we should refine pricing on ultra-premium travel. Experiences performed reliably — 7 of 8 sold — and the "seminar with wines" format resonated particularly well. The Platinum and Gold pledge tiers (HK$100K and HK$30K) went unclaimed, pointing to a ceiling on non-experiential giving at this event.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION: Competition -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="competition">
+  <div class="section-header">
+    <div class="section-label">Competition</div>
+    <h2>The Competitive Effect</h2>
+    <p>In a traditional paper-based silent auction, there's no outbid notification — you write a number and hope for the best. Our digital platform introduced real-time SMS alerts when someone was outbid, creating genuine bidding wars. This section quantifies the revenue that competitive dynamic generated.</p>
+  </div>
+
+  <div class="comparison-grid">
+    <div class="comparison-card" style="border:2px solid var(--accent-orange)">
+      <h4>Prizes with Competition</h4>
+      <div class="big-num" style="color:var(--accent-orange)">7</div>
+      <div class="sub-detail" style="margin-bottom:16px">prizes that triggered outbid alerts</div>
+      <div style="display:flex;justify-content:center;gap:24px;font-variant-numeric:tabular-nums">
+        <div><div style="font-size:22px;font-weight:800;color:var(--accent-gold)">HK$103K</div><div style="font-size:11px;color:var(--text-tertiary)">Total revenue</div></div>
+        <div><div style="font-size:22px;font-weight:800;color:var(--accent-green)">+66.5%</div><div style="font-size:11px;color:var(--text-tertiary)">Avg above minimum</div></div>
+      </div>
+    </div>
+    <div class="comparison-card">
+      <h4>Prizes without Competition</h4>
+      <div class="big-num" style="color:var(--text-tertiary)">16</div>
+      <div class="sub-detail" style="margin-bottom:16px">prizes won with a single bid</div>
+      <div style="display:flex;justify-content:center;gap:24px;font-variant-numeric:tabular-nums">
+        <div><div style="font-size:22px;font-weight:800;color:var(--text-secondary)">HK$429K</div><div style="font-size:11px;color:var(--text-tertiary)">Total revenue</div></div>
+        <div><div style="font-size:22px;font-weight:800;color:var(--text-tertiary)">+5.6%</div><div style="font-size:11px;color:var(--text-tertiary)">Avg above minimum</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="stat-card">
+      <div class="stat-label">Competitive Premium</div>
+      <div class="stat-value" style="color:var(--accent-orange)">HK$37,000</div>
+      <div class="stat-detail">Additional revenue driven by bidding wars — money we wouldn't have with paper bids</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Premium per Competitive Prize</div>
+      <div class="stat-value" style="color:var(--accent-orange)">HK$5,286</div>
+      <div class="stat-detail">Average extra revenue per prize with competition</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Non-competitive Premium</div>
+      <div class="stat-value" style="color:var(--text-tertiary)">HK$750</div>
+      <div class="stat-detail">Average extra per prize without competition — essentially flat</div>
+    </div>
+  </div>
+
+  <div class="commentary gold">
+    <div class="commentary-author">Commentary</div>
+    <p>This is the single most important insight from the evening: <strong>competitive bidding generated HK$37,000 in premium revenue</strong> that almost certainly wouldn't have existed with a paper-based format. Prizes that triggered outbid notifications averaged 66.5% above their minimum bid, compared to just 5.6% for uncontested prizes. The Map of Arabia is the clearest example — starting at HK$3,000, four bidders drove it to HK$9,000 over six rounds of bidding. In a paper auction, the first bidder likely walks away uncontested at HK$3,000.</p>
+    <p>If we could increase the number of competitively-bid prizes from 7 to 15 — through lower starting prices, better countdown urgency, and a "Table Leaderboard" driving social pressure — the competitive premium alone could add HK$80K+ to total revenue.</p>
+  </div>
+
+  <!-- Table Competition -->
+  <h3 style="font-size:16px;font-weight:600;margin:32px 0 20px;color:var(--text-primary)">Table Rankings</h3>
+  <div class="data-table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Table</th><th style="text-align:right">Winning Value</th><th style="text-align:right">Bids</th><th style="text-align:right">Bidders</th><th style="text-align:right">Prizes Won</th><th style="text-align:right">Outbids</th></tr>
+      </thead>
+      <tbody>
+        <tr style="background:rgba(212,168,67,0.04)"><td><strong>Table 3</strong> 🏆</td><td style="text-align:right;color:var(--accent-gold);font-weight:700">HK$152,000</td><td style="text-align:right">10</td><td style="text-align:right">4</td><td style="text-align:right">4</td><td style="text-align:right">6</td></tr>
+        <tr><td><strong>Table 13</strong></td><td style="text-align:right;font-weight:600">HK$70,000</td><td style="text-align:right">2</td><td style="text-align:right">1</td><td style="text-align:right">1</td><td style="text-align:right">1</td></tr>
+        <tr><td><strong>Table 7</strong></td><td style="text-align:right;font-weight:600">HK$69,500</td><td style="text-align:right">9</td><td style="text-align:right">5</td><td style="text-align:right">4</td><td style="text-align:right">5</td></tr>
+        <tr><td><strong>Table 5</strong></td><td style="text-align:right;font-weight:600">HK$68,000</td><td style="text-align:right">3</td><td style="text-align:right">3</td><td style="text-align:right">2</td><td style="text-align:right">1</td></tr>
+        <tr><td><strong>Table 1</strong></td><td style="text-align:right;font-weight:600">HK$54,000</td><td style="text-align:right">2</td><td style="text-align:right">2</td><td style="text-align:right">2</td><td style="text-align:right">0</td></tr>
+        <tr><td><strong>Table 4</strong></td><td style="text-align:right;font-weight:600">HK$45,000</td><td style="text-align:right">6</td><td style="text-align:right">2</td><td style="text-align:right">4</td><td style="text-align:right">2</td></tr>
+        <tr><td><strong>Table 9</strong></td><td style="text-align:right;font-weight:600">HK$41,500</td><td style="text-align:right">4</td><td style="text-align:right">1</td><td style="text-align:right">3</td><td style="text-align:right">1</td></tr>
+        <tr><td><strong>Table 8</strong></td><td style="text-align:right;font-weight:600">HK$40,000</td><td style="text-align:right">2</td><td style="text-align:right">1</td><td style="text-align:right">2</td><td style="text-align:right">0</td></tr>
+        <tr><td><strong>Table 2</strong></td><td style="text-align:right;font-weight:600">HK$30,000</td><td style="text-align:right">1</td><td style="text-align:right">1</td><td style="text-align:right">1</td><td style="text-align:right">0</td></tr>
+        <tr><td><strong>Table 12</strong></td><td style="text-align:right;font-weight:600">HK$27,000</td><td style="text-align:right">2</td><td style="text-align:right">1</td><td style="text-align:right">2</td><td style="text-align:right">0</td></tr>
+        <tr><td><strong>Table 10</strong></td><td style="text-align:right;font-weight:600">HK$16,000</td><td style="text-align:right">2</td><td style="text-align:right">2</td><td style="text-align:right">2</td><td style="text-align:right">0</td></tr>
+        <tr><td><strong>Table 14</strong></td><td style="text-align:right;font-weight:600">HK$12,000</td><td style="text-align:right">1</td><td style="text-align:right">1</td><td style="text-align:right">1</td><td style="text-align:right">0</td></tr>
+        <tr><td><strong>Table 11</strong></td><td style="text-align:right;font-weight:600">HK$10,000</td><td style="text-align:right">2</td><td style="text-align:right">1</td><td style="text-align:right">1</td><td style="text-align:right">1</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION: Engagement -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="engagement">
+  <div class="section-header">
+    <div class="section-label">Engagement</div>
+    <h2>Bidder Funnel & Price Point Analysis</h2>
+    <p>Tracking conversion from registration through to winning, and understanding which price ranges performed best.</p>
+  </div>
+
+  <div class="funnel">
+    <div class="funnel-step"><div class="funnel-label">Registered</div><div class="funnel-bar-container"><div class="funnel-bar" style="width:100%;background:linear-gradient(90deg,#0070f3,#3291ff)">44</div></div><div class="funnel-pct">100%</div></div>
+    <div class="funnel-step"><div class="funnel-label">Verified</div><div class="funnel-bar-container"><div class="funnel-bar" style="width:72.7%;background:linear-gradient(90deg,#0070f3,#3291ff)">32</div></div><div class="funnel-pct">72.7%</div></div>
+    <div class="funnel-step"><div class="funnel-label">Placed a Bid</div><div class="funnel-bar-container"><div class="funnel-bar" style="width:63.6%;background:linear-gradient(90deg,#7928ca,#a855f7)">28</div></div><div class="funnel-pct">63.6%</div></div>
+    <div class="funnel-step"><div class="funnel-label">Winning</div><div class="funnel-bar-container"><div class="funnel-bar" style="width:52.3%;background:linear-gradient(90deg,#0cce6b,#50e3c2)">23</div></div><div class="funnel-pct">52.3%</div></div>
+  </div>
+
+  <div class="commentary">
+    <div class="commentary-author">Commentary</div>
+    <p>The 63.6% registration-to-bid conversion is strong for a first event — nearly two thirds of everyone who signed up completed a bid. The drop from 44 to 32 at verification (72.7%) tells us 12 guests started but didn't complete email verification. For next year, SMS-based one-tap verification instead of email would eliminate the friction of switching apps at a dinner table. The 28→23 winning ratio shows healthy competition: some bidders were outbid and didn't return, which is where countdown alerts and "last chance" notifications could help.</p>
+  </div>
+
+  <!-- Price Point Analysis -->
+  <h3 style="font-size:16px;font-weight:600;margin:32px 0 20px;color:var(--text-primary)">Optimal Price Points</h3>
+  <p style="font-size:14px;color:var(--text-secondary);margin-bottom:24px">Bid engagement rate by minimum bid price range — revealing a clear "sweet spot" for future pricing.</p>
+
+  <div class="chart-container">
+    <h3>Bid Rate by Price Range</h3>
+    <div style="padding:8px 0">
+      <div class="price-bar-row">
+        <div class="price-bar-label">Under HK$10K</div>
+        <div class="price-bar-track"><div class="price-bar-fill" style="width:90%;background:var(--accent-green)">90% bid rate</div></div>
+        <div class="price-bar-detail">9/10 prizes · HK$72K</div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">HK$10K–20K</div>
+        <div class="price-bar-track"><div class="price-bar-fill" style="width:100%;background:var(--accent-green)">100% bid rate</div></div>
+        <div class="price-bar-detail">8/8 prizes · HK$171K</div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">HK$20K–35K</div>
+        <div class="price-bar-track"><div class="price-bar-fill" style="width:67%;background:var(--accent-orange)">67% bid rate</div></div>
+        <div class="price-bar-detail">4/6 prizes · HK$124K</div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">HK$35K–60K</div>
+        <div class="price-bar-track"><div class="price-bar-fill" style="width:5%;background:var(--accent-red)"><span style="position:absolute;left:10px">0%</span></div></div>
+        <div class="price-bar-detail">0/3 prizes · HK$0</div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">Over HK$60K</div>
+        <div class="price-bar-track"><div class="price-bar-fill" style="width:40%;background:var(--accent-orange)">40% bid rate</div></div>
+        <div class="price-bar-detail">2/5 prizes · HK$165K</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="commentary green">
+    <div class="commentary-author">Commentary</div>
+    <p>The data tells a clear story: <strong>HK$10K–20K is the sweet spot</strong> with a perfect 100% bid rate across 8 prizes, generating HK$171K. Under HK$10K also performed excellently at 90%. Above HK$20K, engagement drops sharply — and the HK$35K–60K range was a dead zone with zero bids on all three prizes.</p>
+    <p>The over-HK$60K tier still works, but only for truly exceptional marquee lots — our two winners there were the Zambezi and Kruger safaris, both instantly recognisable "bucket list" experiences. For next year, the recommendation is clear: stock more prizes in the HK$10K–25K range where guests bid impulsively, and reserve the HK$50K+ tier for one or two headline lots that create "wow factor" marketing.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION: Prize Deep-Dive -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="prize-analysis">
+  <div class="section-header">
+    <div class="section-label">Deep Dive</div>
+    <h2>What Should We Offer Next Time?</h2>
+    <p>A qualitative and quantitative analysis of which prize types resonated — and creative ideas for future events.</p>
+  </div>
+
+  <div class="chart-container">
+    <h3>What Worked: Patterns in Successful Prizes</h3>
+    <div style="display:grid;gap:20px;padding:8px 0">
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">Brand-name luxury hotels</strong>
+          <span style="font-size:13px;color:var(--accent-green);font-weight:600">3.7 bids avg · 52% above min</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">The two Mandarin Oriental prizes (Vienna and Bangkok) attracted 9 bids combined from 7 unique bidders. Guests felt confident bidding on a brand they know and trust. Both exceeded their minimum by 50–70%. This is a repeatable, reliable format.</div>
+      </div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">Low-price collectibles</strong>
+          <span style="font-size:13px;color:var(--accent-green);font-weight:600">3.5 bids avg · 140% above min</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">The antique maps (HK$3K min) were the surprise stars — generating the most intense bidding wars of the evening. Low entry price meant guests felt comfortable bidding impulsively, and the unique historical items created genuine passion from collectors. The Map of Arabia saw six rounds of bidding from four people.</div>
+      </div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">Intimate social experiences</strong>
+          <span style="font-size:13px;color:var(--accent-green);font-weight:600">87.5% sell-through</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">"Seminar with wines" (Rare Books, Historic Maps), cocktail courses, private sailing, battlefield walks — these small-group, expert-led experiences all sold. They combine exclusivity, social value, and a story to tell friends. This format is the sweet spot for the RGS audience.</div>
+      </div>
+      <div style="padding:12px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">African safaris</strong>
+          <span style="font-size:13px;color:var(--accent-gold);font-weight:600">HK$165K total · both sold</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">The Zambezi (HK$95K) and Kruger (HK$70K) both sold, generating 31% of all revenue from just two lots. Africa safaris have aspirational appeal and are a natural fit for a geographical society audience.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <h3>What Didn't Work: Patterns in Unsold Prizes</h3>
+    <div style="display:grid;gap:20px;padding:8px 0">
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">High-price unfamiliar destinations</strong>
+          <span style="font-size:13px;color:var(--accent-red);font-weight:600">0% sell-through</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">Arctic Lapland (HK$85K), Alpine Glacier (HK$60K), Eagle Hunters Mongolia (HK$60K), Lake Turkana Kenya (HK$35K) — all received zero bids. These are adventurous and extraordinary, but the combination of high price + unfamiliar destination + no brand partner was too risky for impulse bidding at a dinner table. Guests didn't know what they were getting.</div>
+      </div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">Group experiences for large numbers</strong>
+          <span style="font-size:13px;color:var(--accent-red);font-weight:600">0 bids · HK$48K</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">The Noon-Day Gun "Champagne Reception for up to 40 guests" at HK$48K didn't sell. While unique, the logistics of organising 40 people, plus the per-person math (HK$1,200 each) may have felt like poor value. Smaller group sizes (6–12) consistently sold better.</div>
+      </div>
+      <div style="padding:12px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">The HK$95K Photography Workshop</strong>
+          <span style="font-size:13px;color:var(--accent-red);font-weight:600">0 bids</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">Seven days in Portugal for a photography workshop is a beautiful proposition — but at HK$95K, it was competing with the Zambezi Safari (which is broadly aspirational) without the same universal appeal. A niche skill-based trip needs a lower entry point.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-container" style="border-left:3px solid var(--accent-purple)">
+    <h3>Creative Ideas for Future Auctions</h3>
+    <div style="display:grid;gap:20px;padding:8px 0">
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">"Seats on an Expedition" — shared trip model</strong>
+          <span class="badge" style="background:rgba(121,40,202,0.15);color:#a855f7;font-size:10px">New Format</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">Instead of auctioning an entire trip to a single winner, sell individual seats (e.g., 6 seats on a Mongolia expedition at HK$15K each). Winners travel together as a group of RGS members. This solves the price barrier (HK$15K per seat vs HK$60K for the whole trip), creates a social element ("who's coming on the Mongolia trip?"), and could actually raise more total revenue (6 × HK$15K = HK$90K vs HK$60K unsold). The multi-winner mechanism already exists in our platform.</div>
+      </div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">Partner with brand-name lodges and hotels</strong>
+          <span class="badge" style="background:rgba(121,40,202,0.15);color:#a855f7;font-size:10px">Strategy</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">The Mandarin Oriental prizes attracted 3–4x more bids than equally priced adventures. Pairing unique expeditions with Aman, Four Seasons, or &Beyond would give guests confidence in what they're buying. "Eagle Hunters Expedition with 3 nights at The Pavilions Mongolia" sounds very different from the same trip without the brand anchor.</div>
+      </div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">Hong Kong-based "secret" experiences</strong>
+          <span class="badge" style="background:rgba(121,40,202,0.15);color:#a855f7;font-size:10px">New Format</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">HK-centric experiences (Battlefield Walk, Stanley Lunch, Yacht Sailing, HK Club Dinner) all sold. Lean into this with more: private rooftop dinner at an iconic location, behind-the-scenes at the Star Ferry dockyard, sunrise hike with a celebrity naturalist, helicopter ride over the territory. Low logistics, high exclusivity, easy for guests to say "yes."</div>
+      </div>
+      <div style="padding:12px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:14px;color:var(--text-primary)">Tiered "experience ladder"</strong>
+          <span class="badge" style="background:rgba(121,40,202,0.15);color:#a855f7;font-size:10px">Strategy</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">Curate 3 tiers: "Quick Wins" (HK$5K–15K, HK-based experiences), "Weekenders" (HK$15K–30K, regional getaways), and "Expeditions" (HK$30K+, headline trips). This ensures every budget level has something to bid on, and the lower tiers build bidding momentum that carries through the evening.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="commentary">
+    <div class="commentary-author">Commentary</div>
+    <p>The "seats on a trip" model is particularly compelling for RGS. Many members join the Society specifically for the community — travelling with fellow members to Mongolia or Kenya has social value beyond the trip itself. Our multi-winner bid system already supports this format, so the implementation cost is near zero. If we had offered the Mongolia Eagle Hunters trip as 6 seats at HK$15K each, even selling just 4 seats would have generated HK$60K — matching the unsold full-trip minimum — while creating a more compelling, shareable experience.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION: Operations -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="operations">
+  <div class="section-header">
+    <div class="section-label">Operations</div>
+    <h2>Platform Performance & Live Bug Fixes</h2>
+    <p>Technical reliability metrics and issues resolved during the live event.</p>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-value green">100%</div><div class="stat-detail">Zero downtime throughout event</div></div>
+    <div class="stat-card"><div class="stat-label">SMS Delivery</div><div class="stat-value green">19/19</div><div class="stat-detail">100% via Twilio</div></div>
+    <div class="stat-card"><div class="stat-label">Failed Bids</div><div class="stat-value green">0</div><div class="stat-detail">Every bid processed successfully</div></div>
+    <div class="stat-card"><div class="stat-label">Table Helpers</div><div class="stat-value">5</div><div class="stat-detail">Dedicated dashboards</div></div>
+  </div>
+
+  <h3 style="font-size:16px;font-weight:600;margin:32px 0 20px;color:var(--text-primary)">Issues Resolved During the Live Event</h3>
+  <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">The engineering team monitored and deployed fixes throughout the evening. These were resolved in real-time without any guest-facing downtime.</p>
+
+  <div class="bug-card">
+    <div class="bug-icon" style="background:rgba(238,0,0,0.12);color:var(--accent-red)">⚡</div>
+    <div class="bug-content">
+      <h4>Database connection pooling vs. row locking</h4>
+      <p>The admin manual-bid system used PostgreSQL's <code style="background:#1a1a1a;padding:1px 6px;border-radius:4px;font-size:12px">SELECT FOR UPDATE</code> for transaction safety, but Supabase's PgBouncer connection pooler doesn't support row-level locks in transaction pooling mode. Admin bids were silently failing. We rewrote the entire admin bid route to use standard queries, eliminating the incompatibility while maintaining data integrity.</p>
+    </div>
+    <div class="bug-time">During auction</div>
+  </div>
+
+  <div class="bug-card">
+    <div class="bug-icon" style="background:rgba(245,166,35,0.15);color:var(--accent-orange)">🔧</div>
+    <div class="bug-content">
+      <h4>Multi-winner same-bidder duplicate</h4>
+      <p>For prizes with multiple winner slots (like the Rare Books Seminar), the same bidder could accidentally occupy two slots. We added logic to mark a bidder's previous winning bid as "OUTBID" before creating their new higher bid, ensuring one bidder gets one slot.</p>
+    </div>
+    <div class="bug-time">Pre-event fix</div>
+  </div>
+
+  <div class="bug-card">
+    <div class="bug-icon" style="background:rgba(245,166,35,0.15);color:var(--accent-orange)">🔧</div>
+    <div class="bug-content">
+      <h4>Live monitor page memory leaks</h4>
+      <p>The real-time monitor display (projected on screens) had three memory leak sources: polling intervals not clearing on component unmount, state updates on unmounted components, and growing event listener stacks. All three were patched to keep the monitor stable throughout the 3+ hour event.</p>
+    </div>
+    <div class="bug-time">Pre-event fix</div>
+  </div>
+
+  <div class="bug-card">
+    <div class="bug-icon" style="background:rgba(245,166,35,0.15);color:var(--accent-orange)">🔧</div>
+    <div class="bug-content">
+      <h4>Stale price race condition</h4>
+      <p>If two bidders had the prize page open simultaneously, one could submit a bid based on an outdated price. We added server-side validation that re-checks the current highest bid at submission time and returns a clear "price has changed" error with the updated minimum.</p>
+    </div>
+    <div class="bug-time">Pre-event fix</div>
+  </div>
+
+  <div class="bug-card">
+    <div class="bug-icon" style="background:rgba(245,166,35,0.15);color:var(--accent-orange)">🔧</div>
+    <div class="bug-content">
+      <h4>Admin bid email collision</h4>
+      <p>When admin submitted bids for guests without accounts, auto-generated emails sometimes collided with existing records. We added fallback logic to detect unique constraint violations and resolve to existing bidder records instead of failing.</p>
+    </div>
+    <div class="bug-time">During auction</div>
+  </div>
+
+  <div class="commentary">
+    <div class="commentary-author">Commentary</div>
+    <p>Running a live auction platform is like running a live broadcast — there's no "we'll fix it in the next release." The PgBouncer issue was the most critical, as it silently prevented all admin-submitted manual bids until we caught and resolved it. The lesson: always test the full production stack (including connection poolers and edge proxies) before go-live, not just the application code. Despite these challenges, every single bid placed by a guest was processed successfully, and zero issues were visible to the audience.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION: Recommendations -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="recommendations">
+  <div class="section-header">
+    <div class="section-label">Looking Ahead</div>
+    <h2>Recommendations for Future Events</h2>
+    <p>Prioritised improvements based on data and operational learnings.</p>
+  </div>
+
+  <div class="chart-container">
+    <h3>Product & User Experience</h3>
+    <div style="display:grid;gap:16px;padding:8px 0">
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">SMS-based registration (skip email verification)</strong><span class="badge" style="background:rgba(238,0,0,0.12);color:#ff4444;font-size:10px">High Impact</span></div><div style="font-size:13px;color:var(--text-secondary)">12 guests (27%) dropped off at email verification. One-tap SMS verification would significantly reduce friction at a live dinner event.</div></div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Countdown & "closing soon" push notifications</strong><span class="badge" style="background:rgba(238,0,0,0.12);color:#ff4444;font-size:10px">High Impact</span></div><div style="font-size:13px;color:var(--text-secondary)">Timed alerts at 30 min, 10 min, and 5 min would drive last-minute bidding wars and urgency. This is where most of the "competitive premium" revenue opportunity lies.</div></div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Live "Table Leaderboard" on projector screens</strong><span class="badge" style="background:rgba(245,166,35,0.15);color:#f5a623;font-size:10px">Medium</span></div><div style="font-size:13px;color:var(--text-secondary)">Show table rankings to drive social competition. Table 3 (HK$152K) would have been a magnet for rivalry. Our "Table Battle" display already exists — it just needs to be projected.</div></div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">QR code per table for instant registration</strong><span class="badge" style="background:rgba(245,166,35,0.15);color:#f5a623;font-size:10px">Medium</span></div><div style="font-size:13px;color:var(--text-secondary)">Auto-fill table number from QR code. Reduces data entry friction and ensures correct table assignment.</div></div>
+      <div style="padding:12px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Prize image gallery with swipe navigation</strong><span class="badge" style="background:rgba(12,206,107,0.15);color:#0cce6b;font-size:10px">Nice to Have</span></div><div style="font-size:13px;color:var(--text-secondary)">Swipeable image galleries would help showcase visual experiences (safaris, wine country) beyond a single thumbnail.</div></div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <h3>Pricing & Curation Strategy</h3>
+    <div style="display:grid;gap:16px;padding:8px 0">
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Stock more prizes in the HK$10K–25K sweet spot</strong><span class="badge" style="background:rgba(238,0,0,0.12);color:#ff4444;font-size:10px">High Impact</span></div><div style="font-size:13px;color:var(--text-secondary)">100% of prizes in the HK$10K–20K range sold. Every prize under HK$30K minimum received at least one bid. This is where impulsive dinner-table bidding thrives.</div></div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Adopt the "seats on a trip" model for expeditions</strong><span class="badge" style="background:rgba(238,0,0,0.12);color:#ff4444;font-size:10px">High Impact</span></div><div style="font-size:13px;color:var(--text-secondary)">Sell individual seats at HK$10K–20K instead of entire trips at HK$60K+. This reduces entry barriers, creates social appeal, and could unlock more total revenue. Platform already supports multi-winner prizes.</div></div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Reduce to 15–20 curated lots</strong><span class="badge" style="background:rgba(245,166,35,0.15);color:#f5a623;font-size:10px">Medium</span></div><div style="font-size:13px;color:var(--text-secondary)">32 prizes across 44 bidders meant less competitive energy per prize. Fewer, higher-quality lots would concentrate bidding wars and drive more competition.</div></div>
+      <div style="padding:12px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Bundle expeditions with brand-name partners</strong><span class="badge" style="background:rgba(245,166,35,0.15);color:#f5a623;font-size:10px">Medium</span></div><div style="font-size:13px;color:var(--text-secondary)">MO prizes attracted 3–4x more bids than equally priced adventures. Pair unique trips with Four Seasons, Aman, or &Beyond to build bidder confidence.</div></div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <h3>Technical Infrastructure</h3>
+    <div style="display:grid;gap:16px;padding:8px 0">
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Direct database connection for write operations</strong><span class="badge" style="background:rgba(238,0,0,0.12);color:#ff4444;font-size:10px">High Impact</span></div><div style="font-size:13px;color:var(--text-secondary)">Route writes through the direct Postgres connection instead of PgBouncer to ensure transactional integrity. This was the root cause of our live bug.</div></div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Real-time WebSocket subscriptions</strong><span class="badge" style="background:rgba(245,166,35,0.15);color:#f5a623;font-size:10px">Medium</span></div><div style="font-size:13px;color:var(--text-secondary)">Replace polling with Supabase Realtime for instant bid updates and lower server load.</div></div>
+      <div style="padding:12px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><strong style="font-size:14px">Automated winner confirmation & invoice flow</strong><span class="badge" style="background:rgba(245,166,35,0.15);color:#f5a623;font-size:10px">Medium</span></div><div style="font-size:13px;color:var(--text-secondary)">Post-auction winner confirmation and payment collection was fully manual. An automated flow (confirm → invoice → payment link) would save hours of admin work.</div></div>
+    </div>
+  </div>
+
+  <div class="commentary gold">
+    <div class="commentary-author">Commentary</div>
+    <p>The 30th Anniversary Gala's silent auction was a successful proof of concept for digital fundraising at RGS-HK. We raised HK$643,500 with zero platform failures and 100% SMS delivery. The competitive bidding mechanism alone generated HK$37,000 in premium revenue that wouldn't have existed in a paper format — and with better urgency mechanics and pricing, that figure could more than double.</p>
+    <p>The path to exceeding HK$1M at a future event is clear: lower the entry price for more prizes into the HK$10K–25K sweet spot, introduce the "seats on a trip" model for expedition lots, add countdown-driven urgency in the final 30 minutes, and project a live Table Leaderboard to turn bidding into a social competition. The technology foundation is solid — the opportunity now is in how we curate, price, and present the prizes.</p>
+  </div>
+</section>
+
+<!-- ─── Footer ─── -->
+<footer>
+  <div style="margin-bottom:12px;color:var(--text-secondary)">Royal Geographical Society — Hong Kong</div>
+  <div>Built with care for the 30th Anniversary Gala · 28 February 2026</div>
+</footer>
+
+<script>
+// Tab switching
+function switchTab(tabId, btn) {
+  const parent = btn.closest('section') || document;
+  parent.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+  parent.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Timeline chart - all times now HKT (UTC+8)
+const timelineData = [
+  { time: '7:45p', bids: 2 },
+  { time: '8:00p', bids: 12 },
+  { time: '8:15p', bids: 5 },
+  { time: '8:30p', bids: 2 },
+  { time: '8:45p', bids: 0 },
+  { time: '9:00p', bids: 0 },
+  { time: '9:15p', bids: 6 },
+  { time: '9:30p', bids: 3 },
+  { time: '9:45p', bids: 8 },
+  { time: '10:00p', bids: 3 },
+  { time: '10:15p', bids: 3 },
+  { time: '10:30p', bids: 2 },
+  { time: '10:45p', bids: 1 },
+  { time: '11:00p', bids: 1 },
+  { time: '11:15p', bids: 1 },
+];
+
+const maxBids = Math.max(...timelineData.map(d => d.bids));
+const chartEl = document.getElementById('timelineChart');
+timelineData.forEach(d => {
+  const col = document.createElement('div');
+  col.className = 'bar-chart-col';
+  const val = document.createElement('div');
+  val.className = 'bar-value';
+  val.textContent = d.bids || '';
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  const heightPct = maxBids > 0 ? (d.bids / maxBids * 100) : 0;
+  bar.style.height = Math.max(heightPct, 2) + '%';
+  if (d.bids >= 8) bar.style.background = 'var(--accent-gold)';
+  else if (d.bids >= 5) bar.style.background = 'var(--accent-blue)';
+  else bar.style.background = '#333';
+  const label = document.createElement('div');
+  label.className = 'bar-label';
+  label.textContent = d.time;
+  col.appendChild(val);
+  col.appendChild(bar);
+  col.appendChild(label);
+  chartEl.appendChild(col);
+});
+
+// Smooth scroll nav
+document.querySelectorAll('nav a[href^="#"]').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    link.classList.add('active');
+  });
+});
+
+// Active nav on scroll
+const sections = document.querySelectorAll('section[id]');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(section => {
+    const top = section.offsetTop - 100;
+    if (window.scrollY >= top) current = section.id;
+  });
+  document.querySelectorAll('nav a').forEach(a => {
+    a.classList.remove('active');
+    if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
